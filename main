@@ -101,4 +101,45 @@ window.tableDebug = {
     getTable: () => window.basketballTable
 };
 
+// Register Service Worker for caching
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then((registration) => {
+                console.log('Service Worker registered:', registration.scope);
+                
+                // Check for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    console.log('Service Worker update found');
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('New Service Worker installed, refresh for updates');
+                        }
+                    });
+                });
+            })
+            .catch((error) => {
+                console.log('Service Worker registration failed:', error);
+            });
+    });
+}
+
+// Helper to clear service worker cache
+window.clearServiceWorkerCache = function() {
+    if (navigator.serviceWorker.controller) {
+        const messageChannel = new MessageChannel();
+        messageChannel.port1.onmessage = (event) => {
+            if (event.data.success) {
+                console.log('Cache cleared successfully');
+            }
+        };
+        navigator.serviceWorker.controller.postMessage(
+            { type: 'CLEAR_API_CACHE' },
+            [messageChannel.port2]
+        );
+    }
+};
+
 console.log("✅ Basketball table system loaded");
