@@ -1,6 +1,6 @@
-// shared/config.js - COMPLETE RESPONSIVE CONFIGURATION WITH FIXED DIMENSIONS
+// shared/config.js - Basketball Props Configuration
 export const CONFIG = {
-    // Supabase Configuration
+    // Supabase Configuration (same database as baseball)
     SUPABASE_URL: 'https://hcwolbvmffkmjcxsumwn.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjd29sYnZtZmZrbWpjeHN1bXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzNDQzMTIsImV4cCI6MjA1NTkyMDMxMn0.tM4RwXZpZM6ZHuFFMhWcKYLT3E4NA6Ig90CHw7QtJf0',
     
@@ -25,161 +25,66 @@ export const CONFIG = {
             pageSize: 1000,
             maxRetries: 3,
             retryDelay: 1000,
-            timeout: 300000,
-            maxRequestsPerSecond: 5,
-            enableBatching: true,
-            cacheEnabled: true,
-            cacheDuration: 15 * 60 * 1000
         }
     },
     
-    // Table Names
-    TABLES: {
-        BATTER_CLEARANCES: 'ModBatterClearances',
-        PITCHER_CLEARANCES: 'ModPitcherClearances',
-        BATTER_CLEARANCES_ALT: 'ModBatterClearancesAlt',
-        PITCHER_CLEARANCES_ALT: 'ModPitcherClearancesAlt',
-        MOD_BATTER_STATS: 'ModBatterStats',
-        MOD_PITCHER_STATS: 'ModPitcherStats',
-        MATCHUPS: 'ModMatchupsData',
-        BATTER_ODDS: 'ModBatterOdds',
-        PITCHER_ODDS: 'ModPitcherOdds',
-        BATTER_PROPS: 'ModBatterProps',
-        PITCHER_PROPS: 'ModPitcherProps',
-        GAME_PROPS: 'ModGameProps'
-    },
-    
-    // FIXED TABLE DIMENSIONS - Properly sized to prevent overflow
-    TABLE_DIMENSIONS: {
-        // Desktop dimensions (1200px+ screens) - CORRECTED WIDTHS
-        desktop: {
-            matchups: { 
-                width: 1200, 
-                maxWidth: 1200,
-                subtableWidth: 1120, // Leaves room for padding
-                parkFactorsWidth: 550,
-                weatherWidth: 550
-            },
-            batterClearances: { 
-                width: 1400, // Reduced from 1860px
-                maxWidth: 1400 
-            },
-            batterClearancesAlt: { 
-                width: 1200, // Reduced from 1360px
-                maxWidth: 1200 
-            },
-            pitcherClearances: { 
-                width: 1400, // Reduced from 1860px
-                maxWidth: 1400 
-            },
-            pitcherClearancesAlt: { 
-                width: 1200, // Reduced from 1360px
-                maxWidth: 1200 
-            },
-            modBatterStats: { 
-                width: 1400, // Reduced from 1720px
-                maxWidth: 1400 
-            },
-            modPitcherStats: { 
-                width: 1400, // Reduced from 1720px
-                maxWidth: 1400 
-            },
-            batterProps: { 
-                width: 1400, // Reduced from 1720px
-                maxWidth: 1400 
-            },
-            pitcherProps: { 
-                width: 1400, // Reduced from 1720px
-                maxWidth: 1400 
-            },
-            gameProps: { 
-                width: 1400, // Reduced from 1720px
-                maxWidth: 1400 
-            }
-        },
-        // Tablet dimensions (768px - 1199px)
-        tablet: {
-            scale: 0.85,
-            transformOrigin: 'top center',
-            containerWidth: '118%' // 100 / 0.85
-        },
-        // Mobile dimensions (< 768px)
-        mobile: {
-            scale: 0.75,
-            transformOrigin: 'top center',
-            containerWidth: '133%' // 100 / 0.75
-        }
-    },
-    
-    // Responsive breakpoints
+    // Responsive Breakpoints
     BREAKPOINTS: {
-        mobile: 767,
-        tablet: 1199,
-        desktop: 1200,
-        ultrawide: 1920
+        mobile: 768,
+        tablet: 1024,
+        desktop: 1280
     },
     
-    // Display Configuration
-    DISPLAY: {
-        ROWS_PER_PAGE: 50,
-        MAX_ROWS_VIRTUAL: 10000,
-        DEBOUNCE_DELAY: 300,
-        ANIMATION_DURATION: 200,
-        TABLE_HEIGHT: '600px',
-        HEADER_HEIGHT: 30,
-        ROW_HEIGHT: 28,
-        MOBILE_SCALE: 0.75,
-        TABLET_SCALE: 0.85,
-        REMOVE_ALL_SCROLLBARS: true,
-        ENABLE_PINCH_ZOOM: true
+    // Table Dimensions
+    TABLE_DIMENSIONS: {
+        mobile: {
+            scale: 0.85,
+            minFontSize: 11
+        },
+        tablet: {
+            scale: 0.92,
+            minFontSize: 12
+        },
+        desktop: {
+            playerPropClearances: {
+                minWidth: 1400,
+                maxWidth: 1800
+            }
+        }
     },
     
-    // Feature Flags
-    FEATURES: {
-        ENABLE_CACHING: true,
-        ENABLE_VIRTUAL_DOM: true,
-        ENABLE_PROGRESSIVE_LOADING: true,
-        ENABLE_STATE_PRESERVATION: true,
-        ENABLE_ODDS_INTEGRATION: true,
-        ENABLE_RESPONSIVE_TABLES: true,
-        REMOVE_SCROLLBARS: true,
-        ENABLE_MOBILE_PINCH_ZOOM: true,
-        USE_FIXED_TABLE_CONTAINERS: true,
-        ENABLE_BACKGROUND_IMAGES: true
-    },
-    
-    // Team Abbreviations Mapping
+    // NBA Team Abbreviations
     TEAM_ABBREVIATIONS: {
-        'Arizona Diamondbacks': 'ARI',
-        'Atlanta Braves': 'ATL',
-        'Baltimore Orioles': 'BAL',
-        'Boston Red Sox': 'BOS',
-        'Chicago Cubs': 'CHC',
-        'Chicago White Sox': 'CHW',
-        'Cincinnati Reds': 'CIN',
-        'Cleveland Guardians': 'CLE',
-        'Colorado Rockies': 'COL',
-        'Detroit Tigers': 'DET',
-        'Houston Astros': 'HOU',
-        'Kansas City Royals': 'KC',
-        'Los Angeles Angels': 'LAA',
-        'Los Angeles Dodgers': 'LAD',
-        'Miami Marlins': 'MIA',
-        'Milwaukee Brewers': 'MIL',
-        'Minnesota Twins': 'MIN',
-        'New York Mets': 'NYM',
-        'New York Yankees': 'NYY',
-        'Oakland Athletics': 'OAK',
-        'Philadelphia Phillies': 'PHI',
-        'Pittsburgh Pirates': 'PIT',
-        'San Diego Padres': 'SD',
-        'San Francisco Giants': 'SF',
-        'Seattle Mariners': 'SEA',
-        'St. Louis Cardinals': 'STL',
-        'Tampa Bay Rays': 'TB',
-        'Texas Rangers': 'TEX',
-        'Toronto Blue Jays': 'TOR',
-        'Washington Nationals': 'WSH'
+        'Atlanta Hawks': 'ATL',
+        'Boston Celtics': 'BOS',
+        'Brooklyn Nets': 'BKN',
+        'Charlotte Hornets': 'CHA',
+        'Chicago Bulls': 'CHI',
+        'Cleveland Cavaliers': 'CLE',
+        'Dallas Mavericks': 'DAL',
+        'Denver Nuggets': 'DEN',
+        'Detroit Pistons': 'DET',
+        'Golden State Warriors': 'GSW',
+        'Houston Rockets': 'HOU',
+        'Indiana Pacers': 'IND',
+        'Los Angeles Clippers': 'LAC',
+        'Los Angeles Lakers': 'LAL',
+        'Memphis Grizzlies': 'MEM',
+        'Miami Heat': 'MIA',
+        'Milwaukee Bucks': 'MIL',
+        'Minnesota Timberwolves': 'MIN',
+        'New Orleans Pelicans': 'NOP',
+        'New York Knicks': 'NYK',
+        'Oklahoma City Thunder': 'OKC',
+        'Orlando Magic': 'ORL',
+        'Philadelphia 76ers': 'PHI',
+        'Phoenix Suns': 'PHX',
+        'Portland Trail Blazers': 'POR',
+        'Sacramento Kings': 'SAC',
+        'San Antonio Spurs': 'SAS',
+        'Toronto Raptors': 'TOR',
+        'Utah Jazz': 'UTA',
+        'Washington Wizards': 'WAS'
     },
     
     // Service Worker Configuration
@@ -187,9 +92,9 @@ export const CONFIG = {
         enabled: false,
         cacheVersion: 'v1',
         cacheNames: {
-            static: 'tabulator-static-v1',
-            api: 'tabulator-api-v1',
-            runtime: 'tabulator-runtime-v1'
+            static: 'basketball-static-v1',
+            api: 'basketball-api-v1',
+            runtime: 'basketball-runtime-v1'
         }
     }
 };
@@ -211,21 +116,18 @@ export function getTableDimensions(tableName) {
     const width = window.innerWidth;
     
     if (width <= CONFIG.BREAKPOINTS.mobile) {
-        // Mobile - return desktop dimensions but they'll be scaled
         return {
             ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
             scale: CONFIG.TABLE_DIMENSIONS.mobile.scale,
             needsScaling: true
         };
     } else if (width <= CONFIG.BREAKPOINTS.tablet) {
-        // Tablet
         return {
             ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
             scale: CONFIG.TABLE_DIMENSIONS.tablet.scale,
             needsScaling: true
         };
     } else {
-        // Desktop
         return {
             ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
             scale: 1,
