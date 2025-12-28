@@ -1,64 +1,141 @@
-// tables/batterClearancesTable.js - FIXED VERSION WITH BEST ODDS COLUMNS
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances Table
 import { BaseTable } from './baseTable.js';
-import { getOpponentTeam, getSwitchHitterVersus, formatPercentage, formatRatio, removeLeadingZeroFromValue} from '../shared/utils.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
+import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 
-export class BatterClearancesTable extends BaseTable {
+export class BasketPlayerPropClearancesTable extends BaseTable {
     constructor(elementId) {
-        super(elementId, 'ModBatterClearances');
+        super(elementId, 'BasketPlayerPropClearances');
     }
 
     initialize() {
         const config = {
             ...this.tableConfig,
-            placeholder: "Loading all batter clearance records...",
+            placeholder: "Loading basketball player prop clearances...",
             columns: this.getColumns(),
             initialSort: [
-                {column: "Batter Name", dir: "asc"},
-                {column: "Batter Team", dir: "asc"},
-                {column: "Batter Prop Type", dir: "asc"},
-                {column: "Batter Prop Value", dir: "asc"}
+                {column: "Player Name", dir: "asc"},
+                {column: "Player Team", dir: "asc"},
+                {column: "Player Prop", dir: "asc"},
+                {column: "Player Prop Value", dir: "asc"}
             ],
             rowFormatter: this.createRowFormatter()
         };
 
         this.table = new Tabulator(this.elementId, config);
         
-        // CRITICAL: Use the base class setupRowExpansion which has proper global state management
+        // Use the base class setupRowExpansion for proper global state management
         this.setupRowExpansion();
         
         this.table.on("tableBuilt", () => {
-            console.log("Batter Clearances table built successfully");
+            console.log("Basketball Player Prop Clearances table built successfully");
         });
     }
 
+    // Custom sorter for "X/Y" format (e.g., "19/31") - sorts by first number
+    gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams) {
+        // Extract first number from "X/Y" format
+        const getFirstNum = (val) => {
+            if (!val || val === '-') return -1;
+            const str = String(val);
+            if (str.includes('/')) {
+                return parseInt(str.split('/')[0], 10) || 0;
+            }
+            return parseInt(str, 10) || 0;
+        };
+        
+        const aNum = getFirstNum(a);
+        const bNum = getFirstNum(b);
+        
+        return aNum - bNum;
+    }
+
+    // Custom sorter for "X (Y.Y)" format (e.g., "21 (25.2)") - sorts by first number
+    rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
+        const getFirstNum = (val) => {
+            if (!val || val === '-') return 9999; // Sort blanks to end
+            const str = String(val);
+            if (str.includes('(')) {
+                return parseInt(str.split('(')[0].trim(), 10) || 9999;
+            }
+            return parseInt(str, 10) || 9999;
+        };
+        
+        const aNum = getFirstNum(a);
+        const bNum = getFirstNum(b);
+        
+        return aNum - bNum;
+    }
+
     getColumns() {
-        // Odds formatter function
-        const oddsFormatter = function(cell) {
+        const self = this;
+        
+        // Formatter for clearance percentage (always 1 decimal)
+        const clearanceFormatter = (cell) => {
             const value = cell.getValue();
-            if (!value || value === null || value === undefined) return "-";
-            const num = parseInt(value);
-            if (isNaN(num)) return "-";
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            return (num * 100).toFixed(1) + '%';
+        };
+
+        // Formatter for decimal values (always 1 decimal)
+        const oneDecimalFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            return num.toFixed(1);
+        };
+
+        // Formatter for odds (adds + prefix for positive)
+        const oddsFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseInt(value, 10);
+            if (isNaN(num)) return '-';
             return num > 0 ? `+${num}` : `${num}`;
         };
 
+        // Formatter for Opponent Prop Rank "X (Y.Y)" format - ensures 1 decimal on second number
+        const rankWithValueFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '-';
+            const str = String(value);
+            
+            // If it's already in "X (Y.Y)" format, ensure decimal formatting
+            if (str.includes('(')) {
+                const parts = str.match(/^(\d+)\s*\(([^)]+)\)$/);
+                if (parts) {
+                    const rank = parts[1];
+                    const avg = parseFloat(parts[2]);
+                    if (!isNaN(avg)) {
+                        return `${rank} (${avg.toFixed(1)})`;
+                    }
+                }
+            }
+            return str;
+        };
+
         return [
+            // Player Info Group
             {title: "Player Info", columns: [
                 {
                     title: "Name", 
-                    field: "Batter Name", 
-                    width: 200, 
-                    minWidth: 150,
+                    field: "Player Name", 
+                    width: 160, 
+                    minWidth: 130,
                     sorter: "string", 
                     headerFilter: true,
                     resizable: false,
-                    formatter: this.createNameFormatter()
+                    formatter: this.createNameFormatter(),
+                    frozen: true
                 },
                 {
                     title: "Team", 
-                    field: "Batter Team", 
-                    width: 100,
-                    minWidth: 60,
+                    field: "Player Team", 
+                    width: 70,
+                    minWidth: 55,
                     sorter: "string", 
                     headerFilter: (cell, onRendered, success, cancel, editorParams) => {
                         return createCustomMultiSelect(cell, onRendered, success, cancel, {
@@ -66,159 +143,239 @@ export class BatterClearancesTable extends BaseTable {
                         });
                     },
                     resizable: false,
+                    hozAlign: "center"
                 }
             ]},
+            
+            // Prop Info Group
             {title: "Prop Info", columns: [
                 {
                     title: "Prop", 
-                    field: "Batter Prop Type", 
-                    width: 100, 
-                    minWidth: 80,
+                    field: "Player Prop", 
+                    width: 110, 
+                    minWidth: 90,
                     sorter: "string", 
                     headerFilter: (cell, onRendered, success, cancel, editorParams) => {
                         return createCustomMultiSelect(cell, onRendered, success, cancel, {
-                            dropdownWidth: 180
+                            dropdownWidth: 160
                         });
                     },
                     resizable: false
                 },
                 {
-                    title: "Value", 
-                    field: "Batter Prop Value", 
-                    width: 100, 
-                    minWidth: 80,
+                    title: "Line", 
+                    field: "Player Prop Value", 
+                    width: 75, 
+                    minWidth: 65,
                     sorter: "number", 
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
+                    resizable: false,
+                    hozAlign: "center"
+                },
+                {
+                    title: "Split", 
+                    field: "Split", 
+                    width: 85, 
+                    minWidth: 70,
                     headerFilter: (cell, onRendered, success, cancel, editorParams) => {
                         return createCustomMultiSelect(cell, onRendered, success, cancel, {
-                            dropdownWidth: 100
+                            dropdownWidth: 120
                         });
                     },
-                    resizable: false
+                    resizable: false,
+                    hozAlign: "center"
                 }
             ]},
-            {title: "Full Season", columns: [
+
+            // Clearance Data Group
+            {title: "Clearance", columns: [
                 {
-                    title: "% Above", 
-                    field: "Clearance Season", 
-                    width: 100, 
-                    minWidth: 85,
-                    sorter: "number", 
-                    sorterParams: {dir: "desc"},
-                    resizable: false,
-                    formatter: (cell) => formatPercentage(cell.getValue())
-                },
-                {
-                    title: "Games", 
-                    field: "Games Season", 
-                    width: 85, 
+                    title: "% Over", 
+                    field: "Player Clearance", 
+                    width: 80, 
                     minWidth: 70,
                     sorter: "number",
                     sorterParams: {dir: "desc"},
-                    resizable: false
-                }
-            ]},
-            {title: "Full Season (Home/Away)", columns: [
-                {
-                    title: "% Above", 
-                    field: "Clearance Season At", 
-                    width: 100, 
-                    minWidth: 85,
-                    sorter: "number",
-                    sorterParams: {dir: "desc"},
                     resizable: false,
-                    formatter: (cell) => formatPercentage(cell.getValue())
+                    formatter: clearanceFormatter,
+                    hozAlign: "center"
                 },
                 {
                     title: "Games", 
-                    field: "Games Season At", 
-                    width: 85, 
-                    minWidth: 70,
-                    sorter: "number",
-                    sorterParams: {dir: "desc"},
-                    resizable: false
+                    field: "Player Games", 
+                    width: 75, 
+                    minWidth: 65,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                    },
+                    resizable: false,
+                    hozAlign: "center"
                 }
             ]},
-            {title: "Last 30 Days", columns: [
+
+            // Matchup Context Group
+            {title: "Opponent", columns: [
                 {
-                    title: "% Above", 
-                    field: "Clearance 30", 
-                    width: 100, 
-                    minWidth: 85,
+                    title: "Pace Rnk", 
+                    field: "Opponent Pace Rank", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
-                    sorterParams: {dir: "desc"},
                     resizable: false,
-                    formatter: (cell) => formatPercentage(cell.getValue())
+                    hozAlign: "center"
                 },
                 {
-                    title: "Games", 
-                    field: "Games 30", 
-                    width: 85, 
-                    minWidth: 70,
-                    sorter: "number",
-                    sorterParams: {dir: "desc"},
-                    resizable: false
+                    title: "Prop Rnk", 
+                    field: "Opponent Prop Rank", 
+                    width: 90, 
+                    minWidth: 75,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                    },
+                    formatter: rankWithValueFormatter,
+                    resizable: false,
+                    hozAlign: "center"
                 }
             ]},
-            {title: "Last 30 Days (Home/Away)", columns: [
+
+            // Lineup Status
+            {
+                title: "Lineup", 
+                field: "Lineup Status", 
+                width: 85, 
+                minWidth: 70,
+                sorter: "string",
+                headerFilter: (cell, onRendered, success, cancel, editorParams) => {
+                    return createCustomMultiSelect(cell, onRendered, success, cancel, {
+                        dropdownWidth: 120
+                    });
+                },
+                resizable: false,
+                hozAlign: "center"
+            },
+
+            // Statistical Summary Group
+            {title: "Player Stats", columns: [
                 {
-                    title: "% Above", 
-                    field: "Clearance 30 At", 
-                    width: 100, 
-                    minWidth: 85,
+                    title: "Median", 
+                    field: "Player Prop Median", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
-                    sorterParams: {dir: "desc"},
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
                     resizable: false,
-                    formatter: (cell) => formatPercentage(cell.getValue())
+                    hozAlign: "center",
+                    formatter: oneDecimalFormatter
                 },
                 {
-                    title: "Games", 
-                    field: "Games 30 At", 
-                    width: 85, 
-                    minWidth: 70,
+                    title: "Avg", 
+                    field: "Player Prop Average", 
+                    width: 65, 
+                    minWidth: 55,
                     sorter: "number",
-                    sorterParams: {dir: "desc"},
-                    resizable: false
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
+                    resizable: false,
+                    hozAlign: "center",
+                    formatter: oneDecimalFormatter
+                },
+                {
+                    title: "High", 
+                    field: "Player Prop High", 
+                    width: 60, 
+                    minWidth: 50,
+                    sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
+                    resizable: false,
+                    hozAlign: "center"
+                },
+                {
+                    title: "Low", 
+                    field: "Player Prop Low", 
+                    width: 55, 
+                    minWidth: 50,
+                    sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
+                    resizable: false,
+                    hozAlign: "center"
+                },
+                {
+                    title: "Mode", 
+                    field: "Player Prop Mode", 
+                    width: 60, 
+                    minWidth: 50,
+                    sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
+                    resizable: false,
+                    hozAlign: "center"
                 }
             ]},
+
+            // Median Odds Group
             {title: "Median Odds", columns: [
                 {
                     title: "Over", 
-                    field: "Batter Median Over Odds", 
-                    width: 90, 
-                    minWidth: 75,
+                    field: "Player Median Over Odds", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
                     resizable: false,
                     formatter: oddsFormatter,
                     hozAlign: "center"
                 },
                 {
                     title: "Under", 
-                    field: "Batter Median Under Odds", 
-                    width: 90, 
-                    minWidth: 75,
+                    field: "Player Median Under Odds", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
                     resizable: false,
                     formatter: oddsFormatter,
                     hozAlign: "center"
                 }
             ]},
+
+            // Best Odds Group
             {title: "Best Odds", columns: [
                 {
                     title: "Over", 
-                    field: "Batter Best Over Odds", 
-                    width: 90, 
-                    minWidth: 75,
+                    field: "Player Best Over Odds", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
                     resizable: false,
                     formatter: oddsFormatter,
                     hozAlign: "center"
                 },
                 {
                     title: "Under", 
-                    field: "Batter Best Under Odds", 
-                    width: 90, 
-                    minWidth: 75,
+                    field: "Player Best Under Odds", 
+                    width: 70, 
+                    minWidth: 60,
                     sorter: "number",
+                    headerFilter: createMinMaxFilter,
+                    headerFilterFunc: minMaxFilterFunction,
+                    headerFilterLiveFilter: false,
                     resizable: false,
                     formatter: oddsFormatter,
                     hozAlign: "center"
@@ -231,245 +388,94 @@ export class BatterClearancesTable extends BaseTable {
         const self = this;
         
         return (row) => {
-            var data = row.getData();
-            var rowElement = row.getElement();
+            const data = row.getData();
+            const rowElement = row.getElement();
             
             // Initialize _expanded if undefined
             if (data._expanded === undefined) {
                 data._expanded = false;
             }
             
-            // Add/remove expanded class
-            if (data._expanded) {
-                rowElement.classList.add('row-expanded');
-            } else {
-                rowElement.classList.remove('row-expanded');
+            // Clear any existing subrow
+            const existingSubrow = rowElement.querySelector('.subrow-container');
+            if (existingSubrow) {
+                existingSubrow.remove();
             }
             
-            // Handle expansion
+            // If expanded, create and append the expandable content
             if (data._expanded) {
-                // Check if subtables already exist
-                let existingSubrow = rowElement.querySelector('.subrow-container');
+                const subrowContainer = document.createElement('div');
+                subrowContainer.className = 'subrow-container';
+                subrowContainer.style.cssText = `
+                    padding: 15px 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                    border-top: 2px solid #667eea;
+                    margin-top: 0;
+                `;
                 
-                // During restoration or if doesn't exist, create subtables
-                if (!existingSubrow || self.isRestoringState) {
-                    // Remove old subtable if it exists during restoration
-                    if (existingSubrow && self.isRestoringState) {
-                        existingSubrow.remove();
-                        existingSubrow = null;
-                    }
-                    
-                    if (!existingSubrow) {
-                        // Create container for subtables using requestAnimationFrame for better performance
-                        requestAnimationFrame(() => {
-                            var holderEl = document.createElement("div");
-                            holderEl.classList.add('subrow-container');
-                            holderEl.style.cssText = 'padding: 10px; background: #f8f9fa; margin: 10px 0; border-radius: 4px; display: block; width: 100%; position: relative; z-index: 1;';
-                            
-                            var subtable1 = document.createElement("div");
-                            subtable1.style.marginBottom = "15px";
-                            var subtable2 = document.createElement("div");
-                            
-                            holderEl.appendChild(subtable1);
-                            holderEl.appendChild(subtable2);
-                            rowElement.appendChild(holderEl);
-                            
-                            // Create subtables with error handling
-                            try {
-                                self.createSubtable1(subtable1, data);
-                            } catch (error) {
-                                console.error("Error creating subtable1:", error);
-                                subtable1.innerHTML = '<div style="padding: 10px; color: red;">Error loading subtable 1: ' + error.message + '</div>';
-                            }
-                            
-                            try {
-                                self.createSubtable2(subtable2, data);
-                            } catch (error) {
-                                console.error("Error creating subtable2:", error);
-                                subtable2.innerHTML = '<div style="padding: 10px; color: red;">Error loading subtable 2: ' + error.message + '</div>';
-                            }
-                            
-                            // Force row height recalculation
-                            setTimeout(() => {
-                                row.normalizeHeight();
-                            }, 100);
-                        });
-                    }
-                }
+                // Create expandable content
+                this.createExpandableContent(subrowContainer, data);
+                
+                rowElement.appendChild(subrowContainer);
+                rowElement.style.backgroundColor = '#f0f4ff';
             } else {
-                // Handle contraction
-                var existingSubrow = rowElement.querySelector('.subrow-container');
-                if (existingSubrow) {
-                    existingSubrow.remove();
-                    rowElement.classList.remove('row-expanded');
-                    
-                    // Force row height recalculation
-                    setTimeout(() => {
-                        row.normalizeHeight();
-                    }, 50);
-                }
+                rowElement.style.backgroundColor = '';
             }
         };
     }
 
-    createSubtable1(container, data) {
-        const matchup = data["Matchup"] || "";
-        const batterTeam = data["Batter Team"];
-        
-        let location = "Unknown";
-        if (matchup.includes(" @ ")) {
-            const teams = matchup.split(" @ ");
-            if (teams.length === 2) {
-                const awayTeam = teams[0].trim().match(/\b[A-Z]{2,4}\b/);
-                const homeTeam = teams[1].trim().match(/\b[A-Z]{2,4}\b/);
-                
-                if (awayTeam && awayTeam[0] === batterTeam) {
-                    location = "Away";
-                } else if (homeTeam && homeTeam[0] === batterTeam) {
-                    location = "Home";
-                }
-            }
-        } else if (matchup.includes(" vs ")) {
-            const teams = matchup.split(" vs ");
-            if (teams.length === 2) {
-                const homeTeam = teams[0].trim().match(/\b[A-Z]{2,4}\b/);
-                const awayTeam = teams[1].trim().match(/\b[A-Z]{2,4}\b/);
-                
-                if (homeTeam && homeTeam[0] === batterTeam) {
-                    location = "Home";
-                } else if (awayTeam && awayTeam[0] === batterTeam) {
-                    location = "Away";
-                }
-            }
-        }
-        
-        new Tabulator(container, {
-            layout: "fitColumns",
-            columnHeaderSortMulti: false,
-            resizableColumns: false,
-            resizableRows: false,
-            movableColumns: false,
-            height: false,
-            virtualDom: false,
-            data: [{
-                propFactor: data["Batter Prop Park Factor"],
-                lineupStatus: data["Lineup Status"] + ": " + data["Batting Position"],
-                location: location,
-                matchup: data["Matchup"],
-                opposingPitcher: data["SP"]
-            }],
-            columns: [
-                {title: "Prop Park Factor", field: "propFactor", headerSort: false, width: 300},
-                {title: "Lineup Status", field: "lineupStatus", headerSort: false, width: 150},
-                {title: "Location", field: "location", headerSort: false, width: 100},
-                {title: "Matchup", field: "matchup", headerSort: false, width: 300},
-                {title: "Opposing Pitcher", field: "opposingPitcher", headerSort: false, width: 400}
-            ]
-        });
-    }
+    createExpandableContent(container, data) {
+        // Formatter for 1 decimal values
+        const formatDecimal = (value) => {
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            return num.toFixed(1);
+        };
 
-    createSubtable2(container, data) {
-        try {
-            var opponentTeam = getOpponentTeam(data["Matchup"], data["Batter Team"]);
-            
-            // Extract SP handedness
-            var spInfo = data["SP"] || "";
-            var spHandedness = null;
-            
-            if (spInfo.includes("(") && spInfo.includes(")")) {
-                var match = spInfo.match(/\(([RL])\)/);
-                if (match) {
-                    spHandedness = match[1];
-                }
-            }
-            
-            // Determine matchups
-            var spVersusText;
-            if (data["Handedness"] === "S") {
-                if (spHandedness === "R") {
-                    spVersusText = "Lefties";
-                } else if (spHandedness === "L") {
-                    spVersusText = "Righties";
-                } else {
-                    spVersusText = "Unknown";
-                }
-            } else {
-                spVersusText = data["Handedness"] === "L" ? "Lefties" : "Righties";
-            }
-            
-            var rrVersusText = data["Handedness"] === "S" ? "Lefties" : (data["Handedness"] === "L" ? "Lefties" : "Righties");
-            var lrVersusText = data["Handedness"] === "S" ? "Righties" : (data["Handedness"] === "L" ? "Lefties" : "Righties");
-            
-            // Format values to remove leading zeros from ratios
-            const formatValue = (value) => {
-                if (value === null || value === undefined || value === "" || value === "-") return "-";
-                // Check if it's a decimal ratio value (e.g., 0.xxx)
-                const numValue = parseFloat(value);
-                if (!isNaN(numValue) && value.toString().includes('.')) {
-                    return formatRatio(value, 3);
-                }
-                return value;
-            };
-            
-            // Prepare table data with formatted values
-            var tableData = [
-                {
-                    player: data["Batter Name"] + " (" + data["Handedness"] + ") Versus Righties",
-                    fullSeason: removeLeadingZeroFromValue(data["Batter Prop Total R Season"]) || "-",
-                    fullSeasonHA: removeLeadingZeroFromValue(data["Batter Prop Total R Season At"]) || "-",
-                    last30: removeLeadingZeroFromValue(data["Batter Prop Total R 30"]) || "-",
-                    last30HA: removeLeadingZeroFromValue(data["Batter Prop Total R 30 At"]) || "-"
-                },
-                {
-                    player: data["Batter Name"] + " (" + data["Handedness"] + ") Versus Lefties",
-                    fullSeason: removeLeadingZeroFromValue(data["Batter Prop Total L Season"]) || "-",
-                    fullSeasonHA: removeLeadingZeroFromValue(data["Batter Prop Total L Season At"]) || "-",
-                    last30: removeLeadingZeroFromValue(data["Batter Prop Total L 30"]) || "-",
-                    last30HA: removeLeadingZeroFromValue(data["Batter Prop Total L 30 At"]) || "-"
-                },
-                {
-                    player: data["SP"] + " Versus " + spVersusText,
-                    fullSeason: removeLeadingZeroFromValue(data["SP Prop Total Vs Season"]) || "-",
-                    fullSeasonHA: removeLeadingZeroFromValue(data["SP Prop Total Vs Season At"]) || "-",
-                    last30: removeLeadingZeroFromValue(data["SP Prop Total Vs 30"]) || "-",
-                    last30HA: removeLeadingZeroFromValue(data["SP Prop Total Vs 30 At"]) || "-"
-                },
-                {
-                    player: (opponentTeam ? opponentTeam + " " : "") + "Righty Relievers (" + (data["R Relievers"] || "0") + ") Versus " + rrVersusText,
-                    fullSeason: removeLeadingZeroFromValue(data["RR Prop Total Vs Season"]) || "-",
-                    fullSeasonHA: removeLeadingZeroFromValue(data["RR Prop Total Vs Season At"]) || "-",
-                    last30: removeLeadingZeroFromValue(data["RR Prop Total Vs 30"]) || "-",
-                    last30HA: removeLeadingZeroFromValue(data["RR Prop Total Vs 30 At"]) || "-"
-                },
-                {
-                    player: (opponentTeam ? opponentTeam + " " : "") + "Lefty Relievers (" + (data["L Relievers"] || "0") + ") Versus " + lrVersusText,
-                    fullSeason: removeLeadingZeroFromValue(data["LR Prop Total Vs Season"]) || "-",
-                    fullSeasonHA: removeLeadingZeroFromValue(data["LR Prop Total Vs Season At"]) || "-",
-                    last30: removeLeadingZeroFromValue(data["LR Prop Total Vs 30"]) || "-",
-                    last30HA: removeLeadingZeroFromValue(data["LR Prop Total Vs 30 At"]) || "-"
-                }
-            ];
-            
-            new Tabulator(container, {
-                layout: "fitColumns",
-                columnHeaderSortMulti: false,
-                resizableColumns: false,
-                resizableRows: false,
-                movableColumns: false,
-                virtualDom: false,
-                height: false,
-                data: tableData,
-                columns: [
-                    {title: "Players", field: "player", headerSort: false, width: 350},
-                    {title: "Full Season", field: "fullSeason", headerSort: false, width: 220},
-                    {title: "Full Season (Home/Away)", field: "fullSeasonHA", headerSort: false, width: 220},
-                    {title: "Last 30 Days", field: "last30", headerSort: false, width: 220},
-                    {title: "Last 30 Days (Home/Away)", field: "last30HA", headerSort: false, width: 220}
-                ]
-            });
-        } catch (error) {
-            console.error("Error creating batter clearances subtable2:", error, data);
-            container.innerHTML = '<div style="padding: 10px; color: red;">Error loading data: ' + error.message + '</div>';
-        }
+        // Build the expandable content HTML
+        const html = `
+            <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+                <!-- Matchup Info -->
+                <div style="flex: 1; min-width: 250px;">
+                    <h4 style="margin: 0 0 10px 0; color: #667eea; font-size: 14px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 5px;">
+                        Matchup Details
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 40%;">Matchup:</td>
+                            <td style="padding: 6px 10px; color: #333;">${data['Matchup'] || '-'}</td>
+                        </tr>
+                        <tr style="background: rgba(102, 126, 234, 0.05);">
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Spread:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Matchup Spread'])}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Total:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Matchup Total'])}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Minutes Info -->
+                <div style="flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 10px 0; color: #667eea; font-size: 14px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 5px;">
+                        Minutes Data
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 50%;">Median Minutes:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Median Minutes'])}</td>
+                        </tr>
+                        <tr style="background: rgba(102, 126, 234, 0.05);">
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Average Minutes:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Average Minutes'])}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
     }
 }
