@@ -128,8 +128,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                     sorter: "string", 
                     headerFilter: true,
                     resizable: false,
-                    formatter: this.createNameFormatter(),
-                    frozen: true
+                    formatter: this.createNameFormatter()
                 },
                 {
                     title: "Team", 
