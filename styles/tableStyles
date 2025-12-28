@@ -1,6 +1,5 @@
-// styles/tableStyles.js - COMPLETE FIXED VERSION - TEXT SIZE ISSUES RESOLVED
+// styles/tableStyles.js - Basketball Table Styles
 import { CONFIG, isMobile, isTablet, getDeviceScale } from '../shared/config.js';
-import { TAB_STYLES } from '../components/tabManager.js';
 
 export function injectStyles() {
     // Check if Webflow custom styles are already applied
@@ -15,294 +14,60 @@ export function injectStyles() {
 }
 
 function injectMinimalStyles() {
-    // Only inject critical table-specific settings for Webflow
-    var style = document.createElement('style');
-    style.setAttribute('data-source', 'github-tables-minimal');
+    const style = document.createElement('style');
+    style.setAttribute('data-source', 'github-basketball-minimal');
     style.textContent = `
-        /* GitHub table-specific settings only */
+        /* GitHub basketball table-specific settings only */
         
-        ${TAB_STYLES}
-        
-        /* CRITICAL FIX: Force tab visibility */
-        .tabs-container {
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            margin-bottom: 20px !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        .tab-buttons {
-            display: flex !important;
-            justify-content: center !important;
-            flex-wrap: wrap !important;
-            gap: 5px !important;
-            padding: 10px !important;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 8px !important;
-            visibility: visible !important;
-        }
-        
-        .tab-button {
-            padding: 8px 12px !important;
-            border: none !important;
-            border-radius: 4px !important;
-            background: rgba(255, 255, 255, 0.2) !important;
-            color: white !important;
-            cursor: pointer !important;
-            font-size: 12px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            white-space: nowrap !important;
-            display: block !important;
-            visibility: visible !important;
-        }
-        
-        .tab-button:hover {
-            background: rgba(255, 255, 255, 0.3) !important;
-            transform: translateY(-1px) !important;
-        }
-        
-        .tab-button.active {
-            background: white !important;
-            color: #667eea !important;
-            font-weight: bold !important;
-        }
-        
-        /* Ensure table-wrapper is visible */
+        /* CRITICAL FIX: Force visibility */
         .table-wrapper {
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* CRITICAL FIX 1: Restore alternating row colors using nth-child */
-        .tabulator-row:nth-child(even):not(.tabulator-row-moving):not(.tabulator-group) {
-            background-color: #f9f9f9 !important;
-        }
-        
-        .tabulator-row:nth-child(odd):not(.tabulator-row-moving):not(.tabulator-group) {
-            background-color: white !important;
-        }
-        
-        /* Keep expanded rows/subtables with transparent background */
-        .subrow-container {
-            background-color: transparent !important;
-            padding: 10px 20px !important;
-            margin: 0 !important;
-        }
-        
-        /* CRITICAL FIX 2: Force vertical scrollbar to always be visible */
-        .tabulator .tabulator-tableHolder {
-            overflow-y: scroll !important;  /* Changed from auto to scroll */
-            overflow-x: hidden !important;
-            max-width: 100% !important;
-            -ms-overflow-style: auto !important;
-            scrollbar-width: auto !important;  /* Changed from thin to auto */
-        }
-
-        /* Allow subtables to expand naturally without manual scrolling */
-        .subrow-container .tabulator .tabulator-tableHolder {
-            overflow-y: visible !important;
-            max-height: none !important;
-            height: auto !important;
-        }
-
-        /* Ensure scrollbar is always visible and prominent */
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar {
-            width: 14px !important;  /* Wider for better visibility */
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
+            width: 100% !important;
         }
         
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-track {
-            background: #f1f1f1 !important;
-            border-radius: 6px !important;
+        .table-container {
+            display: block !important;
+            visibility: visible !important;
         }
         
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-thumb {
-            background: #c1c1c1 !important;
-            border-radius: 6px !important;
-            border: 2px solid #f1f1f1 !important;
+        /* Min/Max Filter Styles */
+        .min-max-filter-container {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 3px !important;
         }
         
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8 !important;
-        }
-        
-        /* CRITICAL FIX 6: Prevent text size reduction in subtables - ISSUE #6 FIXED */
-        .subrow-container,
-        .subrow-container * {
-            font-size: inherit !important;
-            line-height: inherit !important;
-        }
-        
-        /* Ensure subtables maintain proper text size */
-        .subrow-container .tabulator,
-        .subrow-container .tabulator *,
-        .subrow-container .tabulator-table,
-        .subrow-container .tabulator-table *,
-        .subrow-container .tabulator-header,
-        .subrow-container .tabulator-header *,
-        .subrow-container .tabulator-row,
-        .subrow-container .tabulator-row *,
-        .subrow-container .tabulator-cell,
-        .subrow-container .tabulator-cell * {
-            font-size: inherit !important;
-            line-height: inherit !important;
-        }
-        
-        /* Prevent any CSS from shrinking subtable content */
-        .subrow-container .tabulator-tableholder {
-            font-size: inherit !important;
-        }
-        
-        /* CRITICAL FIX 5: Consistent scaling for all subtables (matchups specific) */
-        #matchups-table .subrow-container {
-            max-width: 1120px !important;
-            margin: 0 auto !important;
-        }
-        
-        #matchups-table .subrow-container h4 {
-            font-size: 14px !important;
-            font-weight: bold !important;
-            margin: 0 0 10px 0 !important;
+        .min-max-input {
+            width: 100% !important;
+            padding: 3px 5px !important;
+            font-size: 10px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 2px !important;
             text-align: center !important;
-            color: #333 !important;
         }
         
-        /* Ensure all matchups subtables have consistent scaling */
-        #matchups-table .subrow-container .tabulator {
-            font-size: inherit !important;
-        }
-        
-        #matchups-table .subrow-container .tabulator-header {
-            font-size: inherit !important;
-            font-weight: bold !important;
-        }
-        
-        #matchups-table .subrow-container .tabulator-row {
-            font-size: inherit !important;
-        }
-        
-        #matchups-table .subrow-container .tabulator-cell {
-            font-size: inherit !important;
-            padding: 4px 8px !important;
-        }
-        
-        /* Matchups table specific fixes */
-        #matchups-table .tabulator-row {
-            max-width: 100% !important;
-        }
-        
-        /* GLOBAL FIX: Ensure NO table anywhere has reduced text size in subtables */
-        .tabulator .subrow-container,
-        .tabulator .subrow-container *,
-        .table-container .subrow-container,
-        .table-container .subrow-container * {
-            font-size: inherit !important;
-            line-height: inherit !important;
-        }
-        
-        /* Custom multiselect dropdown overflow fix */
-        .custom-multiselect-dropdown {
-            position: fixed !important;
-            z-index: 999999 !important;
-            max-height: 300px !important;
-            overflow-y: auto !important;
-        }
-        
-        /* Best odds column styling for Props tables */
-        .best-odds-column {
-            background-color: #fff3cd !important;
-            font-weight: bold !important;
-        }
-        
-        .tabulator-row:nth-child(even) .best-odds-column {
-            background-color: #ffeaa7 !important;
-        }
-        
-        /* State management visual indicators */
-        .tabulator-row.row-expanded {
-            position: relative;
-            z-index: 2;
-        }
-        
-        /* IMPROVED Responsive scaling - INCLUDING SUBTABLES */
-        @media screen and (max-width: ${CONFIG.BREAKPOINTS.mobile}px) {
-            .table-container,
-            .subrow-container {
-                transform: scale(${CONFIG.TABLE_DIMENSIONS.mobile.scale});
-                transform-origin: top left;
-                width: ${CONFIG.TABLE_DIMENSIONS.mobile.containerWidth};
-            }
-            
-            /* Ensure subrow containers scale properly */
-            .tabulator-row > .subrow-container {
-                transform: scale(1);
-                width: 100%;
-                margin-left: 0;
-                margin-right: 0;
-            }
-            
-            /* Mobile text size fix */
-            .subrow-container,
-            .subrow-container * {
-                font-size: 12px !important;
-            }
-        }
-        
-        @media screen and (min-width: ${CONFIG.BREAKPOINTS.mobile + 1}px) and (max-width: ${CONFIG.BREAKPOINTS.tablet}px) {
-            .table-container,
-            .subrow-container {
-                transform: scale(${CONFIG.TABLE_DIMENSIONS.tablet.scale});
-                transform-origin: top left;
-                width: ${CONFIG.TABLE_DIMENSIONS.tablet.containerWidth};
-            }
-            
-            /* Ensure subrow containers scale properly */
-            .tabulator-row > .subrow-container {
-                transform: scale(1);
-                width: 100%;
-                margin-left: 0;
-                margin-right: 0;
-            }
-            
-            /* Tablet text size fix */
-            .subrow-container,
-            .subrow-container * {
-                font-size: 13px !important;
-            }
-        }
-        
-        @media screen and (min-width: ${CONFIG.BREAKPOINTS.tablet + 1}px) {
-            /* Desktop text size - same as main table */
-            .subrow-container,
-            .subrow-container * {
-                font-size: 14px !important;
-            }
+        .min-max-input:focus {
+            outline: none !important;
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
         }
     `;
     document.head.appendChild(style);
-    console.log('Minimal table styles with FIXED TEXT SIZING and all issues resolved');
+    console.log('Basketball minimal styles injected');
 }
 
 function injectFullStyles() {
-    var style = document.createElement('style');
-    style.setAttribute('data-source', 'github-tables-full');
+    const style = document.createElement('style');
+    style.setAttribute('data-source', 'github-basketball-full');
     style.setAttribute('data-table-styles', 'github');
     style.textContent = `
         /* ===================================
-           COMPLETE RESPONSIVE TABLE STYLES - ALL ISSUES FIXED
-           ================================== */
+           BASKETBALL TABLE STYLES
+           =================================== */
         
-        ${TAB_STYLES}
-        
-        /* CRITICAL GLOBAL FONT SIZE FIX - ISSUE #6 RESOLVED */
+        /* GLOBAL FONT SIZE */
         .tabulator,
         .tabulator *,
         .subrow-container,
@@ -315,7 +80,7 @@ function injectFullStyles() {
         .tabulator-row *,
         .tabulator-cell,
         .tabulator-cell * {
-            font-size: 14px !important;
+            font-size: 13px !important;
             line-height: 1.4 !important;
         }
         
@@ -334,7 +99,7 @@ function injectFullStyles() {
         /* Tabulator base styles */
         .tabulator {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 14px !important;
+            font-size: 13px !important;
             line-height: 1.4 !important;
             background-color: white;
             border: 1px solid #e0e0e0;
@@ -342,20 +107,20 @@ function injectFullStyles() {
             overflow: hidden;
         }
         
-        /* Header styling */
+        /* Header styling - Basketball Orange/Blue theme */
         .tabulator-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
             color: white;
             font-weight: bold;
-            border-bottom: 2px solid #5a67d8;
-            font-size: 14px !important;
+            border-bottom: 2px solid #c2410c;
+            font-size: 13px !important;
         }
         
         .tabulator-col {
             background: transparent;
             border-right: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 8px;
-            font-size: 14px !important;
+            padding: 10px 6px;
+            font-size: 13px !important;
         }
         
         .tabulator-col:last-child {
@@ -365,451 +130,305 @@ function injectFullStyles() {
         .tabulator-col-title {
             color: white;
             font-weight: 600;
-            font-size: 14px !important;
+            font-size: 12px !important;
+        }
+        
+        /* Column group headers */
+        .tabulator-col-group-cols {
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .tabulator-col-group .tabulator-col-group-cols .tabulator-col {
+            padding: 8px 4px;
         }
         
         /* Row styling with alternating colors */
         .tabulator-row {
             border-bottom: 1px solid #f0f0f0;
             transition: all 0.2s ease;
-            font-size: 14px !important;
+            font-size: 13px !important;
         }
         
         .tabulator-row:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        .tabulator-row:nth-child(odd) {
-            background-color: white;
+            background-color: #fafafa;
         }
         
         .tabulator-row:hover {
-            background-color: #e3f2fd !important;
-            cursor: pointer;
+            background-color: #fff7ed !important;
         }
         
         .tabulator-row.tabulator-selected {
-            background-color: #fff3e0 !important;
+            background-color: #ffedd5 !important;
         }
         
         /* Cell styling */
         .tabulator-cell {
-            padding: 8px 12px;
+            padding: 8px 6px;
             border-right: 1px solid #f0f0f0;
-            font-size: 14px !important;
-            line-height: 1.4 !important;
+            font-size: 13px !important;
         }
         
         .tabulator-cell:last-child {
             border-right: none;
         }
-
-        /* CRITICAL: Subrow/subtable container styling - ISSUE #6 FIXED */
-        .subrow-container .tabulator .tabulator-tableHolder {
-            overflow-y: visible !important;
-            max-height: none !important;
-            height: auto !important;
-        }
-
-        .subrow-container {
-            padding: 15px 20px !important;
-            background: #f8f9fa !important;
-            margin: 10px 0 !important;
-            border-radius: 6px !important;
-            display: block !important;
-            width: 100% !important;
-            position: relative !important;
-            z-index: 1 !important;
-            /* CRITICAL: Maintain font size */
-            font-size: 14px !important;
-            line-height: 1.4 !important;
+        
+        /* Frozen column styling */
+        .tabulator-frozen {
+            background-color: #fff !important;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
         
-        /* ENSURE ALL SUBTABLE CONTENT MAINTAINS PROPER FONT SIZE */
-        .subrow-container .tabulator,
-        .subrow-container .tabulator-table,
-        .subrow-container .tabulator-header,
-        .subrow-container .tabulator-row,
-        .subrow-container .tabulator-cell {
-            font-size: 14px !important;
-            line-height: 1.4 !important;
+        .tabulator-frozen.tabulator-frozen-left {
+            border-right: 2px solid #e0e0e0;
         }
         
-        .subrow-container .tabulator-header {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            font-size: 14px !important;
-            font-weight: bold !important;
+        /* Header filter styling */
+        .tabulator-header-filter {
+            margin-top: 6px;
         }
         
-        .subrow-container .tabulator-col-title {
-            color: white !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
+        .tabulator-header-filter input {
+            width: 100%;
+            padding: 4px 6px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 3px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
         }
         
-        .subrow-container .tabulator-row:nth-child(even) {
-            background-color: #f9f9f9 !important;
+        .tabulator-header-filter input:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
         }
         
-        .subrow-container .tabulator-row:nth-child(odd) {
-            background-color: white !important;
+        .tabulator-header-filter input::placeholder {
+            color: #999;
         }
         
-        .subrow-container .tabulator-cell {
-            font-size: 14px !important;
-            padding: 6px 8px !important;
+        /* Min/Max Filter Styles */
+        .min-max-filter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 2px;
         }
         
-        .subrow-container h4 {
-            font-size: 14px !important;
-            font-weight: bold !important;
-            margin: 0 0 10px 0 !important;
-            color: #333 !important;
-            text-align: center !important;
+        .min-max-input {
+            width: 100%;
+            padding: 3px 4px;
+            font-size: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 2px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
         }
         
-        /* MATCHUPS TABLE SPECIFIC FIXES - Issues #1-#7 */
-        #matchups-table .subrow-container {
-            max-width: 1120px !important;
-            margin: 0 auto 15px auto !important;
+        .min-max-input:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
         }
         
-        /* Weather and Park Factors containers side by side */
-        #matchups-table .subrow-container > div:first-child {
-            display: flex !important;
-            justify-content: center !important;
-            gap: 20px !important;
-            margin-bottom: 15px !important;
+        .min-max-input::placeholder {
+            color: #888;
+            font-size: 9px;
         }
         
-        /* Consistent spacing for all subtables */
-        #matchups-table .subrow-container > div {
-            margin-bottom: 15px !important;
-        }
-        
-        /* Scrollbar styling - ENHANCED VISIBILITY */
-        .tabulator .tabulator-tableHolder {
-            overflow-y: scroll !important;
-            overflow-x: hidden !important;
-            max-width: 100% !important;
-            -ms-overflow-style: auto !important;
-            scrollbar-width: auto !important;
-        }
-        
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar {
-            width: 16px !important;
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-track {
-            background: #f8f9fa !important;
-            border-radius: 8px !important;
-            border: 1px solid #e0e0e0 !important;
-        }
-        
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 8px !important;
-            border: 2px solid #f8f9fa !important;
-        }
-        
-        .tabulator .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-        }
-        
-        /* Row expander styling */
-        .row-expander {
-            font-family: monospace;
-            font-weight: bold;
-            color: #007bff;
-            cursor: pointer;
-            user-select: none;
-            transition: color 0.2s ease;
-        }
-        
-        .row-expander:hover {
-            color: #0056b3;
-        }
-        
-        .tabulator-row.row-expanded {
-            background-color: #fff3e0 !important;
-        }
-        
-        .tabulator-row.row-expanded .row-expander {
-            color: #dc3545;
-        }
-        
-        /* Filter dropdown styling */
-        .custom-multiselect {
+        /* Custom multi-select dropdown */
+        .custom-multiselect-container {
             position: relative;
-            width: 100%;
-            min-width: 120px;
         }
         
-        .custom-multiselect-button {
-            width: 100%;
-            padding: 4px 8px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            text-align: left;
+        .custom-multiselect-input {
+            background-color: rgba(255, 255, 255, 0.9) !important;
         }
         
         .custom-multiselect-dropdown {
-            position: fixed !important;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 999999 !important;
-            max-height: 300px !important;
-            overflow-y: auto !important;
-            min-width: 150px;
-        }
-        
-        .custom-multiselect-option {
-            padding: 8px 12px;
-            cursor: pointer;
             font-size: 12px;
-            border-bottom: 1px solid #f0f0f0;
         }
         
-        .custom-multiselect-option:hover {
-            background-color: #f5f5f5;
+        /* Sorting indicators */
+        .tabulator-col.tabulator-sortable .tabulator-col-title {
+            padding-right: 20px;
         }
         
-        .custom-multiselect-option.selected {
-            background-color: #e3f2fd;
-            color: #1976d2;
+        .tabulator-col.tabulator-sortable[aria-sort="asc"] .tabulator-col-sorter,
+        .tabulator-col.tabulator-sortable[aria-sort="desc"] .tabulator-col-sorter {
+            color: white;
         }
         
-        /* Loading indicator */
+        /* Expand icon in name column */
+        .expand-icon {
+            display: inline-block;
+            width: 12px;
+            text-align: center;
+            color: #f97316;
+            font-size: 10px;
+        }
+        
+        /* Subrow / Expandable content styling */
+        .subrow-container {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border-top: 2px solid #f97316;
+            font-size: 13px !important;
+        }
+        
+        .subrow-container h4 {
+            color: #ea580c;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #f97316;
+        }
+        
+        .subrow-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .subrow-container td {
+            padding: 6px 10px;
+        }
+        
+        .subrow-container tr:nth-child(even) {
+            background: rgba(249, 115, 22, 0.05);
+        }
+        
+        /* Scrollbar styling */
+        .tabulator-tableHolder::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .tabulator-tableHolder::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .tabulator-tableHolder::-webkit-scrollbar-thumb {
+            background: #c2410c;
+            border-radius: 4px;
+        }
+        
+        .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
+            background: #9a3412;
+        }
+        
+        /* Loading overlay */
         .tabulator-loader {
             background: rgba(255, 255, 255, 0.9);
         }
         
         .tabulator-loader-msg {
-            font-size: 16px;
-            font-weight: bold;
-            color: #667eea;
+            color: #f97316;
+            font-weight: 600;
         }
         
-        /* Responsive Design */
-        @media screen and (max-width: ${CONFIG.BREAKPOINTS.mobile}px) {
-            .table-container {
-                transform: scale(${CONFIG.TABLE_DIMENSIONS.mobile.scale});
-                transform-origin: top left;
-                width: ${CONFIG.TABLE_DIMENSIONS.mobile.containerWidth};
-                margin: 0;
-            }
-            
+        /* Responsive adjustments */
+        @media screen and (max-width: 1024px) {
             .tabulator,
             .tabulator *,
-            .subrow-container,
-            .subrow-container * {
+            .tabulator-cell,
+            .tabulator-col-title {
                 font-size: 12px !important;
             }
             
             .tabulator-cell {
-                padding: 6px 8px !important;
+                padding: 6px 4px;
             }
             
-            .subrow-container {
-                padding: 10px 15px !important;
+            .tabulator-col {
+                padding: 8px 4px;
             }
             
-            .subrow-container h4 {
-                font-size: 12px !important;
+            .min-max-input {
+                font-size: 9px;
+                padding: 2px 3px;
             }
         }
         
-        @media screen and (min-width: ${CONFIG.BREAKPOINTS.mobile + 1}px) and (max-width: ${CONFIG.BREAKPOINTS.tablet}px) {
-            .table-container {
-                transform: scale(${CONFIG.TABLE_DIMENSIONS.tablet.scale});
-                transform-origin: top left;
-                width: ${CONFIG.TABLE_DIMENSIONS.tablet.containerWidth};
-                margin: 0 auto;
-            }
-            
+        @media screen and (max-width: 768px) {
             .tabulator,
             .tabulator *,
-            .subrow-container,
-            .subrow-container * {
-                font-size: 13px !important;
+            .tabulator-cell,
+            .tabulator-col-title {
+                font-size: 11px !important;
             }
             
             .tabulator-cell {
-                padding: 7px 10px !important;
+                padding: 5px 3px;
+            }
+            
+            .tabulator-col {
+                padding: 6px 3px;
             }
             
             .subrow-container {
-                padding: 12px 18px !important;
+                padding: 10px 12px;
             }
             
-            .subrow-container h4 {
-                font-size: 13px !important;
-            }
-        }
-        
-        @media screen and (min-width: ${CONFIG.BREAKPOINTS.tablet + 1}px) {
-            .table-container {
-                transform: scale(1);
-                width: 100%;
-                max-width: none;
-                margin: 0 auto;
+            .min-max-input {
+                font-size: 8px;
+                padding: 2px;
             }
             
-            .tabulator,
-            .tabulator *,
-            .subrow-container,
-            .subrow-container * {
-                font-size: 14px !important;
-            }
-        }
-        
-        /* Animations and transitions */
-        .tabulator-row {
-            transition: all 0.3s ease;
-        }
-        
-        .subrow-container {
-            animation: slideDown 0.3s ease-out;
-        }
-        
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            .min-max-input::placeholder {
+                font-size: 8px;
             }
         }
         
         /* Print styles */
         @media print {
             .tabulator {
-                border: 1px solid #333 !important;
+                border: 1px solid #000;
             }
             
             .tabulator-header {
-                background: #f0f0f0 !important;
-                color: #333 !important;
-            }
-            
-            .tabulator-row:nth-child(even) {
-                background: #f9f9f9 !important;
+                background: #f97316 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             
             .subrow-container {
-                background: #f5f5f5 !important;
-                border: 1px solid #ccc !important;
-            }
-        }
-        
-        /* Accessibility enhancements */
-        .tabulator-row:focus-within {
-            outline: 2px solid #4285f4;
-            outline-offset: -2px;
-        }
-        
-        .row-expander:focus {
-            outline: 2px solid #4285f4;
-            outline-offset: 2px;
-        }
-        
-        /* High contrast mode support */
-        @media (prefers-contrast: high) {
-            .tabulator {
-                border: 2px solid #000;
-            }
-            
-            .tabulator-header {
-                background: #000 !important;
-                color: #fff !important;
-            }
-            
-            .tabulator-row:nth-child(even) {
-                background: #f0f0f0 !important;
-            }
-            
-            .tabulator-row:nth-child(odd) {
-                background: #fff !important;
-            }
-        }
-        
-        /* Motion reduction for accessibility */
-        @media (prefers-reduced-motion: reduce) {
-            .tabulator-row,
-            .subrow-container {
-                transition: none !important;
-                animation: none !important;
+                background: #fff7ed !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     `;
+    
     document.head.appendChild(style);
-    console.log('Full table styles with ALL ISSUES FIXED injected');
+    console.log('Basketball full styles injected');
 }
 
-// Export additional style utilities if needed
+// Apply responsive scaling
 export function applyResponsiveScaling() {
-    const containers = document.querySelectorAll('.table-container');
-    containers.forEach(container => {
-        const scale = getDeviceScale();
+    const scale = getDeviceScale();
+    const tables = document.querySelectorAll('.tabulator');
+    
+    tables.forEach(table => {
         if (scale !== 1) {
-            container.style.transform = `scale(${scale})`;
-            container.style.transformOrigin = 'top left';
+            table.style.transform = `scale(${scale})`;
+            table.style.transformOrigin = 'top left';
+            table.style.width = `${100 / scale}%`;
         } else {
-            container.style.transform = 'none';
+            table.style.transform = '';
+            table.style.width = '';
         }
     });
 }
 
-// Utility to fix text sizes if they get messed up
-export function enforceTextSizing() {
-    const style = document.createElement('style');
-    style.setAttribute('data-source', 'text-size-fix');
-    style.textContent = `
-        /* EMERGENCY TEXT SIZE FIX */
-        .tabulator,
-        .tabulator *,
-        .subrow-container,
-        .subrow-container *,
-        .tabulator-table,
-        .tabulator-table *,
-        .tabulator-header,
-        .tabulator-header *,
-        .tabulator-row,
-        .tabulator-row *,
-        .tabulator-cell,
-        .tabulator-cell * {
-            font-size: 14px !important;
-            line-height: 1.4 !important;
-        }
-        
-        @media screen and (max-width: 768px) {
-            .tabulator,
-            .tabulator *,
-            .subrow-container,
-            .subrow-container * {
-                font-size: 12px !important;
-            }
-        }
-        
-        @media screen and (min-width: 769px) and (max-width: 1024px) {
-            .tabulator,
-            .tabulator *,
-            .subrow-container,
-            .subrow-container * {
-                font-size: 13px !important;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-    console.log('Emergency text size fix applied');
+// Initialize responsive behavior
+if (typeof window !== 'undefined') {
+    window.applyResponsiveScaling = applyResponsiveScaling;
+    
+    window.addEventListener('resize', () => {
+        applyResponsiveScaling();
+    });
 }
