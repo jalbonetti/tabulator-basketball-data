@@ -32,7 +32,23 @@ function injectMinimalStyles() {
             visibility: visible !important;
         }
         
-        /* Min/Max Filter Styles */
+        /* CRITICAL: No word wrapping in headers */
+        .tabulator-col-title {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* CRITICAL: Dropdown filters open ABOVE with high z-index */
+        .custom-multiselect-dropdown {
+            z-index: 99999 !important;
+            position: absolute !important;
+            bottom: 100% !important;
+            top: auto !important;
+            margin-bottom: 2px !important;
+        }
+        
+        /* Min/Max Filter Styles - no arrows */
         .min-max-filter-container {
             display: flex !important;
             flex-direction: column !important;
@@ -46,12 +62,39 @@ function injectMinimalStyles() {
             border: 1px solid #ccc !important;
             border-radius: 2px !important;
             text-align: center !important;
+            -moz-appearance: textfield !important;
+        }
+        
+        /* Hide number input arrows */
+        .min-max-input::-webkit-outer-spin-button,
+        .min-max-input::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
         }
         
         .min-max-input:focus {
             outline: none !important;
-            border-color: #667eea !important;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+            border-color: #f97316 !important;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
+        }
+        
+        /* Ensure header filter containers don't clip dropdowns */
+        .tabulator-header {
+            overflow: visible !important;
+        }
+        
+        .tabulator-header-filter {
+            overflow: visible !important;
+        }
+        
+        .tabulator-col {
+            overflow: visible !important;
+        }
+        
+        /* Expandable row basketball theme */
+        .subrow-container {
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
+            border-top: 2px solid #f97316 !important;
         }
     `;
     document.head.appendChild(style);
@@ -114,6 +157,7 @@ function injectFullStyles() {
             font-weight: bold;
             border-bottom: 2px solid #c2410c;
             font-size: 13px !important;
+            overflow: visible !important;
         }
         
         .tabulator-col {
@@ -121,6 +165,7 @@ function injectFullStyles() {
             border-right: 1px solid rgba(255, 255, 255, 0.2);
             padding: 10px 6px;
             font-size: 13px !important;
+            overflow: visible !important;
         }
         
         .tabulator-col:last-child {
@@ -131,6 +176,14 @@ function injectFullStyles() {
             color: white;
             font-weight: 600;
             font-size: 12px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* Header filter containers must allow dropdowns to overflow */
+        .tabulator-header-filter {
+            overflow: visible !important;
         }
         
         /* Column group headers */
