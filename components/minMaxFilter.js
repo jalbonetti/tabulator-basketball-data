@@ -5,58 +5,41 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
     container.style.cssText = `
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding: 4px;
+        gap: 3px;
+        padding: 2px;
         width: 100%;
         box-sizing: border-box;
     `;
     
-    // Create min input
+    // Create min input - using type="text" to avoid arrows
     const minInput = document.createElement('input');
-    minInput.type = 'number';
+    minInput.type = 'text';
     minInput.placeholder = 'Min';
     minInput.classList.add('min-max-input', 'min-input');
     minInput.style.cssText = `
         width: 100%;
-        padding: 4px 6px;
+        padding: 3px 5px;
         border: 1px solid #ccc;
         border-radius: 3px;
-        font-size: 11px;
+        font-size: 10px;
         box-sizing: border-box;
         text-align: center;
     `;
     
-    // Create max input
+    // Create max input - using type="text" to avoid arrows
     const maxInput = document.createElement('input');
-    maxInput.type = 'number';
+    maxInput.type = 'text';
     maxInput.placeholder = 'Max';
     maxInput.classList.add('min-max-input', 'max-input');
     maxInput.style.cssText = `
         width: 100%;
-        padding: 4px 6px;
+        padding: 3px 5px;
         border: 1px solid #ccc;
         border-radius: 3px;
-        font-size: 11px;
+        font-size: 10px;
         box-sizing: border-box;
         text-align: center;
     `;
-    
-    // Set step for decimal values if specified
-    if (editorParams.step) {
-        minInput.step = editorParams.step;
-        maxInput.step = editorParams.step;
-    } else {
-        minInput.step = 'any';
-        maxInput.step = 'any';
-    }
-    
-    // Add placeholder customization
-    if (editorParams.minPlaceholder) {
-        minInput.placeholder = editorParams.minPlaceholder;
-    }
-    if (editorParams.maxPlaceholder) {
-        maxInput.placeholder = editorParams.maxPlaceholder;
-    }
     
     container.appendChild(minInput);
     container.appendChild(maxInput);
@@ -68,18 +51,33 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
     function applyFilter() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            const minVal = minInput.value !== '' ? parseFloat(minInput.value) : null;
-            const maxVal = maxInput.value !== '' ? parseFloat(maxInput.value) : null;
+            const minVal = minInput.value.trim() !== '' ? parseFloat(minInput.value) : null;
+            const maxVal = maxInput.value.trim() !== '' ? parseFloat(maxInput.value) : null;
             
-            if (minVal === null && maxVal === null) {
+            if ((minVal === null || isNaN(minVal)) && (maxVal === null || isNaN(maxVal))) {
                 success(null); // Clear filter
             } else {
-                success({ min: minVal, max: maxVal });
+                success({ 
+                    min: isNaN(minVal) ? null : minVal, 
+                    max: isNaN(maxVal) ? null : maxVal 
+                });
             }
         }, debounceDelay);
     }
     
+    // Only allow numeric input
+    function validateNumericInput(e) {
+        const char = String.fromCharCode(e.which);
+        // Allow numbers, decimal point, minus sign, and control keys
+        if (!/[\d.\-]/.test(char) && e.which !== 8 && e.which !== 46 && e.which !== 9) {
+            e.preventDefault();
+        }
+    }
+    
     // Event listeners
+    minInput.addEventListener('keypress', validateNumericInput);
+    maxInput.addEventListener('keypress', validateNumericInput);
+    
     minInput.addEventListener('input', applyFilter);
     maxInput.addEventListener('input', applyFilter);
     
@@ -89,7 +87,7 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
         } else if (e.key === 'Escape') {
             minInput.value = '';
             maxInput.value = '';
-            cancel();
+            success(null);
         }
     });
     
@@ -99,13 +97,17 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
         } else if (e.key === 'Escape') {
             minInput.value = '';
             maxInput.value = '';
-            cancel();
+            success(null);
         }
     });
     
+    // Prevent click from bubbling
+    minInput.addEventListener('click', (e) => e.stopPropagation());
+    maxInput.addEventListener('click', (e) => e.stopPropagation());
+    
     // Focus handling
     onRendered(() => {
-        minInput.focus();
+        // Don't auto-focus
     });
     
     return container;
@@ -160,14 +162,4 @@ export function minMaxFilterFunction(headerValue, rowValue, rowData, filterParam
     }
     
     return true;
-}
-
-// Export combined function for easy column configuration
-export function createMinMaxFilterWithFunction(editorParams = {}) {
-    return {
-        headerFilter: (cell, onRendered, success, cancel) => {
-            return createMinMaxFilter(cell, onRendered, success, cancel, editorParams);
-        },
-        headerFilterFunc: minMaxFilterFunction
-    };
 }
