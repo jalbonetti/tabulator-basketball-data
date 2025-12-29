@@ -1,11 +1,11 @@
-// tables/baseTable.js - Base Table Class for Basketball Props
+// tables/baseTable.js - Base Table Class for Basketball Props (matching baseball pattern)
 import { API_CONFIG, TEAM_NAME_MAP } from '../shared/config.js';
-import { formatPercentage, generateRowId } from '../shared/utils.js';
+import { formatPercentage } from '../shared/utils.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 
-// Global data cache to persist between sessions
+// Global data cache to persist between tab switches
 const dataCache = new Map();
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes to match Supabase update interval
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 // IndexedDB for persistent caching
 const DB_NAME = 'BasketballTabulatorCache';
@@ -122,13 +122,18 @@ export class BaseTable {
         const cacheKey = `basketball_${this.endpoint}`;
         
         const config = {
-            height: "100%",
+            height: "600px",
+            maxHeight: "600px",
             layout: "fitDataFill",
-            responsiveLayout: "collapse",
-            pagination: false,
+            // Critical for large datasets - match baseball settings
             virtualDom: true,
-            virtualDomBuffer: 300,
-            renderVerticalBuffer: 500,
+            virtualDomBuffer: 500,
+            renderVertical: "virtual",
+            renderHorizontal: "virtual",
+            layoutColumnsOnNewData: false,
+            responsiveLayout: false,
+            pagination: false,
+            // Standard settings
             columnHeaderSortMulti: true,
             headerSortClickElement: "header",
             resizableColumns: false,
@@ -193,8 +198,9 @@ export class BaseTable {
             if (element) {
                 const progressDiv = document.createElement('div');
                 progressDiv.id = 'loading-progress';
+                progressDiv.className = 'loading-indicator';
                 progressDiv.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
-                progressDiv.innerHTML = '<div style="text-align: center;"><div>Loading data...</div><div id="progress-text" style="margin-top: 10px; font-weight: bold;">0%</div></div>';
+                progressDiv.innerHTML = '<div style="text-align: center;"><div>Loading data...</div><div id="progress-text" style="margin-top: 10px; font-weight: bold;">0 records</div></div>';
                 element.style.position = 'relative';
                 element.appendChild(progressDiv);
             }
@@ -262,7 +268,7 @@ export class BaseTable {
         return allRecords;
     }
 
-    // Row expansion setup with global state management
+    // Row expansion setup
     setupRowExpansion() {
         if (!this.table) return;
         
@@ -300,10 +306,23 @@ export class BaseTable {
 
     // Generate unique row ID
     generateRowId(data) {
-        return generateRowId(data);
+        const fields = [];
+        
+        if (data["Player Name"]) {
+            fields.push(data["Player Name"]);
+            if (data["Player Team"]) fields.push(data["Player Team"]);
+            if (data["Player Prop"]) fields.push(data["Player Prop"]);
+            if (data["Player Prop Value"]) fields.push(data["Player Prop Value"]);
+            if (data["Split"]) fields.push(data["Split"]);
+            return `player_${fields.join('_')}`;
+        }
+        
+        // Fallback
+        const keys = Object.keys(data).filter(k => !k.startsWith('_') && data[k] != null);
+        return keys.slice(0, 5).map(k => `${k}:${data[k]}`).join('|');
     }
 
-    // Create name formatter for clickable rows
+    // Create name formatter
     createNameFormatter() {
         return (cell) => {
             const value = cell.getValue();
@@ -314,7 +333,7 @@ export class BaseTable {
             
             const icon = document.createElement('span');
             icon.className = 'expand-icon';
-            icon.style.cssText = 'margin-right: 8px; font-size: 10px; transition: transform 0.2s; color: #667eea;';
+            icon.style.cssText = 'margin-right: 8px; font-size: 10px; transition: transform 0.2s; color: #f97316;';
             icon.innerHTML = '▶';
             
             const data = cell.getRow().getData();
@@ -338,8 +357,6 @@ export class BaseTable {
         return (cell) => {
             const value = cell.getValue();
             if (!value) return '-';
-            
-            // Return team abbreviation if it's a full name
             return TEAM_NAME_MAP[value] || value;
         };
     }
@@ -350,47 +367,20 @@ export class BaseTable {
         
         this.filterState = this.table.getHeaderFilters();
         this.sortState = this.table.getSorters();
-        
-        // Save expanded rows
-        const rows = this.table.getRows();
-        this.expandedRows.clear();
-        rows.forEach(row => {
-            const data = row.getData();
-            if (data._expanded) {
-                this.expandedRows.add(this.generateRowId(data));
-            }
-        });
     }
 
     // Restore saved state
     restoreState() {
         if (!this.table) return;
         
-        // Restore filters
         if (this.filterState && this.filterState.length > 0) {
             this.filterState.forEach(filter => {
                 this.table.setHeaderFilterValue(filter.field, filter.value);
             });
         }
         
-        // Restore sort
         if (this.sortState && this.sortState.length > 0) {
             this.table.setSort(this.sortState);
-        }
-        
-        // Restore expanded rows
-        if (this.expandedRows.size > 0) {
-            setTimeout(() => {
-                const rows = this.table.getRows();
-                rows.forEach(row => {
-                    const data = row.getData();
-                    const rowId = this.generateRowId(data);
-                    if (this.expandedRows.has(rowId)) {
-                        data._expanded = true;
-                        row.reformat();
-                    }
-                });
-            }, 100);
         }
     }
 
@@ -404,11 +394,9 @@ export class BaseTable {
     async refreshData() {
         if (!this.table) return;
         
-        // Clear cache
         const cacheKey = `basketball_${this.endpoint}`;
         dataCache.delete(cacheKey);
         
-        // Reload data
         await this.table.setData();
     }
 }
