@@ -1,4 +1,4 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances Table (OPTIMIZED)
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (matching baseball Alt pattern)
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
@@ -11,17 +11,55 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     initialize() {
         const config = {
             ...this.tableConfig,
-            placeholder: "Loading basketball player prop clearances...",
+            // Optimize for large datasets - matching baseball Alt table pattern
+            virtualDom: true,
+            virtualDomBuffer: 500,
+            renderVertical: "virtual",
+            renderHorizontal: "virtual",
+            pagination: false,
+            paginationSize: false,
+            layoutColumnsOnNewData: false,
+            responsiveLayout: false,
+            maxHeight: "600px",
+            height: "600px",
+            placeholder: "Loading basketball player prop clearances... This may take a moment for large datasets.",
             columns: this.getColumns(),
             initialSort: [
-                {column: "Player Name", dir: "asc"}
+                {column: "Player Name", dir: "asc"},
+                {column: "Player Team", dir: "asc"},
+                {column: "Player Prop", dir: "asc"},
+                {column: "Player Prop Value", dir: "asc"}
             ],
+            rowFormatter: this.createRowFormatter(),
             dataLoaded: (data) => {
-                console.log(`Basketball table loaded ${data.length} records`);
+                console.log(`Basketball table loaded ${data.length} records successfully`);
+                this.dataLoaded = true;
+                
+                // Initialize expansion state
+                data.forEach(row => {
+                    if (row._expanded === undefined) {
+                        row._expanded = false;
+                    }
+                });
+                
+                // Remove loading indicator
+                const element = document.querySelector(this.elementId);
+                if (element) {
+                    const loadingDiv = element.querySelector('.loading-indicator');
+                    if (loadingDiv) {
+                        loadingDiv.remove();
+                    }
+                }
+            },
+            ajaxError: (error) => {
+                console.error("Error loading basketball data:", error);
             }
         };
 
         this.table = new Tabulator(this.elementId, config);
+        
+        // Setup row expansion
+        this.setupRowExpansion();
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
@@ -29,7 +67,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     getColumns() {
-        // Simple formatters - return strings, not DOM elements
+        // Formatters
         const clearanceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -64,7 +102,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                     minWidth: 130,
                     sorter: "string", 
                     headerFilter: true,
-                    resizable: false
+                    resizable: false,
+                    formatter: this.createNameFormatter()
                 },
                 {
                     title: "Team", 
@@ -268,5 +307,96 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 }
             ]}
         ];
+    }
+
+    createRowFormatter() {
+        const self = this;
+        
+        return (row) => {
+            const data = row.getData();
+            const rowElement = row.getElement();
+            
+            // Initialize _expanded if undefined
+            if (data._expanded === undefined) {
+                data._expanded = false;
+            }
+            
+            // Clear any existing subrow
+            const existingSubrow = rowElement.querySelector('.subrow-container');
+            if (existingSubrow) {
+                existingSubrow.remove();
+            }
+            
+            // If expanded, create expandable content
+            if (data._expanded) {
+                const subrowContainer = document.createElement('div');
+                subrowContainer.className = 'subrow-container';
+                subrowContainer.style.cssText = `
+                    padding: 15px 20px;
+                    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+                    border-top: 2px solid #f97316;
+                    margin-top: 0;
+                `;
+                
+                // Create expandable content
+                this.createExpandableContent(subrowContainer, data);
+                
+                rowElement.appendChild(subrowContainer);
+                rowElement.style.backgroundColor = '#fff7ed';
+            } else {
+                rowElement.style.backgroundColor = '';
+            }
+        };
+    }
+
+    createExpandableContent(container, data) {
+        const formatDecimal = (value) => {
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            return num.toFixed(1);
+        };
+
+        const html = `
+            <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
+                        Matchup Details
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 40%;">Matchup:</td>
+                            <td style="padding: 6px 10px; color: #333;">${data['Matchup'] || '-'}</td>
+                        </tr>
+                        <tr style="background: rgba(249, 115, 22, 0.05);">
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Spread:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Matchup Spread'])}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Total:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Matchup Total'])}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
+                        Minutes Data
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 50%;">Median Minutes:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Median Minutes'])}</td>
+                        </tr>
+                        <tr style="background: rgba(249, 115, 22, 0.05);">
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Average Minutes:</td>
+                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Average Minutes'])}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
     }
 }
