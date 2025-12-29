@@ -1,6 +1,5 @@
 // tables/baseTable.js - Base Table Class for Basketball Props (matching baseball pattern)
 import { API_CONFIG, TEAM_NAME_MAP } from '../shared/config.js';
-import { formatPercentage } from '../shared/utils.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 
 // Global data cache to persist between tab switches
