@@ -21,43 +21,29 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
         background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23666' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 6px center;
     `;
     
-    // Create dropdown container
+    // Create dropdown container - opens ABOVE the header with high z-index
     const dropdown = document.createElement('div');
     dropdown.classList.add('custom-multiselect-dropdown');
     dropdown.style.cssText = `
         display: none;
         position: absolute;
-        top: 100%;
+        bottom: 100%;
         left: 0;
         width: ${editorParams.dropdownWidth || 150}px;
-        max-height: 250px;
+        max-height: 300px;
         overflow-y: auto;
         background: white;
         border: 1px solid #ccc;
         border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        margin-top: 2px;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+        z-index: 99999;
+        margin-bottom: 2px;
     `;
     
-    // Search input for filtering options
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'Search...';
-    searchInput.style.cssText = `
-        width: calc(100% - 12px);
-        margin: 6px;
-        padding: 6px 8px;
-        border: 1px solid #ddd;
-        border-radius: 3px;
-        font-size: 11px;
-        box-sizing: border-box;
-    `;
-    
-    // Options container
+    // Options container (no search input)
     const optionsContainer = document.createElement('div');
     optionsContainer.classList.add('options-container');
-    optionsContainer.style.cssText = 'padding: 4px 0;';
+    optionsContainer.style.cssText = 'padding: 4px 0; max-height: 250px; overflow-y: auto;';
     
     // Action buttons container
     const actionsContainer = document.createElement('div');
@@ -98,7 +84,6 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
     actionsContainer.appendChild(selectAllBtn);
     actionsContainer.appendChild(clearAllBtn);
     
-    dropdown.appendChild(searchInput);
     dropdown.appendChild(optionsContainer);
     dropdown.appendChild(actionsContainer);
     
@@ -136,14 +121,10 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
     }
     
     // Render options
-    function renderOptions(filterText = '') {
+    function renderOptions() {
         optionsContainer.innerHTML = '';
         
-        const filteredValues = allValues.filter(value => 
-            value.toLowerCase().includes(filterText.toLowerCase())
-        );
-        
-        filteredValues.forEach(value => {
+        allValues.forEach(value => {
             const option = document.createElement('label');
             option.style.cssText = `
                 display: flex;
@@ -154,7 +135,7 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
                 transition: background 0.15s;
             `;
             option.addEventListener('mouseenter', () => {
-                option.style.background = '#f0f4ff';
+                option.style.background = '#fff7ed';
             });
             option.addEventListener('mouseleave', () => {
                 option.style.background = 'transparent';
@@ -213,8 +194,6 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
         if (isOpen) {
             allValues = getColumnValues();
             renderOptions();
-            searchInput.value = '';
-            searchInput.focus();
         }
     }
     
@@ -230,18 +209,10 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
         toggleDropdown();
     });
     
-    searchInput.addEventListener('input', () => {
-        renderOptions(searchInput.value);
-    });
-    
-    searchInput.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-    
     selectAllBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         selectedValues = new Set(allValues);
-        renderOptions(searchInput.value);
+        renderOptions();
         updateDisplay();
         applyFilter();
     });
@@ -249,7 +220,7 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
     clearAllBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         selectedValues.clear();
-        renderOptions(searchInput.value);
+        renderOptions();
         updateDisplay();
         applyFilter();
     });
