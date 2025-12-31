@@ -1,4 +1,11 @@
 // styles/tableStyles.js - Basketball Table Styles
+// UPDATED: 
+// - Center-justified headers (both primary and secondary)
+// - Dropdown filters positioned above table
+// - Auto-fit column widths
+// - Frozen column support for Name on mobile/tablet
+// - Responsive text scaling for desktop
+
 import { CONFIG, isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
 export function injectStyles() {
@@ -32,20 +39,62 @@ function injectMinimalStyles() {
             visibility: visible !important;
         }
         
-        /* CRITICAL: No word wrapping in headers */
+        /* CRITICAL: No word wrapping in headers - single line */
         .tabulator-col-title {
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
         
-        /* CRITICAL: Dropdown filters open ABOVE with high z-index */
-        .custom-multiselect-dropdown {
-            z-index: 99999 !important;
-            position: absolute !important;
-            bottom: 100% !important;
-            top: auto !important;
-            margin-bottom: 2px !important;
+        /* CENTER JUSTIFY ALL HEADERS - Primary and Secondary */
+        .tabulator-col-title,
+        .tabulator-col-group .tabulator-col-title {
+            text-align: center !important;
+            justify-content: center !important;
+        }
+        
+        /* CRITICAL: Dropdown filters open ABOVE with maximum z-index */
+        .custom-multiselect-dropdown,
+        [id^="dropdown_"] {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+        }
+        
+        /* Ensure header allows overflow for dropdowns */
+        .tabulator-header {
+            overflow: visible !important;
+        }
+        
+        .tabulator-header-filter {
+            overflow: visible !important;
+        }
+        
+        .tabulator-col {
+            overflow: visible !important;
+        }
+        
+        /* FROZEN COLUMN STYLES */
+        .tabulator-frozen {
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 10 !important;
+            background: white !important;
+        }
+        
+        .tabulator-frozen.tabulator-frozen-left {
+            border-right: 2px solid #f97316 !important;
+        }
+        
+        .tabulator-row .tabulator-frozen {
+            background: inherit !important;
+        }
+        
+        .tabulator-row:nth-child(even) .tabulator-frozen {
+            background: #fafafa !important;
+        }
+        
+        .tabulator-row:hover .tabulator-frozen {
+            background: #fff7ed !important;
         }
         
         /* Min/Max Filter Styles - no arrows */
@@ -78,47 +127,10 @@ function injectMinimalStyles() {
             box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
         }
         
-        /* Ensure header filter containers don't clip dropdowns */
-        .tabulator-header {
-            overflow: visible !important;
-        }
-        
-        .tabulator-header-filter {
-            overflow: visible !important;
-        }
-        
-        .tabulator-col {
-            overflow: visible !important;
-        }
-        
         /* Expandable row basketball theme */
         .subrow-container {
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
             border-top: 2px solid #f97316 !important;
-        }
-        
-        /* Frozen column styles */
-        .tabulator-frozen {
-            position: sticky !important;
-            left: 0 !important;
-            z-index: 10 !important;
-            background: white !important;
-        }
-        
-        .tabulator-frozen.tabulator-frozen-left {
-            border-right: 2px solid #f97316 !important;
-        }
-        
-        .tabulator-row .tabulator-frozen {
-            background: inherit !important;
-        }
-        
-        .tabulator-row:nth-child(even) .tabulator-frozen {
-            background: #fafafa !important;
-        }
-        
-        .tabulator-row:hover .tabulator-frozen {
-            background: #fff7ed !important;
         }
     `;
     document.head.appendChild(style);
@@ -126,15 +138,24 @@ function injectMinimalStyles() {
 }
 
 function injectFullStyles() {
+    const mobile = isMobile();
+    const tablet = isTablet();
+    const isSmallScreen = mobile || tablet;
+    
+    // Calculate appropriate font size based on screen
+    const baseFontSize = isSmallScreen ? 11 : 12;
+    
     const style = document.createElement('style');
     style.setAttribute('data-source', 'github-basketball-full');
     style.setAttribute('data-table-styles', 'github');
     style.textContent = `
         /* ===================================
-           BASKETBALL TABLE STYLES
+           BASKETBALL TABLE STYLES - UPDATED
+           Center-justified headers, auto-fit columns,
+           frozen Name column, dropdowns above table
            =================================== */
         
-        /* GLOBAL FONT SIZE */
+        /* GLOBAL FONT SIZE - Responsive */
         .tabulator,
         .tabulator *,
         .subrow-container,
@@ -147,7 +168,7 @@ function injectFullStyles() {
         .tabulator-row *,
         .tabulator-cell,
         .tabulator-cell * {
-            font-size: 13px !important;
+            font-size: ${baseFontSize}px !important;
             line-height: 1.4 !important;
         }
         
@@ -160,18 +181,23 @@ function injectFullStyles() {
             background: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
-            overflow: hidden;
+            overflow: visible;
         }
         
         /* Tabulator base styles */
         .tabulator {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 13px !important;
+            font-size: ${baseFontSize}px !important;
             line-height: 1.4 !important;
             background-color: white;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
-            overflow: hidden;
+            overflow: visible !important;
+        }
+        
+        /* CRITICAL: Allow overflow for dropdowns */
+        .tabulator-tableholder {
+            overflow: visible !important;
         }
         
         /* Header styling - Basketball Orange/Blue theme */
@@ -180,15 +206,15 @@ function injectFullStyles() {
             color: white;
             font-weight: bold;
             border-bottom: 2px solid #c2410c;
-            font-size: 13px !important;
+            font-size: ${baseFontSize}px !important;
             overflow: visible !important;
         }
         
         .tabulator-col {
             background: transparent;
             border-right: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 10px 6px;
-            font-size: 13px !important;
+            padding: 8px 4px;
+            font-size: ${baseFontSize}px !important;
             overflow: visible !important;
         }
         
@@ -196,34 +222,116 @@ function injectFullStyles() {
             border-right: none;
         }
         
+        /* CENTER JUSTIFY ALL HEADERS - PRIMARY AND SECONDARY */
         .tabulator-col-title {
             color: white;
             font-weight: 600;
-            font-size: 12px !important;
+            font-size: ${baseFontSize}px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            text-align: center !important;
+            justify-content: center !important;
+            display: flex !important;
+            align-items: center !important;
         }
         
-        /* Header filter containers must allow dropdowns to overflow */
-        .tabulator-header-filter {
-            overflow: visible !important;
+        /* Column group headers (secondary headers) - also centered */
+        .tabulator-col-group .tabulator-col-title {
+            text-align: center !important;
+            justify-content: center !important;
         }
         
-        /* Column group headers */
         .tabulator-col-group-cols {
             border-top: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .tabulator-col-group .tabulator-col-group-cols .tabulator-col {
-            padding: 8px 4px;
+            padding: 6px 4px;
+        }
+        
+        /* Header filter containers must allow dropdowns to overflow */
+        .tabulator-header-filter {
+            overflow: visible !important;
+            margin-top: 4px;
+        }
+        
+        /* DROPDOWN FILTER STYLES - POSITIONED ABOVE TABLE */
+        .custom-multiselect-dropdown,
+        [id^="dropdown_"] {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+            background: white !important;
+            border: 1px solid #333 !important;
+            border-radius: 4px !important;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
+        }
+        
+        .custom-multiselect-button {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+            font-size: 11px !important;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-radius: 3px;
+            transition: border-color 0.2s ease;
+        }
+        
+        .custom-multiselect-button:hover {
+            border-color: #f97316;
+        }
+        
+        .custom-multiselect-button:focus {
+            outline: none;
+            border-color: #f97316;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+        }
+        
+        /* FROZEN COLUMN STYLES - For Name column on mobile/tablet */
+        .tabulator-frozen {
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 10 !important;
+            background: white !important;
+        }
+        
+        .tabulator-frozen.tabulator-frozen-left {
+            border-right: 2px solid #f97316 !important;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Frozen column in header */
+        .tabulator-header .tabulator-frozen {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+        }
+        
+        /* Frozen column in rows - maintain alternating colors */
+        .tabulator-row .tabulator-frozen {
+            background: inherit !important;
+        }
+        
+        .tabulator-row:nth-child(even) .tabulator-frozen {
+            background: #fafafa !important;
+        }
+        
+        .tabulator-row:nth-child(odd) .tabulator-frozen {
+            background: white !important;
+        }
+        
+        .tabulator-row:hover .tabulator-frozen {
+            background: #fff7ed !important;
         }
         
         /* Row styling with alternating colors */
         .tabulator-row {
             border-bottom: 1px solid #f0f0f0;
             transition: all 0.2s ease;
-            font-size: 13px !important;
+            font-size: ${baseFontSize}px !important;
         }
         
         .tabulator-row:nth-child(even) {
@@ -238,274 +346,199 @@ function injectFullStyles() {
             background-color: #ffedd5 !important;
         }
         
-        /* Cell styling */
+        /* Cell styling - NO WRAP for single row content */
         .tabulator-cell {
-            padding: 8px 6px;
+            padding: 6px 4px;
             border-right: 1px solid #f0f0f0;
-            font-size: 13px !important;
+            font-size: ${baseFontSize}px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         
         .tabulator-cell:last-child {
             border-right: none;
         }
         
-        /* Frozen column styling */
-        .tabulator-frozen {
-            background-color: #fff !important;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        }
-        
-        .tabulator-frozen.tabulator-frozen-left {
-            border-right: 2px solid #e0e0e0;
-        }
-        
-        /* Header filter styling */
-        .tabulator-header-filter {
-            margin-top: 6px;
-        }
-        
-        .tabulator-header-filter input {
-            width: 100%;
-            padding: 4px 6px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 3px;
-            font-size: 11px;
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
-        }
-        
-        .tabulator-header-filter input:focus {
-            outline: none;
-            border-color: white;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
-        }
-        
-        .tabulator-header-filter input::placeholder {
-            color: #999;
-        }
-        
         /* Min/Max Filter Styles */
         .min-max-filter-container {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            padding: 2px;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 3px !important;
         }
         
         .min-max-input {
-            width: 100%;
-            padding: 3px 4px;
-            font-size: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 2px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
+            width: 100% !important;
+            padding: 3px 5px !important;
+            font-size: 10px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 2px !important;
+            text-align: center !important;
+            -moz-appearance: textfield !important;
+        }
+        
+        /* Hide number input arrows */
+        .min-max-input::-webkit-outer-spin-button,
+        .min-max-input::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
         }
         
         .min-max-input:focus {
-            outline: none;
-            border-color: white;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+            outline: none !important;
+            border-color: #f97316 !important;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
         }
         
-        .min-max-input::placeholder {
-            color: #888;
-            font-size: 9px;
-        }
-        
-        /* Custom multi-select dropdown */
-        .custom-multiselect-container {
-            position: relative;
-        }
-        
-        .custom-multiselect-input {
-            background-color: rgba(255, 255, 255, 0.9) !important;
-        }
-        
-        .custom-multiselect-dropdown {
-            font-size: 12px;
-        }
-        
-        /* Sorting indicators */
-        .tabulator-col.tabulator-sortable .tabulator-col-title {
-            padding-right: 20px;
-        }
-        
-        .tabulator-col.tabulator-sortable[aria-sort="asc"] .tabulator-col-sorter,
-        .tabulator-col.tabulator-sortable[aria-sort="desc"] .tabulator-col-sorter {
-            color: white;
-        }
-        
-        /* Expand icon in name column */
-        .expand-icon {
-            display: inline-block;
-            width: 12px;
-            text-align: center;
-            color: #f97316;
-            font-size: 10px;
-        }
-        
-        /* Subrow / Expandable content styling */
+        /* Expandable row basketball theme */
         .subrow-container {
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-            border-top: 2px solid #f97316;
-            font-size: 13px !important;
+            padding: 15px 20px !important;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
+            border-top: 2px solid #f97316 !important;
+            margin: 0 !important;
+            display: block !important;
+            width: 100% !important;
         }
         
-        .subrow-container h4 {
-            color: #ea580c;
+        /* Expand icon styling */
+        .expand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            font-size: 10px;
+            color: #f97316;
+            transition: transform 0.2s ease;
+        }
+        
+        /* RESPONSIVE ADJUSTMENTS */
+        @media screen and (max-width: 768px) {
+            .tabulator,
+            .tabulator *,
+            .tabulator-header *,
+            .tabulator-row *,
+            .tabulator-cell * {
+                font-size: 10px !important;
+            }
+            
+            .tabulator-col {
+                padding: 6px 2px !important;
+            }
+            
+            .tabulator-cell {
+                padding: 4px 2px !important;
+            }
+            
+            .custom-multiselect-button {
+                font-size: 9px !important;
+                padding: 3px 4px !important;
+            }
+            
+            .min-max-input {
+                font-size: 9px !important;
+                padding: 2px 3px !important;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            .tabulator,
+            .tabulator *,
+            .tabulator-header *,
+            .tabulator-row *,
+            .tabulator-cell * {
+                font-size: 9px !important;
+            }
+            
+            .tabulator-col {
+                padding: 4px 1px !important;
+            }
+            
+            .tabulator-cell {
+                padding: 3px 1px !important;
+            }
+        }
+        
+        /* DESKTOP: Ensure table fits in browser width */
+        @media screen and (min-width: 1025px) {
+            .tabulator {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            .table-container {
+                overflow-x: auto !important;
+            }
+        }
+        
+        /* Header text filter input styling */
+        .tabulator-header-filter input[type="search"],
+        .tabulator-header-filter input[type="text"] {
+            width: 100% !important;
+            padding: 4px 6px !important;
+            font-size: 11px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 3px !important;
+            box-sizing: border-box !important;
+        }
+        
+        .tabulator-header-filter input[type="search"]:focus,
+        .tabulator-header-filter input[type="text"]:focus {
+            outline: none !important;
+            border-color: #f97316 !important;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
+        }
+        
+        /* Loading indicator */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #666;
             font-size: 14px;
-            font-weight: 600;
-            margin: 0 0 10px 0;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #f97316;
         }
         
-        .subrow-container table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
+        .loading-indicator::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f97316;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
         }
         
-        .subrow-container td {
-            padding: 6px 10px;
-        }
-        
-        .subrow-container tr:nth-child(even) {
-            background: rgba(249, 115, 22, 0.05);
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Scrollbar styling */
-        .tabulator-tableHolder::-webkit-scrollbar {
+        .tabulator::-webkit-scrollbar,
+        .tabulator-tableholder::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
         
-        .tabulator-tableHolder::-webkit-scrollbar-track {
+        .tabulator::-webkit-scrollbar-track,
+        .tabulator-tableholder::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 4px;
         }
         
-        .tabulator-tableHolder::-webkit-scrollbar-thumb {
-            background: #c2410c;
+        .tabulator::-webkit-scrollbar-thumb,
+        .tabulator-tableholder::-webkit-scrollbar-thumb {
+            background: #f97316;
             border-radius: 4px;
         }
         
-        .tabulator-tableHolder::-webkit-scrollbar-thumb:hover {
-            background: #9a3412;
-        }
-        
-        /* Loading overlay */
-        .tabulator-loader {
-            background: rgba(255, 255, 255, 0.9);
-        }
-        
-        .tabulator-loader-msg {
-            color: #f97316;
-            font-weight: 600;
-        }
-        
-        /* Responsive adjustments */
-        @media screen and (max-width: 1024px) {
-            .tabulator,
-            .tabulator *,
-            .tabulator-cell,
-            .tabulator-col-title {
-                font-size: 12px !important;
-            }
-            
-            .tabulator-cell {
-                padding: 6px 4px;
-            }
-            
-            .tabulator-col {
-                padding: 8px 4px;
-            }
-            
-            .min-max-input {
-                font-size: 9px;
-                padding: 2px 3px;
-            }
-        }
-        
-        @media screen and (max-width: 768px) {
-            .tabulator,
-            .tabulator *,
-            .tabulator-cell,
-            .tabulator-col-title {
-                font-size: 11px !important;
-            }
-            
-            .tabulator-cell {
-                padding: 5px 3px;
-            }
-            
-            .tabulator-col {
-                padding: 6px 3px;
-            }
-            
-            .subrow-container {
-                padding: 10px 12px;
-            }
-            
-            .min-max-input {
-                font-size: 8px;
-                padding: 2px;
-            }
-            
-            .min-max-input::placeholder {
-                font-size: 8px;
-            }
-        }
-        
-        /* Print styles */
-        @media print {
-            .tabulator {
-                border: 1px solid #000;
-            }
-            
-            .tabulator-header {
-                background: #f97316 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            .subrow-container {
-                background: #fff7ed !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
+        .tabulator::-webkit-scrollbar-thumb:hover,
+        .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+            background: #ea580c;
         }
     `;
-    
     document.head.appendChild(style);
     console.log('Basketball full styles injected');
-}
-
-// Apply responsive scaling
-export function applyResponsiveScaling() {
-    const scale = getDeviceScale();
-    const tables = document.querySelectorAll('.tabulator');
-    
-    tables.forEach(table => {
-        if (scale !== 1) {
-            table.style.transform = `scale(${scale})`;
-            table.style.transformOrigin = 'top left';
-            table.style.width = `${100 / scale}%`;
-        } else {
-            table.style.transform = '';
-            table.style.width = '';
-        }
-    });
-}
-
-// Initialize responsive behavior
-if (typeof window !== 'undefined') {
-    window.applyResponsiveScaling = applyResponsiveScaling;
-    
-    window.addEventListener('resize', () => {
-        applyResponsiveScaling();
-    });
 }
