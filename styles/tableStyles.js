@@ -96,6 +96,30 @@ function injectMinimalStyles() {
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
             border-top: 2px solid #f97316 !important;
         }
+        
+        /* Frozen column styles */
+        .tabulator-frozen {
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 10 !important;
+            background: white !important;
+        }
+        
+        .tabulator-frozen.tabulator-frozen-left {
+            border-right: 2px solid #f97316 !important;
+        }
+        
+        .tabulator-row .tabulator-frozen {
+            background: inherit !important;
+        }
+        
+        .tabulator-row:nth-child(even) .tabulator-frozen {
+            background: #fafafa !important;
+        }
+        
+        .tabulator-row:hover .tabulator-frozen {
+            background: #fff7ed !important;
+        }
     `;
     document.head.appendChild(style);
     console.log('Basketball minimal styles injected');
