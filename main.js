@@ -1,4 +1,6 @@
 // main.js - Basketball Props Table System
+// Entry point that initializes the table and manages global state
+
 import { injectStyles } from './styles/tableStyles.js';
 import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropClearances.js';
 
@@ -45,6 +47,9 @@ function initializeTable(elementId) {
         // Store reference globally for debugging
         window.basketballTable = table;
         
+        // Setup debug tools
+        setupDebugTools(table);
+        
         console.log("✅ Basketball table initialized successfully!");
         
     } catch (error) {
@@ -73,73 +78,104 @@ function initializeGlobalState() {
         return window.globalExpandedState.get(key) || false;
     };
     
+    window.clearExpandedState = function() {
+        window.globalExpandedState.clear();
+        console.log("Cleared global expanded state");
+    };
+    
     console.log("Global state management initialized");
 }
 
-// Handle window resize
-window.addEventListener('resize', function() {
-    if (window.basketballTable && window.basketballTable.table) {
-        window.basketballTable.table.redraw();
-    }
-});
-
-// Global error handler
-window.addEventListener('error', function(e) {
-    console.error('Global error in basketball table system:', e.error);
-});
-
-// Export for debugging
-window.tableDebug = {
-    getGlobalState: () => window.globalExpandedState,
-    clearGlobalState: () => {
-        window.globalExpandedState.clear();
-        console.log("Global state cleared");
-    },
-    logState: () => {
-        console.log("Current global state:", Array.from(window.globalExpandedState.entries()));
-    },
-    getTable: () => window.basketballTable
-};
-
-// Register Service Worker for caching
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-            .then((registration) => {
-                console.log('Service Worker registered:', registration.scope);
-                
-                // Check for updates
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    console.log('Service Worker update found');
-                    
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            console.log('New Service Worker installed, refresh for updates');
-                        }
-                    });
-                });
-            })
-            .catch((error) => {
-                console.log('Service Worker registration failed:', error);
-            });
-    });
+function setupDebugTools(tableInstance) {
+    // Setup debug tools accessible via console
+    window.tableDebug = {
+        getTable: function() {
+            return tableInstance.table;
+        },
+        getTableInstance: function() {
+            return tableInstance;
+        },
+        getGlobalState: function() {
+            return window.globalExpandedState;
+        },
+        clearGlobalState: function() {
+            window.globalExpandedState.clear();
+            console.log("Global state cleared");
+        },
+        getExpandedRows: function() {
+            return Array.from(tableInstance.expandedRowsCache);
+        },
+        refreshData: function() {
+            return tableInstance.refreshData();
+        },
+        redraw: function(force = false) {
+            return tableInstance.redraw(force);
+        },
+        getFilters: function() {
+            if (tableInstance.table) {
+                return tableInstance.table.getHeaderFilters();
+            }
+            return [];
+        },
+        clearFilters: function() {
+            if (tableInstance.table) {
+                tableInstance.table.clearHeaderFilter();
+                console.log("Filters cleared");
+            }
+        },
+        getData: function() {
+            if (tableInstance.table) {
+                return tableInstance.table.getData();
+            }
+            return [];
+        },
+        getRowCount: function() {
+            if (tableInstance.table) {
+                return tableInstance.table.getDataCount();
+            }
+            return 0;
+        }
+    };
+    
+    console.log("Debug tools available via window.tableDebug");
 }
 
-// Helper to clear service worker cache
-window.clearServiceWorkerCache = function() {
-    if (navigator.serviceWorker.controller) {
-        const messageChannel = new MessageChannel();
-        messageChannel.port1.onmessage = (event) => {
-            if (event.data.success) {
-                console.log('Cache cleared successfully');
-            }
-        };
-        navigator.serviceWorker.controller.postMessage(
-            { type: 'CLEAR_API_CACHE' },
-            [messageChannel.port2]
-        );
+// Handle window resize - redraw table and reapply scaling
+window.addEventListener('resize', debounce(function() {
+    if (window.basketballTable && window.basketballTable.table) {
+        console.log("Window resized - redrawing table");
+        window.basketballTable.table.redraw(true);
+        
+        // Reapply desktop scaling if needed
+        if (window.innerWidth > 1024) {
+            window.basketballTable.applyDesktopScaling && 
+            window.basketballTable.applyDesktopScaling();
+        }
     }
-};
+}, 250));
 
-console.log("✅ Basketball table system loaded");
+// Debounce helper
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Global error handler
+window.addEventListener('error', function(event) {
+    console.error('Global error:', event.error);
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled promise rejection:', event.reason);
+});
+
+// Export for module usage
+export { initializeTable, initializeGlobalState };
