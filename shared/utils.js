@@ -1,210 +1,157 @@
-// shared/utils.js - Basketball Utility Functions
+// shared/utils.js - Utility Functions for Basketball Props Tables
 
 /**
- * Format a decimal value as a percentage with one decimal place
- * @param {number|string} value - The value to format (0-1 scale or already percentage)
- * @param {number} decimals - Number of decimal places (default: 1)
+ * Format a decimal value as a percentage
+ * @param {number} value - Decimal value (e.g., 0.75)
+ * @param {number} decimals - Number of decimal places
  * @returns {string} Formatted percentage string
  */
 export function formatPercentage(value, decimals = 1) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
+    if (value === null || value === undefined || value === '') return '-';
     const num = parseFloat(value);
     if (isNaN(num)) return '-';
-    
-    // If value is between 0 and 1, multiply by 100
-    const percentage = num <= 1 && num >= 0 ? num * 100 : num;
-    
-    return percentage.toFixed(decimals) + '%';
+    return (num * 100).toFixed(decimals) + '%';
 }
 
 /**
- * Format a clearance percentage (assumes value is already 0-100 scale)
- * @param {number|string} value - The value to format
+ * Format a clearance percentage value
+ * @param {number|string} value - Value already in percentage form (e.g., 75.5)
+ * @param {number} decimals - Number of decimal places
  * @returns {string} Formatted percentage string
  */
-export function formatClearancePercentage(value) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
+export function formatClearancePercentage(value, decimals = 1) {
+    if (value === null || value === undefined || value === '') return '-';
+    const str = String(value);
+    if (str.includes('%')) return str;
     const num = parseFloat(value);
     if (isNaN(num)) return '-';
-    
-    return num.toFixed(1) + '%';
+    return num.toFixed(decimals) + '%';
 }
 
 /**
- * Format a number with specified decimal places
- * @param {number|string} value - The value to format
- * @param {number} decimals - Number of decimal places (default: 1)
- * @returns {string} Formatted number string
+ * Format a ratio value with specified decimal places
+ * @param {number} value - Ratio value
+ * @param {number} decimals - Number of decimal places
+ * @returns {string} Formatted ratio string
  */
-export function formatDecimal(value, decimals = 1) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
+export function formatRatio(value, decimals = 3) {
+    if (value === null || value === undefined || value === '') return '-';
     const num = parseFloat(value);
     if (isNaN(num)) return '-';
-    
     return num.toFixed(decimals);
 }
 
 /**
- * Format odds value (adds + prefix for positive values)
- * @param {number|string} value - The odds value
+ * Extract opponent team from matchup string
+ * @param {string} matchup - Matchup string (e.g., "LAL @ BOS" or "LAL vs BOS")
+ * @param {string} playerTeam - Player's team abbreviation
+ * @returns {string} Opponent team abbreviation
+ */
+export function getOpponentTeam(matchup, playerTeam) {
+    if (!matchup || !playerTeam) return '-';
+    
+    // Try "@" format first (LAL @ BOS)
+    if (matchup.includes('@')) {
+        const parts = matchup.split('@').map(s => s.trim());
+        if (parts.length === 2) {
+            const team1 = parts[0].match(/[A-Z]{2,4}/)?.[0];
+            const team2 = parts[1].match(/[A-Z]{2,4}/)?.[0];
+            
+            if (team1 === playerTeam) return team2 || '-';
+            if (team2 === playerTeam) return team1 || '-';
+        }
+    }
+    
+    // Try "vs" format (LAL vs BOS)
+    if (matchup.includes(' vs ')) {
+        const parts = matchup.split(' vs ').map(s => s.trim());
+        if (parts.length === 2) {
+            const team1 = parts[0].match(/[A-Z]{2,4}/)?.[0];
+            const team2 = parts[1].match(/[A-Z]{2,4}/)?.[0];
+            
+            if (team1 === playerTeam) return team2 || '-';
+            if (team2 === playerTeam) return team1 || '-';
+        }
+    }
+    
+    return '-';
+}
+
+/**
+ * Determine player location from matchup string
+ * @param {string} matchup - Matchup string
+ * @param {string} playerTeam - Player's team abbreviation
+ * @returns {'Home'|'Away'|'Home/Away'} Player's location
+ */
+export function getPlayerLocation(matchup, playerTeam) {
+    if (!matchup || !playerTeam) return 'Home/Away';
+    
+    // "@" format: away team @ home team
+    if (matchup.includes('@')) {
+        const parts = matchup.split('@').map(s => s.trim());
+        if (parts.length === 2) {
+            const awayTeam = parts[0].match(/[A-Z]{2,4}/)?.[0];
+            const homeTeam = parts[1].match(/[A-Z]{2,4}/)?.[0];
+            
+            if (awayTeam === playerTeam) return 'Away';
+            if (homeTeam === playerTeam) return 'Home';
+        }
+    }
+    
+    // "vs" format: home team vs away team
+    if (matchup.includes(' vs ')) {
+        const parts = matchup.split(' vs ').map(s => s.trim());
+        if (parts.length === 2) {
+            const homeTeam = parts[0].match(/[A-Z]{2,4}/)?.[0];
+            const awayTeam = parts[1].match(/[A-Z]{2,4}/)?.[0];
+            
+            if (homeTeam === playerTeam) return 'Home';
+            if (awayTeam === playerTeam) return 'Away';
+        }
+    }
+    
+    return 'Home/Away';
+}
+
+/**
+ * Format odds value with +/- prefix
+ * @param {number|string} value - Odds value
  * @returns {string} Formatted odds string
  */
 export function formatOdds(value) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
+    if (value === null || value === undefined || value === '') return '-';
     const num = parseInt(value, 10);
     if (isNaN(num)) return '-';
-    
     return num > 0 ? `+${num}` : `${num}`;
 }
 
 /**
- * Parse a "games played" string in format "X/Y" and return first number
- * @param {string} value - The games string (e.g., "19/31")
- * @returns {number} The first number, or 0 if invalid
+ * Format odds value with book name
+ * @param {string} value - Odds value potentially with book name (e.g., "-110 (DraftKings)")
+ * @returns {string} Formatted odds string
  */
-export function parseGamesPlayed(value) {
-    if (!value || value === '-') return 0;
-    
+export function formatOddsWithBook(value) {
+    if (value === null || value === undefined || value === '') return '-';
     const str = String(value);
-    if (str.includes('/')) {
-        return parseInt(str.split('/')[0], 10) || 0;
-    }
     
-    return parseInt(str, 10) || 0;
-}
-
-/**
- * Parse a "rank with value" string in format "X (Y.Y)" and return rank number
- * @param {string} value - The rank string (e.g., "21 (25.2)")
- * @returns {number} The rank number, or 9999 if invalid (sorts to end)
- */
-export function parseRankWithValue(value) {
-    if (!value || value === '-') return 9999;
-    
-    const str = String(value);
     if (str.includes('(')) {
-        return parseInt(str.split('(')[0].trim(), 10) || 9999;
+        const parts = str.split('(');
+        const numPart = parts[0].trim();
+        const bookPart = '(' + parts[1];
+        const num = parseInt(numPart, 10);
+        if (isNaN(num)) return str;
+        const formattedNum = num > 0 ? `+${num}` : `${num}`;
+        return `${formattedNum} ${bookPart}`;
     }
     
-    return parseInt(str, 10) || 9999;
+    return formatOdds(str);
 }
 
 /**
- * Format a rank with value ensuring proper decimal formatting
- * @param {string} value - The rank string (e.g., "21 (25.2)")
- * @returns {string} Formatted rank string
- */
-export function formatRankWithValue(value) {
-    if (!value || value === '-') return '-';
-    
-    const str = String(value);
-    if (str.includes('(')) {
-        const match = str.match(/^(\d+)\s*\(([^)]+)\)$/);
-        if (match) {
-            const rank = match[1];
-            const avg = parseFloat(match[2]);
-            if (!isNaN(avg)) {
-                return `${rank} (${avg.toFixed(1)})`;
-            }
-        }
-    }
-    
-    return str;
-}
-
-/**
- * Remove leading zero from decimal values (e.g., "0.350" -> ".350")
- * @param {string|number} value - The value to format
- * @param {number} decimals - Number of decimal places (default: 3)
- * @returns {string} Formatted value without leading zero
- */
-export function removeLeadingZeroFromValue(value) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
-    const str = String(value);
-    
-    // If it starts with "0." remove the leading zero
-    if (str.startsWith('0.')) {
-        return str.substring(1);
-    }
-    
-    // If it starts with "-0." keep the minus but remove the zero
-    if (str.startsWith('-0.')) {
-        return '-' + str.substring(2);
-    }
-    
-    return str;
-}
-
-/**
- * Format a ratio value to specified decimal places, removing leading zero
- * @param {number|string} value - The value to format
- * @param {number} decimals - Number of decimal places (default: 3)
- * @returns {string} Formatted ratio string
- */
-export function formatRatio(value, decimals = 3) {
-    if (value === null || value === undefined || value === '' || value === '-') {
-        return '-';
-    }
-    
-    const num = parseFloat(value);
-    if (isNaN(num)) return '-';
-    
-    const formatted = num.toFixed(decimals);
-    return removeLeadingZeroFromValue(formatted);
-}
-
-/**
- * Extract opponent team from a matchup string
- * @param {string} matchup - The matchup string (e.g., "LAL vs BOS" or "LAL @ BOS")
- * @param {string} team - The player's team to extract opponent from
- * @returns {string} The opponent team abbreviation
- */
-export function getOpponentTeam(matchup, team) {
-    if (!matchup || !team) return '';
-    
-    const str = String(matchup);
-    
-    // Handle "vs" format
-    if (str.includes(' vs ')) {
-        const parts = str.split(' vs ');
-        return parts[0].trim() === team ? parts[1].trim() : parts[0].trim();
-    }
-    
-    // Handle "@" format
-    if (str.includes(' @ ')) {
-        const parts = str.split(' @ ');
-        return parts[0].trim() === team ? parts[1].trim() : parts[0].trim();
-    }
-    
-    // Handle "-" format
-    if (str.includes('-')) {
-        const parts = str.split('-');
-        return parts[0].trim() === team ? parts[1].trim() : parts[0].trim();
-    }
-    
-    return '';
-}
-
-/**
- * Debounce function to limit function call frequency
- * @param {Function} func - The function to debounce
+ * Debounce function execution
+ * @param {function} func - Function to debounce
  * @param {number} wait - Wait time in milliseconds
- * @returns {Function} Debounced function
+ * @returns {function} Debounced function
  */
 export function debounce(func, wait) {
     let timeout;
@@ -219,10 +166,10 @@ export function debounce(func, wait) {
 }
 
 /**
- * Throttle function to limit function call frequency
- * @param {Function} func - The function to throttle
+ * Throttle function execution
+ * @param {function} func - Function to throttle
  * @param {number} limit - Minimum time between calls in milliseconds
- * @returns {Function} Throttled function
+ * @returns {function} Throttled function
  */
 export function throttle(func, limit) {
     let inThrottle;
@@ -236,49 +183,32 @@ export function throttle(func, limit) {
 }
 
 /**
- * Check if a value is empty (null, undefined, empty string, or dash)
- * @param {*} value - The value to check
- * @returns {boolean} True if empty
+ * Remove leading zero from decimal values
+ * @param {number|string} value - Value to format
+ * @returns {string} Formatted value
  */
-export function isEmpty(value) {
-    return value === null || 
-           value === undefined || 
-           value === '' || 
-           value === '-' ||
-           (typeof value === 'string' && value.trim() === '');
-}
-
-/**
- * Safe number parsing with fallback
- * @param {*} value - The value to parse
- * @param {number} fallback - Fallback value if parsing fails (default: 0)
- * @returns {number} Parsed number or fallback
- */
-export function safeParseNumber(value, fallback = 0) {
-    if (isEmpty(value)) return fallback;
-    
-    const num = parseFloat(value);
-    return isNaN(num) ? fallback : num;
-}
-
-/**
- * Generate a unique ID for a row based on its data
- * @param {Object} data - The row data
- * @returns {string} Unique row identifier
- */
-export function generateRowId(data) {
-    const fields = [];
-    
-    if (data["Player Name"]) {
-        fields.push(data["Player Name"]);
-        if (data["Player Team"]) fields.push(data["Player Team"]);
-        if (data["Player Prop"]) fields.push(data["Player Prop"]);
-        if (data["Player Prop Value"]) fields.push(data["Player Prop Value"]);
-        if (data["Split"]) fields.push(data["Split"]);
-        return `player_${fields.join('_')}`;
+export function removeLeadingZeroFromValue(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    const str = String(value);
+    if (str.startsWith('0.')) {
+        return str.substring(1);
     }
-    
-    // Fallback - use first 5 non-internal fields
-    const keys = Object.keys(data).filter(k => !k.startsWith('_') && data[k] != null);
-    return keys.slice(0, 5).map(k => `${k}:${data[k]}`).join('|');
+    if (str.startsWith('-0.')) {
+        return '-' + str.substring(2);
+    }
+    return str;
 }
+
+// Default export
+export default {
+    formatPercentage,
+    formatClearancePercentage,
+    formatRatio,
+    getOpponentTeam,
+    getPlayerLocation,
+    formatOdds,
+    formatOddsWithBook,
+    debounce,
+    throttle,
+    removeLeadingZeroFromValue
+};
