@@ -1,6 +1,7 @@
 // shared/config.js - Basketball Props Configuration
+
 export const CONFIG = {
-    // Supabase Configuration (same database as baseball)
+    // Supabase Configuration
     SUPABASE_URL: 'https://hcwolbvmffkmjcxsumwn.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjd29sYnZtZmZrbWpjeHN1bXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzNDQzMTIsImV4cCI6MjA1NTkyMDMxMn0.tM4RwXZpZM6ZHuFFMhWcKYLT3E4NA6Ig90CHw7QtJf0',
     
@@ -38,129 +39,138 @@ export const CONFIG = {
     // Table Dimensions
     TABLE_DIMENSIONS: {
         mobile: {
-            scale: 0.85,
-            minFontSize: 11
+            maxHeight: '400px',
+            rowHeight: 32,
+            headerHeight: 40,
+            fontSize: 10
         },
         tablet: {
-            scale: 0.92,
-            minFontSize: 12
+            maxHeight: '500px',
+            rowHeight: 36,
+            headerHeight: 45,
+            fontSize: 11
         },
         desktop: {
-            playerPropClearances: {
-                minWidth: 1400,
-                maxWidth: 1800
-            }
-        }
-    },
-    
-    // NBA Team Abbreviations
-    TEAM_ABBREVIATIONS: {
-        'Atlanta Hawks': 'ATL',
-        'Boston Celtics': 'BOS',
-        'Brooklyn Nets': 'BKN',
-        'Charlotte Hornets': 'CHA',
-        'Chicago Bulls': 'CHI',
-        'Cleveland Cavaliers': 'CLE',
-        'Dallas Mavericks': 'DAL',
-        'Denver Nuggets': 'DEN',
-        'Detroit Pistons': 'DET',
-        'Golden State Warriors': 'GSW',
-        'Houston Rockets': 'HOU',
-        'Indiana Pacers': 'IND',
-        'Los Angeles Clippers': 'LAC',
-        'Los Angeles Lakers': 'LAL',
-        'Memphis Grizzlies': 'MEM',
-        'Miami Heat': 'MIA',
-        'Milwaukee Bucks': 'MIL',
-        'Minnesota Timberwolves': 'MIN',
-        'New Orleans Pelicans': 'NOP',
-        'New York Knicks': 'NYK',
-        'Oklahoma City Thunder': 'OKC',
-        'Orlando Magic': 'ORL',
-        'Philadelphia 76ers': 'PHI',
-        'Phoenix Suns': 'PHX',
-        'Portland Trail Blazers': 'POR',
-        'Sacramento Kings': 'SAC',
-        'San Antonio Spurs': 'SAS',
-        'Toronto Raptors': 'TOR',
-        'Utah Jazz': 'UTA',
-        'Washington Wizards': 'WAS'
-    },
-    
-    // Service Worker Configuration
-    SW_CONFIG: {
-        enabled: false,
-        cacheVersion: 'v1',
-        cacheNames: {
-            static: 'basketball-static-v1',
-            api: 'basketball-api-v1',
-            runtime: 'basketball-runtime-v1'
+            maxHeight: '600px',
+            rowHeight: 40,
+            headerHeight: 50,
+            fontSize: 12
         }
     }
 };
 
-// Export helper functions
-export function getTeamAbbreviation(fullName) {
-    return CONFIG.TEAM_ABBREVIATIONS[fullName] || fullName;
-}
+// Team name mapping for display
+export const TEAM_NAME_MAP = {
+    'ATL': 'Hawks',
+    'BOS': 'Celtics',
+    'BKN': 'Nets',
+    'CHA': 'Hornets',
+    'CHI': 'Bulls',
+    'CLE': 'Cavaliers',
+    'DAL': 'Mavericks',
+    'DEN': 'Nuggets',
+    'DET': 'Pistons',
+    'GSW': 'Warriors',
+    'HOU': 'Rockets',
+    'IND': 'Pacers',
+    'LAC': 'Clippers',
+    'LAL': 'Lakers',
+    'MEM': 'Grizzlies',
+    'MIA': 'Heat',
+    'MIL': 'Bucks',
+    'MIN': 'Timberwolves',
+    'NOP': 'Pelicans',
+    'NYK': 'Knicks',
+    'OKC': 'Thunder',
+    'ORL': 'Magic',
+    'PHI': '76ers',
+    'PHX': 'Suns',
+    'POR': 'Trail Blazers',
+    'SAC': 'Kings',
+    'SAS': 'Spurs',
+    'TOR': 'Raptors',
+    'UTA': 'Jazz',
+    'WAS': 'Wizards'
+};
 
-export function getSupabaseConfig() {
-    return {
-        url: CONFIG.SUPABASE_URL,
-        anonKey: CONFIG.SUPABASE_ANON_KEY
-    };
-}
+// =====================================================
+// DEVICE DETECTION FUNCTIONS
+// =====================================================
 
-// Get responsive table dimensions based on screen size
-export function getTableDimensions(tableName) {
-    const width = window.innerWidth;
-    
-    if (width <= CONFIG.BREAKPOINTS.mobile) {
-        return {
-            ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
-            scale: CONFIG.TABLE_DIMENSIONS.mobile.scale,
-            needsScaling: true
-        };
-    } else if (width <= CONFIG.BREAKPOINTS.tablet) {
-        return {
-            ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
-            scale: CONFIG.TABLE_DIMENSIONS.tablet.scale,
-            needsScaling: true
-        };
-    } else {
-        return {
-            ...CONFIG.TABLE_DIMENSIONS.desktop[tableName],
-            scale: 1,
-            needsScaling: false
-        };
-    }
-}
-
-// Check if device is mobile
+/**
+ * Check if current device is mobile (width <= 768px)
+ * @returns {boolean}
+ */
 export function isMobile() {
+    if (typeof window === 'undefined') return false;
     return window.innerWidth <= CONFIG.BREAKPOINTS.mobile;
 }
 
-// Check if device is tablet
+/**
+ * Check if current device is tablet (769px - 1024px)
+ * @returns {boolean}
+ */
 export function isTablet() {
+    if (typeof window === 'undefined') return false;
     return window.innerWidth > CONFIG.BREAKPOINTS.mobile && 
            window.innerWidth <= CONFIG.BREAKPOINTS.tablet;
 }
 
-// Get appropriate scale for current device
+/**
+ * Check if current device is desktop (> 1024px)
+ * @returns {boolean}
+ */
+export function isDesktop() {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth > CONFIG.BREAKPOINTS.tablet;
+}
+
+/**
+ * Get device type string
+ * @returns {'mobile'|'tablet'|'desktop'}
+ */
+export function getDeviceType() {
+    if (isMobile()) return 'mobile';
+    if (isTablet()) return 'tablet';
+    return 'desktop';
+}
+
+/**
+ * Get scale factor for responsive sizing
+ * @returns {number} Scale factor between 0.7 and 1.0
+ */
 export function getDeviceScale() {
-    if (isMobile()) {
-        return CONFIG.TABLE_DIMENSIONS.mobile.scale;
-    } else if (isTablet()) {
-        return CONFIG.TABLE_DIMENSIONS.tablet.scale;
-    }
+    if (typeof window === 'undefined') return 1;
+    
+    const width = window.innerWidth;
+    
+    if (width <= 480) return 0.7;
+    if (width <= 768) return 0.8;
+    if (width <= 1024) return 0.9;
     return 1;
 }
 
-// Export CONFIG as default for backwards compatibility
-export default CONFIG;
+/**
+ * Get table dimensions based on current device
+ * @returns {object} Table dimension configuration
+ */
+export function getTableDimensions() {
+    const deviceType = getDeviceType();
+    return CONFIG.TABLE_DIMENSIONS[deviceType];
+}
 
-// Export additional items for direct access
+/**
+ * Calculate responsive font size
+ * @param {number} baseSize - Base font size in pixels
+ * @returns {number} Scaled font size
+ */
+export function getResponsiveFontSize(baseSize = 12) {
+    const scale = getDeviceScale();
+    return Math.round(baseSize * scale);
+}
+
+// Export API config helper
 export const API_CONFIG = CONFIG.API_CONFIG;
-export const TEAM_NAME_MAP = CONFIG.TEAM_ABBREVIATIONS;
-export const SW_CONFIG = CONFIG.SW_CONFIG;
+
+// Default export
+export default CONFIG;
