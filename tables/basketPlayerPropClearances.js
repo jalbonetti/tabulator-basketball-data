@@ -1,4 +1,4 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (FULLY UPDATED v2)
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (v3 - All Fixes)
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
@@ -11,16 +11,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     initialize() {
         const config = {
             ...this.tableConfig,
-            // Optimize for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "virtual",
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
             responsiveLayout: false,
-            // Fill the entire width of the container
             layout: "fitColumns",
             maxHeight: "600px",
             height: "600px",
@@ -36,12 +33,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             dataLoaded: (data) => {
                 console.log(`Basketball table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
-                
-                // Log first row to see all field names
-                if (data.length > 0) {
-                    console.log('First row data keys:', Object.keys(data[0]));
-                    console.log('First row full data:', data[0]);
-                }
                 
                 data.forEach(row => {
                     if (row._expanded === undefined) {
@@ -70,80 +61,48 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         });
     }
 
-    // Custom sorter for "X/Y" format - sorts by FULL first number (15 > 9, not 1 > 9)
+    // Custom sorter for "X/Y" format
     gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getFirstNum = (val) => {
             if (!val || val === '-') return -1;
             const str = String(val).trim();
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return parseInt(match[1], 10);
-            }
-            if (str.includes('/')) {
-                const firstPart = str.split('/')[0].trim();
-                const num = parseInt(firstPart, 10);
-                return isNaN(num) ? -1 : num;
-            }
-            const num = parseInt(str, 10);
-            return isNaN(num) ? -1 : num;
+            if (match) return parseInt(match[1], 10);
+            return -1;
         };
         return getFirstNum(a) - getFirstNum(b);
     }
 
-    // Custom sorter for "X (Y.Y)" format - sorts by first number (rank)
+    // Custom sorter for "X (Y.Y)" format
     rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getFirstNum = (val) => {
             if (!val || val === '-') return 9999;
             const str = String(val).trim();
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return parseInt(match[1], 10);
-            }
-            if (str.includes('(')) {
-                const firstPart = str.split('(')[0].trim();
-                const num = parseInt(firstPart, 10);
-                return isNaN(num) ? 9999 : num;
-            }
-            const num = parseInt(str, 10);
-            return isNaN(num) ? 9999 : num;
+            if (match) return parseInt(match[1], 10);
+            return 9999;
         };
         return getFirstNum(a) - getFirstNum(b);
     }
 
-    // Custom sorter for odds - extracts number from formats like "-110 (DraftKings)"
+    // Custom sorter for odds
     oddsSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getOddsNum = (val) => {
             if (!val || val === '-') return 0;
             const str = String(val).trim();
             const match = str.match(/^([+-]?\d+)/);
-            if (match) {
-                return parseInt(match[1], 10);
-            }
-            const numPart = str.split('(')[0].trim();
-            const num = parseInt(numPart, 10);
-            return isNaN(num) ? 0 : num;
+            if (match) return parseInt(match[1], 10);
+            return 0;
         };
         return getOddsNum(a) - getOddsNum(b);
     }
 
-    // Helper to extract book name from odds string like "-110 (DraftKings)"
+    // Helper to extract book name from odds string
     extractBookName(oddsStr) {
         if (!oddsStr || oddsStr === '-') return '-';
         const str = String(oddsStr);
         const match = str.match(/\(([^)]+)\)/);
         return match ? match[1] : '-';
-    }
-
-    // Helper to extract just the odds number from odds string
-    extractOddsNumber(oddsStr) {
-        if (!oddsStr || oddsStr === '-') return '-';
-        const str = String(oddsStr).trim();
-        const match = str.match(/^([+-]?\d+)/);
-        if (match) {
-            const num = parseInt(match[1], 10);
-            return num > 0 ? `+${num}` : `${num}`;
-        }
-        return '-';
     }
 
     getColumns() {
@@ -153,10 +112,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const clearanceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
-            const str = String(value);
-            // Remove any existing % sign and parse
-            const numStr = str.replace('%', '').trim();
-            const num = parseFloat(numStr);
+            const str = String(value).replace('%', '').trim();
+            const num = parseFloat(str);
             if (isNaN(num)) return '-';
             return num.toFixed(1) + '%';
         };
@@ -170,12 +127,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Simple odds formatter - just the number, no book name
+        // Simple odds formatter - just the number
         const simpleOddsFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
             const str = String(value).trim();
-            // Extract just the number part
             const match = str.match(/^([+-]?\d+)/);
             if (match) {
                 const num = parseInt(match[1], 10);
@@ -186,29 +142,58 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num > 0 ? `+${num}` : `${num}`;
         };
 
+        // Prop formatter - abbreviate "3-Pointers" to "3-PTs"
+        const propFormatter = (cell) => {
+            const value = cell.getValue();
+            if (!value) return '-';
+            const str = String(value);
+            if (str === '3-Pointers') return '3-PTs';
+            return str;
+        };
+
+        // Split formatter - abbreviate values
+        const splitFormatter = (cell) => {
+            const value = cell.getValue();
+            if (!value) return '-';
+            const str = String(value);
+            if (str === 'Full Season') return 'Season';
+            if (str === 'Last 30 Days') return 'L30 Days';
+            return str;
+        };
+
+        // Lineup formatter - abbreviate values
+        const lineupFormatter = (cell) => {
+            const value = cell.getValue();
+            if (!value) return '-';
+            let str = String(value);
+            str = str.replace('(Expected)', '(Exp)');
+            str = str.replace('Expected', 'Exp');
+            str = str.replace('Confirmed', 'Conf');
+            str = str.replace('(Confirmed)', '(Conf)');
+            return str;
+        };
+
         return [
-            // Player Info Group - FROZEN for mobile scrolling
-            {title: "Player Info", frozen: true, columns: [
+            // Player Info Group - NO FROZEN for mobile compatibility
+            {title: "Player Info", columns: [
                 {
                     title: "Name", 
                     field: "Player Name", 
-                    minWidth: 140,
+                    minWidth: 130,
                     widthGrow: 2,
                     sorter: "string", 
                     headerFilter: true,
                     resizable: false,
-                    frozen: true,
                     formatter: this.createNameFormatter()
                 },
                 {
                     title: "Team", 
                     field: "Player Team", 
-                    minWidth: 55,
+                    minWidth: 50,
                     widthGrow: 0.5,
                     sorter: "string", 
                     headerFilter: createCustomMultiSelect,
                     resizable: false,
-                    frozen: true,
                     hozAlign: "center"
                 }
             ]},
@@ -218,17 +203,18 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Prop", 
                     field: "Player Prop", 
-                    minWidth: 90,
-                    widthGrow: 1,
+                    minWidth: 70,
+                    widthGrow: 0.8,
                     sorter: "string", 
                     headerFilter: createCustomMultiSelect,
                     resizable: false,
-                    hozAlign: "center"
+                    hozAlign: "center",
+                    formatter: propFormatter
                 },
                 {
                     title: "Line", 
                     field: "Player Prop Value", 
-                    minWidth: 60,
+                    minWidth: 55,
                     widthGrow: 0.5,
                     sorter: "number", 
                     headerFilter: createMinMaxFilter,
@@ -240,11 +226,12 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Split", 
                     field: "Split", 
-                    minWidth: 100,
-                    widthGrow: 1,
+                    minWidth: 80,
+                    widthGrow: 0.8,
                     headerFilter: createCustomMultiSelect,
                     resizable: false,
-                    hozAlign: "center"
+                    hozAlign: "center",
+                    formatter: splitFormatter
                 }
             ]},
 
@@ -253,8 +240,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "% Over", 
                     field: "Player Clearance", 
-                    minWidth: 70,
-                    widthGrow: 0.7,
+                    minWidth: 65,
+                    widthGrow: 0.6,
                     sorter: "number",
                     resizable: false,
                     formatter: clearanceFormatter,
@@ -263,8 +250,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Games", 
                     field: "Player Games", 
-                    minWidth: 60,
-                    widthGrow: 0.6,
+                    minWidth: 55,
+                    widthGrow: 0.5,
                     sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                         return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
                     },
@@ -273,27 +260,33 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 }
             ]},
 
-            // Opponent Group - Renamed columns
+            // Opponent Group - Headers can wrap to 3 lines
             {title: "Opponent", columns: [
                 {
                     title: "Prop Rank (Avg)", 
                     field: "Opponent Prop Rank", 
-                    minWidth: 95,
-                    widthGrow: 1,
+                    minWidth: 65,
+                    widthGrow: 0.7,
                     sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                         return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
                     },
                     resizable: false,
-                    hozAlign: "center"
+                    hozAlign: "center",
+                    titleFormatter: function(cell) {
+                        return "<div style='line-height:1.2; text-align:center;'>Prop<br>Rank<br>(Avg)</div>";
+                    }
                 },
                 {
                     title: "Season Pace Rank", 
                     field: "Opponent Pace Rank", 
-                    minWidth: 95,
-                    widthGrow: 1,
+                    minWidth: 65,
+                    widthGrow: 0.7,
                     sorter: "number",
                     resizable: false,
-                    hozAlign: "center"
+                    hozAlign: "center",
+                    titleFormatter: function(cell) {
+                        return "<div style='line-height:1.2; text-align:center;'>Season<br>Pace<br>Rank</div>";
+                    }
                 }
             ]},
 
@@ -301,21 +294,22 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             {
                 title: "Lineup", 
                 field: "Lineup Status", 
-                minWidth: 100,
-                widthGrow: 1,
+                minWidth: 85,
+                widthGrow: 0.8,
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: lineupFormatter
             },
 
-            // Player Stats Group - "Med" instead of "Median", consistent widths
+            // Player Stats Group
             {title: "Player Stats", columns: [
                 {
                     title: "Med", 
                     field: "Player Prop Median", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
+                    minWidth: 48,
+                    widthGrow: 0.5,
                     sorter: "number",
                     resizable: false,
                     hozAlign: "center",
@@ -324,8 +318,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Avg", 
                     field: "Player Prop Average", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
+                    minWidth: 48,
+                    widthGrow: 0.5,
                     sorter: "number",
                     resizable: false,
                     hozAlign: "center",
@@ -334,8 +328,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "High", 
                     field: "Player Prop High", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
+                    minWidth: 48,
+                    widthGrow: 0.5,
                     sorter: "number",
                     resizable: false,
                     hozAlign: "center"
@@ -343,7 +337,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Low", 
                     field: "Player Prop Low", 
-                    minWidth: 50,
+                    minWidth: 45,
                     widthGrow: 0.5,
                     sorter: "number",
                     resizable: false,
@@ -352,8 +346,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Mode", 
                     field: "Player Prop Mode", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
+                    minWidth: 50,
+                    widthGrow: 0.5,
                     sorter: "number",
                     resizable: false,
                     hozAlign: "center"
@@ -365,8 +359,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Over", 
                     field: "Player Median Over Odds", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
+                    minWidth: 55,
+                    widthGrow: 0.6,
                     sorter: "number",
                     headerFilter: createMinMaxFilter,
                     headerFilterFunc: minMaxFilterFunction,
@@ -378,8 +372,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Under", 
                     field: "Player Median Under Odds", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
+                    minWidth: 55,
+                    widthGrow: 0.6,
                     sorter: "number",
                     headerFilter: createMinMaxFilter,
                     headerFilterFunc: minMaxFilterFunction,
@@ -390,13 +384,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 }
             ]},
 
-            // Best Odds Group - JUST THE NUMBER, book names in expandable section
+            // Best Odds Group - just numbers, books in expandable
             {title: "Best Odds", columns: [
                 {
                     title: "Over", 
                     field: "Player Best Over Odds", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
+                    minWidth: 55,
+                    widthGrow: 0.6,
                     sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                         return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                     },
@@ -410,8 +404,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 {
                     title: "Under", 
                     field: "Player Best Under Odds", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
+                    minWidth: 55,
+                    widthGrow: 0.6,
                     sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                         return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                     },
@@ -437,13 +431,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 data._expanded = false;
             }
             
-            // Clear any existing subrow
             const existingSubrow = rowElement.querySelector('.subrow-container');
             if (existingSubrow) {
                 existingSubrow.remove();
             }
             
-            // If expanded, create expandable content
             if (data._expanded) {
                 const subrowContainer = document.createElement('div');
                 subrowContainer.className = 'subrow-container';
@@ -465,6 +457,16 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     createExpandableContent(container, data) {
+        // Extract book names from best odds
+        const bestOverBook = this.extractBookName(data['Player Best Over Odds']);
+        const bestUnderBook = this.extractBookName(data['Player Best Under Odds']);
+
+        // Spread and Total are STRINGS with prefixes like "MIA +3.5" and "O/U 250.5"
+        // Display them as-is, not as decimals
+        const spreadValue = data['Matchup Spread'] || '-';
+        const totalValue = data['Matchup Total'] || '-';
+        
+        // For minutes, format as decimals
         const formatDecimal = (value) => {
             if (value === null || value === undefined || value === '') return '-';
             const num = parseFloat(value);
@@ -472,74 +474,45 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Extract book names from best odds
-        const bestOverBook = this.extractBookName(data['Player Best Over Odds']);
-        const bestUnderBook = this.extractBookName(data['Player Best Under Odds']);
-
-        // Debug: log all data keys to find the correct field names
-        console.log('=== EXPANDABLE ROW DEBUG ===');
-        console.log('All data keys:', Object.keys(data));
-        
-        // Try various possible field names for spread and total
-        const spreadValue = data['Matchup Spread'] || data['MatchupSpread'] || data['Spread'] || data['matchup_spread'] || data['Game Spread'] || '-';
-        const totalValue = data['Matchup Total'] || data['MatchupTotal'] || data['Total'] || data['matchup_total'] || data['Game Total'] || '-';
-        
-        console.log('Spread attempts:', {
-            'Matchup Spread': data['Matchup Spread'],
-            'MatchupSpread': data['MatchupSpread'],
-            'Spread': data['Spread'],
-            'matchup_spread': data['matchup_spread'],
-            'Game Spread': data['Game Spread']
-        });
-        console.log('Total attempts:', {
-            'Matchup Total': data['Matchup Total'],
-            'MatchupTotal': data['MatchupTotal'],
-            'Total': data['Total'],
-            'matchup_total': data['matchup_total'],
-            'Game Total': data['Game Total']
-        });
-        console.log('Final spread value:', spreadValue);
-        console.log('Final total value:', totalValue);
-
         const html = `
-            <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start;">
-                <div style="flex: 1; min-width: 280px; max-width: 450px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 25px; align-items: flex-start;">
+                <div style="flex: 1; min-width: 260px; max-width: 400px;">
                     <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
                         Matchup Details
                     </h4>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 35%;">Matchup:</td>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 30%;">Matchup:</td>
                             <td style="padding: 6px 10px; color: #333;">${data['Matchup'] || '-'}</td>
                         </tr>
                         <tr style="background: rgba(249, 115, 22, 0.05);">
                             <td style="padding: 6px 10px; font-weight: 500; color: #555;">Spread:</td>
-                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(spreadValue)}</td>
+                            <td style="padding: 6px 10px; color: #333;">${spreadValue}</td>
                         </tr>
                         <tr>
                             <td style="padding: 6px 10px; font-weight: 500; color: #555;">Total:</td>
-                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(totalValue)}</td>
+                            <td style="padding: 6px 10px; color: #333;">${totalValue}</td>
                         </tr>
                     </table>
                 </div>
                 
-                <div style="flex: 1; min-width: 200px; max-width: 280px;">
+                <div style="flex: 1; min-width: 180px; max-width: 260px;">
                     <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
                         Minutes Data
                     </h4>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 55%;">Median Minutes:</td>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 55%;">Median Min:</td>
                             <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Median Minutes'])}</td>
                         </tr>
                         <tr style="background: rgba(249, 115, 22, 0.05);">
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Average Minutes:</td>
+                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Avg Min:</td>
                             <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Average Minutes'])}</td>
                         </tr>
                     </table>
                 </div>
                 
-                <div style="flex: 1; min-width: 200px; max-width: 280px;">
+                <div style="flex: 1; min-width: 180px; max-width: 260px;">
                     <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
                         Best Odds Books
                     </h4>
