@@ -1,7 +1,15 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (v3 - All Fixes)
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (UPDATED)
+// Changes: 
+// - Removed "Player Info" combined header - Name and Team are now standalone columns
+// - Name column is frozen on mobile/tablet, fills remaining space on desktop
+// - All columns except Name auto-fit to content width
+// - All headers are center-justified
+// - Desktop text scaling to fit browser width
+
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
+import { CONFIG, isMobile, isTablet } from '../shared/config.js';
 
 export class BasketPlayerPropClearancesTable extends BaseTable {
     constructor(elementId) {
@@ -9,20 +17,29 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     initialize() {
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
         const config = {
             ...this.tableConfig,
+            // Optimize for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
+            renderHorizontal: "virtual",
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
             responsiveLayout: false,
-            layout: "fitColumns",
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
-            columns: this.getColumns(),
+            
+            // CRITICAL: Use fitDataStretch to auto-fit columns, Name fills remaining space
+            layout: isSmallScreen ? "fitDataFill" : "fitDataStretch",
+            
+            columns: this.getColumns(isSmallScreen),
             initialSort: [
                 {column: "Player Name", dir: "asc"},
                 {column: "Player Team", dir: "asc"},
@@ -58,62 +75,110 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
+            // Apply desktop scaling if needed
+            if (!isSmallScreen) {
+                this.applyDesktopScaling();
+            }
         });
     }
+    
+    // Apply scaling to fit table in browser width on desktop
+    applyDesktopScaling() {
+        const tableElement = document.querySelector(this.elementId);
+        if (!tableElement) return;
+        
+        const tabulatorElement = tableElement.querySelector('.tabulator');
+        if (!tabulatorElement) return;
+        
+        // Check if table is wider than container
+        const containerWidth = tableElement.offsetWidth;
+        const tableWidth = tabulatorElement.scrollWidth;
+        
+        if (tableWidth > containerWidth) {
+            // Calculate scale factor
+            const scaleFactor = Math.max(0.75, containerWidth / tableWidth);
+            
+            // Apply font size scaling
+            const baseFontSize = 13;
+            const scaledFontSize = Math.floor(baseFontSize * scaleFactor);
+            
+            tabulatorElement.style.fontSize = `${scaledFontSize}px`;
+            
+            // Force redraw
+            if (this.table) {
+                this.table.redraw(true);
+            }
+            
+            console.log(`Applied desktop scaling: ${scaleFactor.toFixed(2)}, font size: ${scaledFontSize}px`);
+        }
+    }
 
-    // Custom sorter for "X/Y" format
+    // Custom sorter for "X/Y" format - sorts by FULL first number (15 > 9, not 1 > 9)
     gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getFirstNum = (val) => {
             if (!val || val === '-') return -1;
             const str = String(val).trim();
             const match = str.match(/^(\d+)/);
-            if (match) return parseInt(match[1], 10);
-            return -1;
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+            if (str.includes('/')) {
+                const firstPart = str.split('/')[0].trim();
+                const num = parseInt(firstPart, 10);
+                return isNaN(num) ? -1 : num;
+            }
+            const num = parseInt(str, 10);
+            return isNaN(num) ? -1 : num;
         };
         return getFirstNum(a) - getFirstNum(b);
     }
 
-    // Custom sorter for "X (Y.Y)" format
+    // Custom sorter for "X (Y.Y)" format - sorts by first number (rank)
     rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getFirstNum = (val) => {
             if (!val || val === '-') return 9999;
             const str = String(val).trim();
             const match = str.match(/^(\d+)/);
-            if (match) return parseInt(match[1], 10);
-            return 9999;
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+            if (str.includes('(')) {
+                const firstPart = str.split('(')[0].trim();
+                const num = parseInt(firstPart, 10);
+                return isNaN(num) ? 9999 : num;
+            }
+            const num = parseInt(str, 10);
+            return isNaN(num) ? 9999 : num;
         };
         return getFirstNum(a) - getFirstNum(b);
     }
 
-    // Custom sorter for odds
+    // Custom sorter for odds that may include book names like "-110 (DraftKings)"
     oddsSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getOddsNum = (val) => {
             if (!val || val === '-') return 0;
             const str = String(val).trim();
             const match = str.match(/^([+-]?\d+)/);
-            if (match) return parseInt(match[1], 10);
-            return 0;
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+            const numPart = str.split('(')[0].trim();
+            const num = parseInt(numPart, 10);
+            return isNaN(num) ? 0 : num;
         };
         return getOddsNum(a) - getOddsNum(b);
     }
 
-    // Helper to extract book name from odds string
-    extractBookName(oddsStr) {
-        if (!oddsStr || oddsStr === '-') return '-';
-        const str = String(oddsStr);
-        const match = str.match(/\(([^)]+)\)/);
-        return match ? match[1] : '-';
-    }
-
-    getColumns() {
+    getColumns(isSmallScreen = false) {
         const self = this;
         
-        // Clearance formatter - 1 decimal place only
+        // Clearance formatter - value is already a %, just display it directly
         const clearanceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
-            const str = String(value).replace('%', '').trim();
-            const num = parseFloat(str);
+            const str = String(value);
+            if (str.includes('%')) return str;
+            const num = parseFloat(value);
             if (isNaN(num)) return '-';
             return num.toFixed(1) + '%';
         };
@@ -127,296 +192,337 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Simple odds formatter - just the number
-        const simpleOddsFormatter = (cell) => {
+        // Odds formatter - adds + prefix for positive, shows full value including book name
+        const oddsFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
-            const str = String(value).trim();
-            const match = str.match(/^([+-]?\d+)/);
-            if (match) {
-                const num = parseInt(match[1], 10);
-                return num > 0 ? `+${num}` : `${num}`;
+            const str = String(value);
+            
+            if (str.includes('(')) {
+                const parts = str.split('(');
+                const numPart = parts[0].trim();
+                const bookPart = '(' + parts[1];
+                const num = parseInt(numPart, 10);
+                if (isNaN(num)) return str;
+                const formattedNum = num > 0 ? `+${num}` : `${num}`;
+                return `${formattedNum} ${bookPart}`;
             }
+            
             const num = parseInt(str, 10);
             if (isNaN(num)) return '-';
             return num > 0 ? `+${num}` : `${num}`;
         };
 
-        // Prop formatter - abbreviate "3-Pointers" to "3-PTs"
-        const propFormatter = (cell) => {
+        // Simple odds formatter for median odds (no book name)
+        const simpleOddsFormatter = (cell) => {
             const value = cell.getValue();
-            if (!value) return '-';
-            const str = String(value);
-            if (str === '3-Pointers') return '3-PTs';
-            return str;
-        };
-
-        // Split formatter - abbreviate values
-        const splitFormatter = (cell) => {
-            const value = cell.getValue();
-            if (!value) return '-';
-            const str = String(value);
-            if (str === 'Full Season') return 'Season';
-            if (str === 'Last 30 Days') return 'L30 Days';
-            return str;
-        };
-
-        // Lineup formatter - abbreviate values
-        const lineupFormatter = (cell) => {
-            const value = cell.getValue();
-            if (!value) return '-';
-            let str = String(value);
-            str = str.replace('(Expected)', '(Exp)');
-            str = str.replace('Expected', 'Exp');
-            str = str.replace('Confirmed', 'Conf');
-            str = str.replace('(Confirmed)', '(Conf)');
-            return str;
+            if (value === null || value === undefined || value === '') return '-';
+            const num = parseInt(value, 10);
+            if (isNaN(num)) return '-';
+            return num > 0 ? `+${num}` : `${num}`;
         };
 
         return [
-            // Player Info Group - NO FROZEN for mobile compatibility
-            {title: "Player Info", columns: [
-                {
-                    title: "Name", 
-                    field: "Player Name", 
-                    minWidth: 130,
-                    widthGrow: 2,
-                    sorter: "string", 
-                    headerFilter: true,
-                    resizable: false,
-                    formatter: this.createNameFormatter()
-                },
-                {
-                    title: "Team", 
-                    field: "Player Team", 
-                    minWidth: 50,
-                    widthGrow: 0.5,
-                    sorter: "string", 
-                    headerFilter: createCustomMultiSelect,
-                    resizable: false,
-                    hozAlign: "center"
-                }
-            ]},
+            // =====================================================
+            // NAME COLUMN - Standalone (no combined header)
+            // Frozen on mobile/tablet, fills remaining space on desktop
+            // =====================================================
+            {
+                title: "Name", 
+                field: "Player Name", 
+                // On small screens: frozen and auto-width; On desktop: fills remaining space
+                frozen: isSmallScreen,
+                widthGrow: isSmallScreen ? 0 : 1,
+                minWidth: isSmallScreen ? 100 : 120,
+                sorter: "string", 
+                headerFilter: true,
+                resizable: false,
+                formatter: this.createNameFormatter(),
+                titleHozAlign: "center",
+                hozAlign: "left"
+            },
             
-            // Prop Info Group
-            {title: "Prop Info", columns: [
-                {
-                    title: "Prop", 
-                    field: "Player Prop", 
-                    minWidth: 70,
-                    widthGrow: 0.8,
-                    sorter: "string", 
-                    headerFilter: createCustomMultiSelect,
-                    resizable: false,
-                    hozAlign: "center",
-                    formatter: propFormatter
-                },
-                {
-                    title: "Line", 
-                    field: "Player Prop Value", 
-                    minWidth: 55,
-                    widthGrow: 0.5,
-                    sorter: "number", 
-                    headerFilter: createMinMaxFilter,
-                    headerFilterFunc: minMaxFilterFunction,
-                    headerFilterLiveFilter: false,
-                    resizable: false,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Split", 
-                    field: "Split", 
-                    minWidth: 80,
-                    widthGrow: 0.8,
-                    headerFilter: createCustomMultiSelect,
-                    resizable: false,
-                    hozAlign: "center",
-                    formatter: splitFormatter
-                }
-            ]},
-
-            // Clearance Data Group
-            {title: "Clearance", columns: [
-                {
-                    title: "% Over", 
-                    field: "Player Clearance", 
-                    minWidth: 65,
-                    widthGrow: 0.6,
-                    sorter: "number",
-                    resizable: false,
-                    formatter: clearanceFormatter,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Games", 
-                    field: "Player Games", 
-                    minWidth: 55,
-                    widthGrow: 0.5,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
+            // =====================================================
+            // TEAM COLUMN - Standalone (no combined header)
+            // Auto-fit to content
+            // =====================================================
+            {
+                title: "Team", 
+                field: "Player Team", 
+                widthGrow: 0,
+                minWidth: 50,
+                sorter: "string", 
+                headerFilter: createCustomMultiSelect,
+                resizable: false,
+                titleHozAlign: "center",
+                hozAlign: "center"
+            },
+            
+            // =====================================================
+            // PROP INFO GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Prop Info", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "Prop", 
+                        field: "Player Prop", 
+                        widthGrow: 0,
+                        minWidth: 60,
+                        sorter: "string", 
+                        headerFilter: createCustomMultiSelect,
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
                     },
-                    resizable: false,
-                    hozAlign: "center"
-                }
-            ]},
-
-            // Opponent Group - Headers can wrap to 3 lines
-            {title: "Opponent", columns: [
-                {
-                    title: "Prop Rank (Avg)", 
-                    field: "Opponent Prop Rank", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                    {
+                        title: "Line", 
+                        field: "Player Prop Value", 
+                        widthGrow: 0,
+                        minWidth: 45,
+                        sorter: "number", 
+                        headerFilter: createMinMaxFilter,
+                        headerFilterFunc: minMaxFilterFunction,
+                        headerFilterLiveFilter: false,
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
                     },
-                    resizable: false,
-                    hozAlign: "center",
-                    titleFormatter: function(cell) {
-                        return "<div style='line-height:1.2; text-align:center;'>Prop<br>Rank<br>(Avg)</div>";
+                    {
+                        title: "Split", 
+                        field: "Split", 
+                        widthGrow: 0,
+                        minWidth: 50,
+                        headerFilter: createCustomMultiSelect,
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
                     }
-                },
-                {
-                    title: "Season Pace Rank", 
-                    field: "Opponent Pace Rank", 
-                    minWidth: 65,
-                    widthGrow: 0.7,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center",
-                    titleFormatter: function(cell) {
-                        return "<div style='line-height:1.2; text-align:center;'>Season<br>Pace<br>Rank</div>";
-                    }
-                }
-            ]},
+                ]
+            },
 
-            // Lineup Status
+            // =====================================================
+            // CLEARANCE DATA GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Clearance", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "% Over", 
+                        field: "Player Clearance", 
+                        widthGrow: 0,
+                        minWidth: 55,
+                        sorter: "number",
+                        resizable: false,
+                        formatter: clearanceFormatter,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Games", 
+                        field: "Player Games", 
+                        widthGrow: 0,
+                        minWidth: 50,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    }
+                ]
+            },
+
+            // =====================================================
+            // OPPONENT GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Opponent", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "Prop Rank", 
+                        field: "Opponent Prop Rank", 
+                        widthGrow: 0,
+                        minWidth: 70,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Pace Rank", 
+                        field: "Opponent Pace Rank", 
+                        widthGrow: 0,
+                        minWidth: 70,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    }
+                ]
+            },
+
+            // =====================================================
+            // LINEUP STATUS - Standalone column, center justified
+            // =====================================================
             {
                 title: "Lineup", 
                 field: "Lineup Status", 
-                minWidth: 85,
-                widthGrow: 0.8,
+                widthGrow: 0,
+                minWidth: 70,
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                hozAlign: "center",
-                formatter: lineupFormatter
+                titleHozAlign: "center",
+                hozAlign: "center"
             },
 
-            // Player Stats Group
-            {title: "Player Stats", columns: [
-                {
-                    title: "Med", 
-                    field: "Player Prop Median", 
-                    minWidth: 48,
-                    widthGrow: 0.5,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center",
-                    formatter: oneDecimalFormatter
-                },
-                {
-                    title: "Avg", 
-                    field: "Player Prop Average", 
-                    minWidth: 48,
-                    widthGrow: 0.5,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center",
-                    formatter: oneDecimalFormatter
-                },
-                {
-                    title: "High", 
-                    field: "Player Prop High", 
-                    minWidth: 48,
-                    widthGrow: 0.5,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Low", 
-                    field: "Player Prop Low", 
-                    minWidth: 45,
-                    widthGrow: 0.5,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Mode", 
-                    field: "Player Prop Mode", 
-                    minWidth: 50,
-                    widthGrow: 0.5,
-                    sorter: "number",
-                    resizable: false,
-                    hozAlign: "center"
-                }
-            ]},
-
-            // Median Odds Group
-            {title: "Median Odds", columns: [
-                {
-                    title: "Over", 
-                    field: "Player Median Over Odds", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
-                    sorter: "number",
-                    headerFilter: createMinMaxFilter,
-                    headerFilterFunc: minMaxFilterFunction,
-                    headerFilterLiveFilter: false,
-                    resizable: false,
-                    formatter: simpleOddsFormatter,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Under", 
-                    field: "Player Median Under Odds", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
-                    sorter: "number",
-                    headerFilter: createMinMaxFilter,
-                    headerFilterFunc: minMaxFilterFunction,
-                    headerFilterLiveFilter: false,
-                    resizable: false,
-                    formatter: simpleOddsFormatter,
-                    hozAlign: "center"
-                }
-            ]},
-
-            // Best Odds Group - just numbers, books in expandable
-            {title: "Best Odds", columns: [
-                {
-                    title: "Over", 
-                    field: "Player Best Over Odds", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+            // =====================================================
+            // PLAYER STATS GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Player Stats", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "Median", 
+                        field: "Player Prop Median", 
+                        widthGrow: 0,
+                        minWidth: 50,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center",
+                        formatter: oneDecimalFormatter
                     },
-                    headerFilter: createMinMaxFilter,
-                    headerFilterFunc: minMaxFilterFunction,
-                    headerFilterLiveFilter: false,
-                    resizable: false,
-                    formatter: simpleOddsFormatter,
-                    hozAlign: "center"
-                },
-                {
-                    title: "Under", 
-                    field: "Player Best Under Odds", 
-                    minWidth: 55,
-                    widthGrow: 0.6,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                    {
+                        title: "Avg", 
+                        field: "Player Prop Average", 
+                        widthGrow: 0,
+                        minWidth: 40,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center",
+                        formatter: oneDecimalFormatter
                     },
-                    headerFilter: createMinMaxFilter,
-                    headerFilterFunc: minMaxFilterFunction,
-                    headerFilterLiveFilter: false,
-                    resizable: false,
-                    formatter: simpleOddsFormatter,
-                    hozAlign: "center"
-                }
-            ]}
+                    {
+                        title: "High", 
+                        field: "Player Prop High", 
+                        widthGrow: 0,
+                        minWidth: 40,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Low", 
+                        field: "Player Prop Low", 
+                        widthGrow: 0,
+                        minWidth: 35,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Mode", 
+                        field: "Player Prop Mode", 
+                        widthGrow: 0,
+                        minWidth: 45,
+                        sorter: "number",
+                        resizable: false,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    }
+                ]
+            },
+
+            // =====================================================
+            // MEDIAN ODDS GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Median Odds", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "Over", 
+                        field: "Player Median Over Odds", 
+                        widthGrow: 0,
+                        minWidth: 50,
+                        sorter: "number",
+                        headerFilter: createMinMaxFilter,
+                        headerFilterFunc: minMaxFilterFunction,
+                        headerFilterLiveFilter: false,
+                        resizable: false,
+                        formatter: simpleOddsFormatter,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Under", 
+                        field: "Player Median Under Odds", 
+                        widthGrow: 0,
+                        minWidth: 50,
+                        sorter: "number",
+                        headerFilter: createMinMaxFilter,
+                        headerFilterFunc: minMaxFilterFunction,
+                        headerFilterLiveFilter: false,
+                        resizable: false,
+                        formatter: simpleOddsFormatter,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    }
+                ]
+            },
+
+            // =====================================================
+            // BEST ODDS GROUP - Center justified headers
+            // =====================================================
+            {
+                title: "Best Odds", 
+                titleHozAlign: "center",
+                columns: [
+                    {
+                        title: "Over", 
+                        field: "Player Best Over Odds", 
+                        widthGrow: 0,
+                        minWidth: 80,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
+                        headerFilter: createMinMaxFilter,
+                        headerFilterFunc: minMaxFilterFunction,
+                        headerFilterLiveFilter: false,
+                        resizable: false,
+                        formatter: oddsFormatter,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    },
+                    {
+                        title: "Under", 
+                        field: "Player Best Under Odds", 
+                        widthGrow: 0,
+                        minWidth: 80,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
+                        headerFilter: createMinMaxFilter,
+                        headerFilterFunc: minMaxFilterFunction,
+                        headerFilterLiveFilter: false,
+                        resizable: false,
+                        formatter: oddsFormatter,
+                        titleHozAlign: "center",
+                        hozAlign: "center"
+                    }
+                ]
+            }
         ];
     }
 
@@ -431,105 +537,68 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 data._expanded = false;
             }
             
-            const existingSubrow = rowElement.querySelector('.subrow-container');
-            if (existingSubrow) {
-                existingSubrow.remove();
-            }
+            // Clear any existing subrows first
+            const existingSubrows = rowElement.parentNode?.querySelectorAll('.subrow-container');
+            existingSubrows?.forEach(sr => {
+                if (sr.dataset.rowId === row.getPosition()) {
+                    sr.remove();
+                }
+            });
             
             if (data._expanded) {
-                const subrowContainer = document.createElement('div');
-                subrowContainer.className = 'subrow-container';
-                subrowContainer.style.cssText = `
-                    padding: 15px 20px;
-                    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-                    border-top: 2px solid #f97316;
-                    margin-top: 0;
-                `;
-                
-                this.createExpandableContent(subrowContainer, data);
-                
-                rowElement.appendChild(subrowContainer);
-                rowElement.style.backgroundColor = '#fff7ed';
-            } else {
-                rowElement.style.backgroundColor = '';
+                self.createSubtable(row, data);
             }
         };
     }
 
-    createExpandableContent(container, data) {
-        // Extract book names from best odds
-        const bestOverBook = this.extractBookName(data['Player Best Over Odds']);
-        const bestUnderBook = this.extractBookName(data['Player Best Under Odds']);
-
-        // Spread and Total are STRINGS with prefixes like "MIA +3.5" and "O/U 250.5"
-        // Display them as-is, not as decimals
-        const spreadValue = data['Matchup Spread'] || '-';
-        const totalValue = data['Matchup Total'] || '-';
+    createSubtable(row, data) {
+        const rowElement = row.getElement();
         
-        // For minutes, format as decimals
-        const formatDecimal = (value) => {
-            if (value === null || value === undefined || value === '') return '-';
-            const num = parseFloat(value);
-            if (isNaN(num)) return '-';
-            return num.toFixed(1);
-        };
-
-        const html = `
-            <div style="display: flex; flex-wrap: wrap; gap: 25px; align-items: flex-start;">
-                <div style="flex: 1; min-width: 260px; max-width: 400px;">
-                    <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
-                        Matchup Details
-                    </h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 30%;">Matchup:</td>
-                            <td style="padding: 6px 10px; color: #333;">${data['Matchup'] || '-'}</td>
-                        </tr>
-                        <tr style="background: rgba(249, 115, 22, 0.05);">
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Spread:</td>
-                            <td style="padding: 6px 10px; color: #333;">${spreadValue}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Total:</td>
-                            <td style="padding: 6px 10px; color: #333;">${totalValue}</td>
-                        </tr>
-                    </table>
+        // Remove existing subtable if any
+        const existingSubtable = rowElement.nextElementSibling;
+        if (existingSubtable && existingSubtable.classList.contains('subrow-container')) {
+            existingSubtable.remove();
+        }
+        
+        // Create subtable container
+        const subrowContainer = document.createElement('div');
+        subrowContainer.className = 'subrow-container';
+        subrowContainer.dataset.rowId = row.getPosition();
+        subrowContainer.style.cssText = `
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border-top: 2px solid #f97316;
+            margin: 0;
+        `;
+        
+        // Build subtable content
+        const matchup = data["Matchup"] || '-';
+        const spread = data["Matchup Spread"] || '-';
+        const total = data["Matchup Total"] || '-';
+        const medianMinutes = data["Player Median Minutes"] || '-';
+        const avgMinutes = data["Player Average Minutes"] || '-';
+        
+        subrowContainer.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
+                    <div style="font-size: 12px; color: #333;">
+                        <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
+                        <div style="margin-bottom: 4px;"><strong>Spread:</strong> ${spread}</div>
+                        <div><strong>Total:</strong> ${total}</div>
+                    </div>
                 </div>
-                
-                <div style="flex: 1; min-width: 180px; max-width: 260px;">
-                    <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
-                        Minutes Data
-                    </h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 55%;">Median Min:</td>
-                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Median Minutes'])}</td>
-                        </tr>
-                        <tr style="background: rgba(249, 115, 22, 0.05);">
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Avg Min:</td>
-                            <td style="padding: 6px 10px; color: #333;">${formatDecimal(data['Player Average Minutes'])}</td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <div style="flex: 1; min-width: 180px; max-width: 260px;">
-                    <h4 style="margin: 0 0 10px 0; color: #ea580c; font-size: 14px; font-weight: 600; border-bottom: 2px solid #f97316; padding-bottom: 5px;">
-                        Best Odds Books
-                    </h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr>
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555; width: 45%;">Best Over:</td>
-                            <td style="padding: 6px 10px; color: #333;">${bestOverBook}</td>
-                        </tr>
-                        <tr style="background: rgba(249, 115, 22, 0.05);">
-                            <td style="padding: 6px 10px; font-weight: 500; color: #555;">Best Under:</td>
-                            <td style="padding: 6px 10px; color: #333;">${bestUnderBook}</td>
-                        </tr>
-                    </table>
+                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Minutes Data</h4>
+                    <div style="font-size: 12px; color: #333;">
+                        <div style="margin-bottom: 4px;"><strong>Median:</strong> ${medianMinutes}</div>
+                        <div><strong>Average:</strong> ${avgMinutes}</div>
+                    </div>
                 </div>
             </div>
         `;
         
-        container.innerHTML = html;
+        // Insert after the row
+        rowElement.insertAdjacentElement('afterend', subrowContainer);
     }
 }
