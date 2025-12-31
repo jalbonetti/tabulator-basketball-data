@@ -123,12 +123,12 @@ export class BaseTable {
         const config = {
             height: "600px",
             maxHeight: "600px",
-            layout: "fitDataFill",
-            // Critical for large datasets - match baseball settings
+            layout: "fitColumns",
+            // Critical for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "virtual",
+            // Note: renderHorizontal removed to support frozen columns
             layoutColumnsOnNewData: false,
             responsiveLayout: false,
             pagination: false,
