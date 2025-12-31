@@ -1,158 +1,172 @@
-// components/minMaxFilter.js - Min/Max numeric range filter for Tabulator columns
+// components/minMaxFilter.js - Min/Max Range Filter for Tabulator
+// Provides a dual-input filter for numeric columns (e.g., prop values, odds)
+
+/**
+ * Create a min/max filter element for Tabulator header filters
+ * @param {object} cell - Tabulator cell object
+ * @param {function} onRendered - Callback when rendered
+ * @param {function} success - Success callback
+ * @param {function} cancel - Cancel callback
+ * @param {object} editorParams - Additional parameters
+ * @returns {HTMLElement} Filter container element
+ */
 export function createMinMaxFilter(cell, onRendered, success, cancel, editorParams = {}) {
     const container = document.createElement('div');
-    container.classList.add('min-max-filter-container');
+    container.className = 'min-max-filter-container';
     container.style.cssText = `
         display: flex;
         flex-direction: column;
         gap: 3px;
-        padding: 2px;
         width: 100%;
-        box-sizing: border-box;
     `;
     
-    // Create min input - using type="text" to avoid arrows
+    // Create min input
     const minInput = document.createElement('input');
-    minInput.type = 'text';
+    minInput.type = 'number';
+    minInput.className = 'min-max-input min-input';
     minInput.placeholder = 'Min';
-    minInput.classList.add('min-max-input', 'min-input');
     minInput.style.cssText = `
         width: 100%;
         padding: 3px 5px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
         font-size: 10px;
-        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 2px;
         text-align: center;
+        box-sizing: border-box;
+        -moz-appearance: textfield;
     `;
     
-    // Create max input - using type="text" to avoid arrows
+    // Create max input
     const maxInput = document.createElement('input');
-    maxInput.type = 'text';
+    maxInput.type = 'number';
+    maxInput.className = 'min-max-input max-input';
     maxInput.placeholder = 'Max';
-    maxInput.classList.add('min-max-input', 'max-input');
     maxInput.style.cssText = `
         width: 100%;
         padding: 3px 5px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
         font-size: 10px;
-        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 2px;
         text-align: center;
+        box-sizing: border-box;
+        -moz-appearance: textfield;
     `;
+    
+    // Debounce timer
+    let filterTimeout = null;
+    
+    // Apply filter function
+    function applyFilter() {
+        if (filterTimeout) {
+            clearTimeout(filterTimeout);
+        }
+        
+        filterTimeout = setTimeout(() => {
+            const minVal = minInput.value !== '' ? parseFloat(minInput.value) : null;
+            const maxVal = maxInput.value !== '' ? parseFloat(maxInput.value) : null;
+            
+            if (minVal === null && maxVal === null) {
+                success(null); // Clear filter
+            } else {
+                success({ min: minVal, max: maxVal });
+            }
+        }, 300);
+    }
+    
+    // Event listeners
+    minInput.addEventListener('input', applyFilter);
+    maxInput.addEventListener('input', applyFilter);
+    
+    minInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            applyFilter();
+        }
+        if (e.key === 'Escape') {
+            minInput.value = '';
+            maxInput.value = '';
+            success(null);
+        }
+    });
+    
+    maxInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            applyFilter();
+        }
+        if (e.key === 'Escape') {
+            minInput.value = '';
+            maxInput.value = '';
+            success(null);
+        }
+    });
+    
+    // Focus styling
+    minInput.addEventListener('focus', function() {
+        minInput.style.borderColor = '#f97316';
+        minInput.style.boxShadow = '0 0 0 2px rgba(249, 115, 22, 0.2)';
+    });
+    
+    minInput.addEventListener('blur', function() {
+        minInput.style.borderColor = '#ccc';
+        minInput.style.boxShadow = 'none';
+    });
+    
+    maxInput.addEventListener('focus', function() {
+        maxInput.style.borderColor = '#f97316';
+        maxInput.style.boxShadow = '0 0 0 2px rgba(249, 115, 22, 0.2)';
+    });
+    
+    maxInput.addEventListener('blur', function() {
+        maxInput.style.borderColor = '#ccc';
+        maxInput.style.boxShadow = 'none';
+    });
     
     container.appendChild(minInput);
     container.appendChild(maxInput);
     
-    // Debounce function to prevent too many filter calls
-    let debounceTimer;
-    const debounceDelay = editorParams.debounceDelay || 300;
-    
-    function applyFilter() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            const minVal = minInput.value.trim() !== '' ? parseFloat(minInput.value) : null;
-            const maxVal = maxInput.value.trim() !== '' ? parseFloat(maxInput.value) : null;
-            
-            if ((minVal === null || isNaN(minVal)) && (maxVal === null || isNaN(maxVal))) {
-                success(null); // Clear filter
-            } else {
-                success({ 
-                    min: isNaN(minVal) ? null : minVal, 
-                    max: isNaN(maxVal) ? null : maxVal 
-                });
-            }
-        }, debounceDelay);
-    }
-    
-    // Only allow numeric input
-    function validateNumericInput(e) {
-        const char = String.fromCharCode(e.which);
-        // Allow numbers, decimal point, minus sign, and control keys
-        if (!/[\d.\-]/.test(char) && e.which !== 8 && e.which !== 46 && e.which !== 9) {
-            e.preventDefault();
-        }
-    }
-    
-    // Event listeners
-    minInput.addEventListener('keypress', validateNumericInput);
-    maxInput.addEventListener('keypress', validateNumericInput);
-    
-    minInput.addEventListener('input', applyFilter);
-    maxInput.addEventListener('input', applyFilter);
-    
-    minInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            applyFilter();
-        } else if (e.key === 'Escape') {
-            minInput.value = '';
-            maxInput.value = '';
-            success(null);
-        }
-    });
-    
-    maxInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            applyFilter();
-        } else if (e.key === 'Escape') {
-            minInput.value = '';
-            maxInput.value = '';
-            success(null);
-        }
-    });
-    
-    // Prevent click from bubbling
-    minInput.addEventListener('click', (e) => e.stopPropagation());
-    maxInput.addEventListener('click', (e) => e.stopPropagation());
-    
-    // Focus handling
-    onRendered(() => {
-        // Don't auto-focus
-    });
-    
     return container;
 }
 
-// Custom filter function for min/max range
+/**
+ * Filter function for min/max range filtering
+ * @param {object} headerValue - Object with min/max values
+ * @param {*} rowValue - The cell value to test
+ * @param {object} rowData - Full row data
+ * @param {object} filterParams - Additional filter parameters
+ * @returns {boolean} Whether row should be shown
+ */
 export function minMaxFilterFunction(headerValue, rowValue, rowData, filterParams) {
-    // Handle null/undefined filter
+    // If no filter value, show all rows
     if (!headerValue || (headerValue.min === null && headerValue.max === null)) {
         return true;
     }
     
     // Parse the row value - handle various formats
-    let numValue = rowValue;
+    let numValue;
     
-    if (typeof rowValue === 'string') {
-        // Handle formats like "19/31" - extract first number
-        if (rowValue.includes('/')) {
-            numValue = parseFloat(rowValue.split('/')[0]);
-        }
-        // Handle formats like "21 (25.2)" - extract first number
-        else if (rowValue.includes('(')) {
-            numValue = parseFloat(rowValue.split('(')[0].trim());
-        }
-        // Handle percentage strings
-        else if (rowValue.includes('%')) {
-            numValue = parseFloat(rowValue.replace('%', ''));
-        }
-        // Handle odds formats like "+150" or "-110"
-        else if (rowValue.startsWith('+') || rowValue.startsWith('-')) {
-            numValue = parseFloat(rowValue);
-        }
-        else {
-            numValue = parseFloat(rowValue);
-        }
+    if (rowValue === null || rowValue === undefined || rowValue === '' || rowValue === '-') {
+        return false; // Don't show rows with no value when filtering
     }
     
-    // If we couldn't parse a number, don't filter this row
+    const strValue = String(rowValue).trim();
+    
+    // Handle odds format like "-110 (DraftKings)" or "+150"
+    if (strValue.includes('(')) {
+        const numPart = strValue.split('(')[0].trim();
+        numValue = parseFloat(numPart);
+    } else if (strValue.startsWith('+') || strValue.startsWith('-')) {
+        // Handle odds format like "+150" or "-110"
+        numValue = parseFloat(strValue);
+    } else {
+        numValue = parseFloat(strValue);
+    }
+    
     if (isNaN(numValue)) {
-        return true;
+        return false;
     }
     
+    // Apply min/max filters
     const { min, max } = headerValue;
     
-    // Apply min/max checks
     if (min !== null && max !== null) {
         return numValue >= min && numValue <= max;
     } else if (min !== null) {
@@ -163,3 +177,9 @@ export function minMaxFilterFunction(headerValue, rowValue, rowData, filterParam
     
     return true;
 }
+
+// Export default
+export default {
+    createMinMaxFilter,
+    minMaxFilterFunction
+};
