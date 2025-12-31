@@ -1,158 +1,175 @@
 // components/customMultiSelect.js - Custom Multi-Select Dropdown Filter for Tabulator
+// Uses position:fixed like baseball version for proper visibility
+
 export function createCustomMultiSelect(cell, onRendered, success, cancel, editorParams = {}) {
-    const container = document.createElement('div');
-    container.classList.add('custom-multiselect-container');
-    container.style.cssText = 'position: relative; width: 100%;';
-    
-    // Create the display input
-    const displayInput = document.createElement('input');
-    displayInput.type = 'text';
-    displayInput.readOnly = true;
-    displayInput.placeholder = editorParams.placeholder || 'All';
-    displayInput.classList.add('custom-multiselect-input');
-    displayInput.style.cssText = `
-        width: 100%;
-        padding: 4px 20px 4px 6px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-        font-size: 11px;
-        cursor: pointer;
-        box-sizing: border-box;
-        background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23666' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 6px center;
-    `;
-    
-    // Create dropdown container - opens ABOVE the header with high z-index
-    const dropdown = document.createElement('div');
-    dropdown.classList.add('custom-multiselect-dropdown');
-    dropdown.style.cssText = `
-        display: none;
-        position: absolute;
-        bottom: 100%;
-        left: 0;
-        width: ${editorParams.dropdownWidth || 150}px;
-        max-height: 300px;
-        overflow-y: auto;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
-        z-index: 99999;
-        margin-bottom: 2px;
-    `;
-    
-    // Options container (no search input)
-    const optionsContainer = document.createElement('div');
-    optionsContainer.classList.add('options-container');
-    optionsContainer.style.cssText = 'padding: 4px 0; max-height: 250px; overflow-y: auto;';
-    
-    // Action buttons container
-    const actionsContainer = document.createElement('div');
-    actionsContainer.style.cssText = `
-        display: flex;
-        gap: 4px;
-        padding: 6px;
-        border-top: 1px solid #eee;
-        background: #f8f9fa;
-    `;
-    
-    const selectAllBtn = document.createElement('button');
-    selectAllBtn.textContent = 'All';
-    selectAllBtn.type = 'button';
-    selectAllBtn.style.cssText = `
-        flex: 1;
-        padding: 4px 8px;
-        border: 1px solid #ddd;
-        border-radius: 3px;
-        background: white;
-        cursor: pointer;
-        font-size: 10px;
-    `;
-    
-    const clearAllBtn = document.createElement('button');
-    clearAllBtn.textContent = 'Clear';
-    clearAllBtn.type = 'button';
-    clearAllBtn.style.cssText = `
-        flex: 1;
-        padding: 4px 8px;
-        border: 1px solid #ddd;
-        border-radius: 3px;
-        background: white;
-        cursor: pointer;
-        font-size: 10px;
-    `;
-    
-    actionsContainer.appendChild(selectAllBtn);
-    actionsContainer.appendChild(clearAllBtn);
-    
-    dropdown.appendChild(optionsContainer);
-    dropdown.appendChild(actionsContainer);
-    
-    container.appendChild(displayInput);
-    container.appendChild(dropdown);
+    const dropdownWidth = editorParams.dropdownWidth || 150;
+    const dropdownId = 'multiselect-dropdown-' + Math.random().toString(36).substr(2, 9);
     
     // State
-    let selectedValues = new Set();
+    let selectedValues = [];
     let allValues = [];
     let isOpen = false;
+    let isInitialized = false;
     
-    // Get unique values from the column
-    function getColumnValues() {
-        const table = cell.getTable();
-        const field = cell.getColumn().getField();
-        const values = new Set();
+    const table = cell.getTable();
+    const field = cell.getColumn().getField();
+    
+    // Create the container
+    const container = document.createElement('div');
+    container.classList.add('custom-multiselect');
+    container.style.cssText = 'position: relative; width: 100%; z-index: 103;';
+    
+    // Create the button
+    const button = document.createElement('div');
+    button.classList.add('custom-multiselect-button');
+    button.style.cssText = `
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #ccc;
+        background: white;
+        cursor: pointer;
+        font-size: 11px;
+        user-select: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border-radius: 3px;
+        text-align: left;
+    `;
+    button.textContent = 'All';
+    
+    container.appendChild(button);
+    
+    // Create dropdown (will be appended to body)
+    function createDropdown() {
+        let existing = document.getElementById(dropdownId);
+        if (existing) {
+            existing.remove();
+        }
         
-        table.getData().forEach(row => {
-            const value = row[field];
-            if (value !== null && value !== undefined && value !== '') {
-                values.add(String(value));
-            }
-        });
+        const dropdown = document.createElement('div');
+        dropdown.id = dropdownId;
+        dropdown.style.cssText = `
+            position: fixed;
+            background: white;
+            border: 2px solid #f97316;
+            min-width: ${dropdownWidth}px;
+            max-width: ${Math.max(dropdownWidth, 250)}px;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 2147483647;
+            display: none;
+            padding: 0;
+            border-radius: 4px;
+        `;
         
-        return Array.from(values).sort((a, b) => {
-            // Try numeric sort first
-            const numA = parseFloat(a);
-            const numB = parseFloat(b);
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return numA - numB;
-            }
-            // Fall back to string sort
-            return a.localeCompare(b);
-        });
+        document.body.appendChild(dropdown);
+        return dropdown;
     }
     
-    // Render options
-    function renderOptions() {
-        optionsContainer.innerHTML = '';
+    // Load unique values from column
+    function loadValues() {
+        if (!isInitialized) {
+            const uniqueValues = new Set();
+            const data = table.getData();
+            
+            for (let i = 0; i < data.length; i++) {
+                const value = data[i][field];
+                if (value !== null && value !== undefined && value !== '') {
+                    uniqueValues.add(String(value));
+                }
+            }
+            
+            allValues = Array.from(uniqueValues);
+            
+            // Sort numerically if it looks like numbers
+            if (allValues.length > 0 && !isNaN(parseFloat(allValues[0]))) {
+                allValues.sort((a, b) => parseFloat(a) - parseFloat(b));
+            } else {
+                allValues.sort();
+            }
+            
+            selectedValues = [...allValues];
+            isInitialized = true;
+        }
+    }
+    
+    // Render dropdown content
+    function renderDropdown() {
+        let dropdown = document.getElementById(dropdownId) || createDropdown();
+        dropdown.innerHTML = '';
         
+        // Select All option
+        const selectAll = document.createElement('div');
+        selectAll.style.cssText = `
+            padding: 8px 12px;
+            border-bottom: 2px solid #f97316;
+            font-weight: bold;
+            background: #fff7ed;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            cursor: pointer;
+        `;
+        
+        const selectAllLabel = document.createElement('label');
+        selectAllLabel.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
+        
+        const selectAllCheckbox = document.createElement('input');
+        selectAllCheckbox.type = 'checkbox';
+        selectAllCheckbox.checked = selectedValues.length === allValues.length;
+        selectAllCheckbox.style.marginRight = '8px';
+        
+        const selectAllText = document.createElement('span');
+        selectAllText.textContent = selectedValues.length === allValues.length ? 'Deselect All' : 'Select All';
+        
+        selectAllCheckbox.addEventListener('change', function(e) {
+            e.stopPropagation();
+            if (this.checked) {
+                selectedValues = [...allValues];
+            } else {
+                selectedValues = [];
+            }
+            renderDropdown();
+            applyFilter();
+        });
+        
+        selectAllLabel.appendChild(selectAllCheckbox);
+        selectAllLabel.appendChild(selectAllText);
+        selectAll.appendChild(selectAllLabel);
+        dropdown.appendChild(selectAll);
+        
+        // Individual options
         allValues.forEach(value => {
-            const option = document.createElement('label');
+            const option = document.createElement('div');
             option.style.cssText = `
-                display: flex;
-                align-items: center;
-                padding: 6px 10px;
+                padding: 6px 12px;
                 cursor: pointer;
                 font-size: 12px;
-                transition: background 0.15s;
+                border-bottom: 1px solid #eee;
             `;
-            option.addEventListener('mouseenter', () => {
-                option.style.background = '#fff7ed';
-            });
-            option.addEventListener('mouseleave', () => {
-                option.style.background = 'transparent';
-            });
+            option.addEventListener('mouseenter', () => option.style.background = '#fff7ed');
+            option.addEventListener('mouseleave', () => option.style.background = 'white');
+            
+            const label = document.createElement('label');
+            label.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
             
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.checked = selectedValues.has(value);
-            checkbox.style.cssText = 'margin-right: 8px; cursor: pointer;';
+            checkbox.checked = selectedValues.includes(value);
+            checkbox.style.marginRight = '8px';
             
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    selectedValues.add(value);
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation();
+                if (this.checked) {
+                    if (!selectedValues.includes(value)) {
+                        selectedValues.push(value);
+                    }
                 } else {
-                    selectedValues.delete(value);
+                    selectedValues = selectedValues.filter(v => v !== value);
                 }
-                updateDisplay();
+                renderDropdown();
                 applyFilter();
             });
             
@@ -160,74 +177,104 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
             text.textContent = value;
             text.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
             
-            option.appendChild(checkbox);
-            option.appendChild(text);
-            optionsContainer.appendChild(option);
+            label.appendChild(checkbox);
+            label.appendChild(text);
+            option.appendChild(label);
+            dropdown.appendChild(option);
         });
-    }
-    
-    // Update display input
-    function updateDisplay() {
-        if (selectedValues.size === 0 || selectedValues.size === allValues.length) {
-            displayInput.value = '';
-            displayInput.placeholder = 'All';
-        } else if (selectedValues.size === 1) {
-            displayInput.value = Array.from(selectedValues)[0];
-        } else {
-            displayInput.value = `${selectedValues.size} selected`;
-        }
+        
+        return dropdown;
     }
     
     // Apply filter
     function applyFilter() {
-        if (selectedValues.size === 0 || selectedValues.size === allValues.length) {
-            success(null); // Clear filter
+        updateButtonText();
+        
+        if (selectedValues.length === 0) {
+            // Nothing selected - show nothing
+            success('IMPOSSIBLE_VALUE_THAT_MATCHES_NOTHING');
+        } else if (selectedValues.length === allValues.length) {
+            // All selected - clear filter
+            success('');
         } else {
-            success(Array.from(selectedValues));
+            // Some selected
+            success([...selectedValues]);
         }
+    }
+    
+    // Update button text
+    function updateButtonText() {
+        if (selectedValues.length === 0) {
+            button.textContent = 'None';
+        } else if (selectedValues.length === allValues.length) {
+            button.textContent = 'All';
+        } else if (selectedValues.length === 1) {
+            button.textContent = selectedValues[0];
+        } else {
+            button.textContent = `${selectedValues.length} selected`;
+        }
+    }
+    
+    // Position dropdown
+    function positionDropdown() {
+        const dropdown = document.getElementById(dropdownId);
+        if (!dropdown) return;
+        
+        const rect = button.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        
+        // Try to position above first
+        let top = rect.top - dropdown.offsetHeight - 2;
+        
+        // If not enough space above, position below
+        if (top < 10) {
+            top = rect.bottom + 2;
+        }
+        
+        // Ensure it doesn't go off the right edge
+        let left = rect.left;
+        if (left + dropdown.offsetWidth > window.innerWidth - 10) {
+            left = window.innerWidth - dropdown.offsetWidth - 10;
+        }
+        
+        dropdown.style.top = top + 'px';
+        dropdown.style.left = left + 'px';
     }
     
     // Toggle dropdown
     function toggleDropdown() {
         isOpen = !isOpen;
-        dropdown.style.display = isOpen ? 'block' : 'none';
+        const dropdown = document.getElementById(dropdownId) || createDropdown();
+        
         if (isOpen) {
-            allValues = getColumnValues();
-            renderOptions();
+            loadValues();
+            renderDropdown();
+            dropdown.style.display = 'block';
+            positionDropdown();
+        } else {
+            dropdown.style.display = 'none';
         }
     }
     
     // Close dropdown
     function closeDropdown() {
         isOpen = false;
-        dropdown.style.display = 'none';
+        const dropdown = document.getElementById(dropdownId);
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
     }
     
     // Event listeners
-    displayInput.addEventListener('click', (e) => {
+    button.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleDropdown();
     });
     
-    selectAllBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedValues = new Set(allValues);
-        renderOptions();
-        updateDisplay();
-        applyFilter();
-    });
-    
-    clearAllBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedValues.clear();
-        renderOptions();
-        updateDisplay();
-        applyFilter();
-    });
-    
     // Close on outside click
     document.addEventListener('click', (e) => {
-        if (!container.contains(e.target)) {
+        const dropdown = document.getElementById(dropdownId);
+        if (dropdown && !container.contains(e.target) && !dropdown.contains(e.target)) {
             closeDropdown();
         }
     });
@@ -239,9 +286,14 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
         }
     });
     
+    // Reposition on scroll/resize
+    window.addEventListener('scroll', positionDropdown, true);
+    window.addEventListener('resize', positionDropdown);
+    
     // Initialize
     onRendered(() => {
-        allValues = getColumnValues();
+        loadValues();
+        updateButtonText();
     });
     
     return container;
@@ -249,10 +301,17 @@ export function createCustomMultiSelect(cell, onRendered, success, cancel, edito
 
 // Custom filter function for multi-select
 export function multiSelectFilterFunction(headerValue, rowValue, rowData, filterParams) {
-    if (!headerValue || headerValue.length === 0) {
+    if (!headerValue || headerValue === '') {
         return true;
     }
     
-    const cellValue = String(rowValue);
-    return headerValue.includes(cellValue);
+    if (headerValue === 'IMPOSSIBLE_VALUE_THAT_MATCHES_NOTHING') {
+        return false;
+    }
+    
+    if (Array.isArray(headerValue)) {
+        return headerValue.includes(String(rowValue));
+    }
+    
+    return String(rowValue) === String(headerValue);
 }
