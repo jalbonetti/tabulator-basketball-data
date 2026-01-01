@@ -1,10 +1,86 @@
-// tables/baseTable.js - Base Table Class for Basketball Props Tables
-// Provides common functionality for all table implementations
+// tables/baseTable.js - Base Table Class for Basketball Props (matching baseball pattern)
+import { API_CONFIG, TEAM_NAME_MAP, isMobile, isTablet, getDeviceType } from '../shared/config.js';
 
-import { CONFIG, API_CONFIG, TEAM_NAME_MAP, isMobile, isTablet, getDeviceType } from '../shared/config.js';
-
-// Memory cache for data
+// Global data cache to persist between tab switches
 const dataCache = new Map();
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+
+// IndexedDB for persistent caching
+const DB_NAME = 'BasketballTabulatorCache';
+const DB_VERSION = 1;
+const STORE_NAME = 'tableData';
+
+class CacheManager {
+    constructor() {
+        this.db = null;
+        this.initDB();
+    }
+
+    async initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            
+            request.onerror = () => {
+                console.error('Failed to open IndexedDB');
+                reject(request.error);
+            };
+            
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                }
+            };
+        });
+    }
+
+    async getCachedData(key) {
+        if (!this.db) await this.initDB();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(key);
+            
+            request.onsuccess = () => {
+                const result = request.result;
+                if (result && Date.now() - result.timestamp < CACHE_DURATION) {
+                    console.log(`IndexedDB cache hit for ${key}`);
+                    resolve(result.data);
+                } else {
+                    resolve(null);
+                }
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async setCachedData(key, data) {
+        if (!this.db) await this.initDB();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put({
+                key: key,
+                data: data,
+                timestamp: Date.now()
+            });
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+const cacheManager = new CacheManager();
 
 export class BaseTable {
     constructor(elementId, endpoint) {
@@ -25,31 +101,72 @@ export class BaseTable {
         this.restorationAttempts = 0;
         this.maxRestorationAttempts = 3;
         
-        // Base table configuration
-        this.tableConfig = this.createBaseConfig();
+        // Store the base config
+        this.tableConfig = this.getBaseConfig();
     }
     
-    createBaseConfig() {
+    // Get base table configuration - this creates the full config with AJAX
+    getBaseConfig() {
         const self = this;
-        const deviceType = getDeviceType();
-        const dimensions = CONFIG.TABLE_DIMENSIONS[deviceType];
+        const url = API_CONFIG.baseURL + this.endpoint;
+        const cacheKey = `basketball_${this.endpoint}`;
         
         return {
-            layout: "fitDataStretch",
-            responsiveLayout: false,
-            height: dimensions.maxHeight,
-            maxHeight: dimensions.maxHeight,
+            height: "600px",
+            maxHeight: "600px",
+            layout: "fitDataFill",
+            // Critical for large datasets
             virtualDom: true,
-            virtualDomBuffer: 300,
+            virtualDomBuffer: 500,
             renderVertical: "virtual",
             renderHorizontal: "virtual",
+            layoutColumnsOnNewData: false,
+            responsiveLayout: false,
             pagination: false,
-            paginationSize: false,
+            // Standard settings
+            columnHeaderSortMulti: true,
+            headerSortClickElement: "header",
             resizableColumns: false,
             resizableRows: false,
             movableColumns: false,
-            selectable: false,
             placeholder: "Loading data...",
+            
+            ajaxURL: url,
+            ajaxConfig: {
+                method: "GET",
+                headers: API_CONFIG.headers
+            },
+            
+            // Custom request function with caching
+            ajaxRequestFunc: async function(url, config, params) {
+                // Check memory cache first
+                const memoryCached = self.getCachedData(cacheKey);
+                if (memoryCached) {
+                    console.log(`Memory cache hit for ${self.endpoint}`);
+                    self.dataLoaded = true;
+                    return memoryCached;
+                }
+                
+                // Check IndexedDB cache
+                const dbCached = await cacheManager.getCachedData(cacheKey);
+                if (dbCached) {
+                    console.log(`IndexedDB cache hit for ${self.endpoint}`);
+                    self.setCachedData(cacheKey, dbCached);
+                    self.dataLoaded = true;
+                    return dbCached;
+                }
+                
+                // Fetch from API
+                console.log(`No cache found for ${self.endpoint}, fetching from API...`);
+                const allRecords = await self.fetchAllRecords(url, config);
+                
+                // Store in both caches
+                self.setCachedData(cacheKey, allRecords);
+                await cacheManager.setCachedData(cacheKey, allRecords);
+                
+                self.dataLoaded = true;
+                return allRecords;
+            },
             
             dataFiltering: () => {
                 console.log(`Data filtering for ${self.elementId}`);
@@ -109,60 +226,96 @@ export class BaseTable {
         };
     }
     
-    // Configure AJAX if endpoint is provided
-    configureAjax(config) {
-        if (this.endpoint) {
-            config.ajaxURL = API_CONFIG.baseURL + this.endpoint;
-            config.ajaxConfig = {
-                method: "GET",
-                headers: {
-                    ...API_CONFIG.headers,
-                    "Prefer": "count=exact"
-                }
-            };
-            config.ajaxContentType = "json";
-            
-            config.ajaxRequestFunc = async (url, ajaxConfig, params) => {
-                const cacheKey = `${this.endpoint}_data`;
-                
-                // Check memory cache
-                const memoryCached = this.getCachedData(cacheKey);
-                if (memoryCached) {
-                    console.log(`Using memory cached data for ${this.endpoint}`);
-                    return memoryCached;
-                }
-                
-                // Fetch from API
-                try {
-                    const response = await fetch(url, {
-                        method: ajaxConfig.method,
-                        headers: ajaxConfig.headers
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    // Cache the data
-                    this.setCachedData(cacheKey, data);
-                    
-                    return data;
-                } catch (error) {
-                    console.error(`Error fetching ${this.endpoint}:`, error);
-                    throw error;
-                }
-            };
+    // Fetch all records with pagination
+    async fetchAllRecords(url, config) {
+        const allRecords = [];
+        const pageSize = 1000;
+        let offset = 0;
+        let hasMore = true;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        console.log(`Starting data fetch from ${url}...`);
+        
+        // Show loading indicator
+        if (this.elementId) {
+            const element = document.querySelector(this.elementId);
+            if (element) {
+                const progressDiv = document.createElement('div');
+                progressDiv.id = 'loading-progress';
+                progressDiv.className = 'loading-indicator';
+                progressDiv.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
+                progressDiv.innerHTML = '<div style="text-align: center;"><div>Loading data...</div><div id="progress-text" style="margin-top: 10px; font-weight: bold;">0 records</div></div>';
+                element.style.position = 'relative';
+                element.appendChild(progressDiv);
+            }
         }
         
-        return config;
+        while (hasMore) {
+            try {
+                const requestUrl = `${url}?limit=${pageSize}&offset=${offset}`;
+                
+                const response = await fetch(requestUrl, {
+                    method: "GET",
+                    headers: {
+                        ...API_CONFIG.headers,
+                        'Range': `${offset}-${offset + pageSize - 1}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    allRecords.push(...data);
+                    offset += pageSize;
+                    
+                    // Update progress
+                    const progressText = document.getElementById('progress-text');
+                    if (progressText) {
+                        progressText.textContent = `${allRecords.length} records loaded...`;
+                    }
+                    
+                    // Check if we got less than a full page
+                    if (data.length < pageSize) {
+                        hasMore = false;
+                    }
+                    
+                    retryCount = 0;
+                } else {
+                    hasMore = false;
+                }
+            } catch (error) {
+                console.error(`Error fetching data (attempt ${retryCount + 1}):`, error);
+                retryCount++;
+                
+                if (retryCount >= maxRetries) {
+                    console.error('Max retries reached, stopping fetch');
+                    hasMore = false;
+                } else {
+                    // Wait before retry
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+            }
+        }
+        
+        // Remove loading indicator
+        const progressDiv = document.getElementById('loading-progress');
+        if (progressDiv) {
+            progressDiv.remove();
+        }
+        
+        console.log(`Fetch complete: ${allRecords.length} total records`);
+        return allRecords;
     }
     
     // Memory cache helpers
     getCachedData(key) {
         const cached = dataCache.get(key);
-        if (cached && Date.now() - cached.timestamp < CONFIG.CACHE_TTL) {
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
             return cached.data;
         }
         return null;
@@ -388,7 +541,7 @@ export class BaseTable {
     async refreshData() {
         if (!this.table) return;
         
-        const cacheKey = `${this.endpoint}_data`;
+        const cacheKey = `basketball_${this.endpoint}`;
         dataCache.delete(cacheKey);
         
         await this.table.setData();
