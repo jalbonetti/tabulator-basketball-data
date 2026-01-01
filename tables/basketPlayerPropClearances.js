@@ -1,8 +1,10 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances
-// FIXED: 
-// - Removed invalid titleHozAlign option (using CSS instead)
-// - Headers wrap at word boundaries (one word per line allowed)
-// - Uses proper tableConfig from baseTable
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (UPDATED)
+// Changes: 
+// - Removed "Player Info" combined header - Name and Team are now standalone columns
+// - Name column is frozen on mobile/tablet, fills remaining space on desktop
+// - All columns except Name auto-fit to content width
+// - All headers are center-justified (via CSS)
+// - Desktop text scaling to fit browser width
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -19,12 +21,24 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // Use the base config which includes ajaxURL and ajaxRequestFunc
         const config = {
             ...this.tableConfig,
-            // Override specific settings
-            layout: isSmallScreen ? "fitDataFill" : "fitDataStretch",
+            // Optimize for large datasets
+            virtualDom: true,
+            virtualDomBuffer: 500,
+            renderVertical: "virtual",
+            renderHorizontal: "virtual",
+            pagination: false,
+            paginationSize: false,
+            layoutColumnsOnNewData: false,
+            responsiveLayout: false,
+            maxHeight: "600px",
+            height: "600px",
             placeholder: "Loading basketball player prop clearances...",
+            
+            // CRITICAL: Use fitDataStretch to auto-fit columns, Name fills remaining space
+            layout: isSmallScreen ? "fitDataFill" : "fitDataStretch",
+            
             columns: this.getColumns(isSmallScreen),
             initialSort: [
                 {column: "Player Name", dir: "asc"},
@@ -216,6 +230,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             {
                 title: "Name", 
                 field: "Player Name", 
+                // On small screens: frozen and auto-width; On desktop: fills remaining space
                 frozen: isSmallScreen,
                 widthGrow: isSmallScreen ? 0 : 1,
                 minWidth: isSmallScreen ? 100 : 120,
@@ -228,6 +243,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             
             // =====================================================
             // TEAM COLUMN - Standalone (no combined header)
+            // Auto-fit to content
             // =====================================================
             {
                 title: "Team", 
@@ -241,7 +257,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
             
             // =====================================================
-            // PROP INFO GROUP
+            // PROP INFO GROUP - Center justified headers
             // =====================================================
             {
                 title: "Prop Info", 
@@ -281,7 +297,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // CLEARANCE DATA GROUP
+            // CLEARANCE DATA GROUP - Center justified headers
             // =====================================================
             {
                 title: "Clearance", 
@@ -311,7 +327,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // OPPONENT GROUP
+            // OPPONENT GROUP - Center justified headers
             // =====================================================
             {
                 title: "Opponent", 
@@ -340,7 +356,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // LINEUP STATUS - Standalone column
+            // LINEUP STATUS - Standalone column, center justified
             // =====================================================
             {
                 title: "Lineup", 
@@ -354,7 +370,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // PLAYER STATS GROUP
+            // PLAYER STATS GROUP - Center justified headers
             // =====================================================
             {
                 title: "Player Stats", 
@@ -410,7 +426,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // MEDIAN ODDS GROUP
+            // MEDIAN ODDS GROUP - Center justified headers
             // =====================================================
             {
                 title: "Median Odds", 
@@ -445,7 +461,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // BEST ODDS GROUP
+            // BEST ODDS GROUP - Center justified headers
             // =====================================================
             {
                 title: "Best Odds", 
