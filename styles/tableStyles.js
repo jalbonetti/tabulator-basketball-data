@@ -1,12 +1,11 @@
 // styles/tableStyles.js - Basketball Table Styles
-// UPDATED: 
-// - Center-justified headers (both primary and secondary)
+// FIXED: 
+// - Headers wrap at word boundaries (one word per line allowed)
+// - Center-justified headers via CSS (not titleHozAlign option)
+// - Data cells remain single-line with ellipsis
 // - Dropdown filters positioned above table
-// - Auto-fit column widths
-// - Frozen column support for Name on mobile/tablet
-// - Responsive text scaling for desktop
 
-import { CONFIG, isMobile, isTablet, getDeviceScale } from '../shared/config.js';
+import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
 export function injectStyles() {
     // Check if Webflow custom styles are already applied
@@ -39,18 +38,29 @@ function injectMinimalStyles() {
             visibility: visible !important;
         }
         
-        /* CRITICAL: No word wrapping in headers - single line */
+        /* HEADERS: Allow word wrapping at word boundaries, center-justified */
         .tabulator-col-title {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* Column group headers (primary headers) - centered */
+        .tabulator-col-group > .tabulator-col-title-holder > .tabulator-col-title {
+            text-align: center !important;
+            justify-content: center !important;
+        }
+        
+        /* DATA CELLS: Single line with ellipsis overflow */
+        .tabulator-cell {
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-        }
-        
-        /* CENTER JUSTIFY ALL HEADERS - Primary and Secondary */
-        .tabulator-col-title,
-        .tabulator-col-group .tabulator-col-title {
-            text-align: center !important;
-            justify-content: center !important;
         }
         
         /* CRITICAL: Dropdown filters open ABOVE with maximum z-index */
@@ -150,9 +160,10 @@ function injectFullStyles() {
     style.setAttribute('data-table-styles', 'github');
     style.textContent = `
         /* ===================================
-           BASKETBALL TABLE STYLES - UPDATED
-           Center-justified headers, auto-fit columns,
-           frozen Name column, dropdowns above table
+           BASKETBALL TABLE STYLES - FIXED
+           Headers wrap at word boundaries
+           Center-justified via CSS
+           Data cells single-line
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -169,7 +180,7 @@ function injectFullStyles() {
         .tabulator-cell,
         .tabulator-cell * {
             font-size: ${baseFontSize}px !important;
-            line-height: 1.4 !important;
+            line-height: 1.3 !important;
         }
         
         /* Base table container styles */
@@ -188,7 +199,7 @@ function injectFullStyles() {
         .tabulator {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             font-size: ${baseFontSize}px !important;
-            line-height: 1.4 !important;
+            line-height: 1.3 !important;
             background-color: white;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
@@ -213,7 +224,7 @@ function injectFullStyles() {
         .tabulator-col {
             background: transparent;
             border-right: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 8px 4px;
+            padding: 6px 4px;
             font-size: ${baseFontSize}px !important;
             overflow: visible !important;
         }
@@ -222,21 +233,30 @@ function injectFullStyles() {
             border-right: none;
         }
         
-        /* CENTER JUSTIFY ALL HEADERS - PRIMARY AND SECONDARY */
+        /* =====================================================
+           HEADERS: Word-wrap allowed, center-justified
+           One word per line is acceptable
+           ===================================================== */
         .tabulator-col-title {
             color: white;
             font-weight: 600;
             font-size: ${baseFontSize}px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
+            /* Allow wrapping at word boundaries */
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            hyphens: none !important;
+            /* Center justify */
             text-align: center !important;
-            justify-content: center !important;
             display: flex !important;
             align-items: center !important;
+            justify-content: center !important;
+            line-height: 1.2 !important;
+            min-height: 20px !important;
         }
         
-        /* Column group headers (secondary headers) - also centered */
+        /* Column group headers (primary headers) - also centered */
+        .tabulator-col-group > .tabulator-col-title-holder > .tabulator-col-title,
         .tabulator-col-group .tabulator-col-title {
             text-align: center !important;
             justify-content: center !important;
@@ -247,7 +267,7 @@ function injectFullStyles() {
         }
         
         .tabulator-col-group .tabulator-col-group-cols .tabulator-col {
-            padding: 6px 4px;
+            padding: 4px 3px;
         }
         
         /* Header filter containers must allow dropdowns to overflow */
@@ -346,9 +366,11 @@ function injectFullStyles() {
             background-color: #ffedd5 !important;
         }
         
-        /* Cell styling - NO WRAP for single row content */
+        /* =====================================================
+           DATA CELLS: Single line with ellipsis overflow
+           ===================================================== */
         .tabulator-cell {
-            padding: 6px 4px;
+            padding: 5px 4px;
             border-right: 1px solid #f0f0f0;
             font-size: ${baseFontSize}px !important;
             white-space: nowrap !important;
@@ -424,11 +446,11 @@ function injectFullStyles() {
             }
             
             .tabulator-col {
-                padding: 6px 2px !important;
+                padding: 4px 2px !important;
             }
             
             .tabulator-cell {
-                padding: 4px 2px !important;
+                padding: 3px 2px !important;
             }
             
             .custom-multiselect-button {
@@ -452,11 +474,11 @@ function injectFullStyles() {
             }
             
             .tabulator-col {
-                padding: 4px 1px !important;
+                padding: 3px 1px !important;
             }
             
             .tabulator-cell {
-                padding: 3px 1px !important;
+                padding: 2px 1px !important;
             }
         }
         
