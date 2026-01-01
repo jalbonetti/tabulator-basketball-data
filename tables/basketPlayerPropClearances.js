@@ -1,15 +1,13 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (UPDATED)
-// Changes: 
-// - Removed "Player Info" combined header - Name and Team are now standalone columns
-// - Name column is frozen on mobile/tablet, fills remaining space on desktop
-// - All columns except Name auto-fit to content width
-// - All headers are center-justified
-// - Desktop text scaling to fit browser width
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances
+// FIXED: 
+// - Removed invalid titleHozAlign option (using CSS instead)
+// - Headers wrap at word boundaries (one word per line allowed)
+// - Uses proper tableConfig from baseTable
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
-import { CONFIG, isMobile, isTablet } from '../shared/config.js';
+import { isMobile, isTablet } from '../shared/config.js';
 
 export class BasketPlayerPropClearancesTable extends BaseTable {
     constructor(elementId) {
@@ -21,24 +19,12 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // Use the base config which includes ajaxURL and ajaxRequestFunc
         const config = {
             ...this.tableConfig,
-            // Optimize for large datasets
-            virtualDom: true,
-            virtualDomBuffer: 500,
-            renderVertical: "virtual",
-            renderHorizontal: "virtual",
-            pagination: false,
-            paginationSize: false,
-            layoutColumnsOnNewData: false,
-            responsiveLayout: false,
-            maxHeight: "600px",
-            height: "600px",
-            placeholder: "Loading basketball player prop clearances...",
-            
-            // CRITICAL: Use fitDataStretch to auto-fit columns, Name fills remaining space
+            // Override specific settings
             layout: isSmallScreen ? "fitDataFill" : "fitDataStretch",
-            
+            placeholder: "Loading basketball player prop clearances...",
             columns: this.getColumns(isSmallScreen),
             initialSort: [
                 {column: "Player Name", dir: "asc"},
@@ -230,7 +216,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             {
                 title: "Name", 
                 field: "Player Name", 
-                // On small screens: frozen and auto-width; On desktop: fills remaining space
                 frozen: isSmallScreen,
                 widthGrow: isSmallScreen ? 0 : 1,
                 minWidth: isSmallScreen ? 100 : 120,
@@ -238,13 +223,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 headerFilter: true,
                 resizable: false,
                 formatter: this.createNameFormatter(),
-                titleHozAlign: "center",
                 hozAlign: "left"
             },
             
             // =====================================================
             // TEAM COLUMN - Standalone (no combined header)
-            // Auto-fit to content
             // =====================================================
             {
                 title: "Team", 
@@ -254,16 +237,14 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 sorter: "string", 
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                titleHozAlign: "center",
                 hozAlign: "center"
             },
             
             // =====================================================
-            // PROP INFO GROUP - Center justified headers
+            // PROP INFO GROUP
             // =====================================================
             {
                 title: "Prop Info", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "Prop", 
@@ -273,7 +254,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         sorter: "string", 
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -286,7 +266,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -296,18 +275,16 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 50,
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
             },
 
             // =====================================================
-            // CLEARANCE DATA GROUP - Center justified headers
+            // CLEARANCE DATA GROUP
             // =====================================================
             {
                 title: "Clearance", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "% Over", 
@@ -317,7 +294,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         sorter: "number",
                         resizable: false,
                         formatter: clearanceFormatter,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -329,18 +305,16 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                             return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
             },
 
             // =====================================================
-            // OPPONENT GROUP - Center justified headers
+            // OPPONENT GROUP
             // =====================================================
             {
                 title: "Opponent", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "Prop Rank", 
@@ -351,7 +325,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                             return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -361,14 +334,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 70,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
             },
 
             // =====================================================
-            // LINEUP STATUS - Standalone column, center justified
+            // LINEUP STATUS - Standalone column
             // =====================================================
             {
                 title: "Lineup", 
@@ -378,16 +350,14 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                titleHozAlign: "center",
                 hozAlign: "center"
             },
 
             // =====================================================
-            // PLAYER STATS GROUP - Center justified headers
+            // PLAYER STATS GROUP
             // =====================================================
             {
                 title: "Player Stats", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "Median", 
@@ -396,7 +366,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 50,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center",
                         formatter: oneDecimalFormatter
                     },
@@ -407,7 +376,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 40,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center",
                         formatter: oneDecimalFormatter
                     },
@@ -418,7 +386,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 40,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -428,7 +395,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 35,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -438,18 +404,16 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         minWidth: 45,
                         sorter: "number",
                         resizable: false,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
             },
 
             // =====================================================
-            // MEDIAN ODDS GROUP - Center justified headers
+            // MEDIAN ODDS GROUP
             // =====================================================
             {
                 title: "Median Odds", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "Over", 
@@ -462,7 +426,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: simpleOddsFormatter,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -476,18 +439,16 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: simpleOddsFormatter,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
             },
 
             // =====================================================
-            // BEST ODDS GROUP - Center justified headers
+            // BEST ODDS GROUP
             // =====================================================
             {
                 title: "Best Odds", 
-                titleHozAlign: "center",
                 columns: [
                     {
                         title: "Over", 
@@ -502,7 +463,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: oddsFormatter,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     },
                     {
@@ -518,7 +478,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: oddsFormatter,
-                        titleHozAlign: "center",
                         hozAlign: "center"
                     }
                 ]
