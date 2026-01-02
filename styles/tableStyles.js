@@ -161,24 +161,24 @@ function injectMinimalStyles() {
         /* Desktop: Show styled vertical scrollbar */
         @media screen and (min-width: 1025px) {
             .tabulator-tableholder {
-                scrollbar-width: thin !important;
+                scrollbar-width: auto !important;
                 scrollbar-color: #f97316 #f5f5f5 !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar {
-                width: 10px !important;
-                height: 10px !important;
+                width: 16px !important;
+                height: 16px !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-track {
                 background: #f5f5f5 !important;
-                border-radius: 5px !important;
+                border-radius: 8px !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb {
                 background: #f97316 !important;
-                border-radius: 5px !important;
-                border: 2px solid #f5f5f5 !important;
+                border-radius: 8px !important;
+                border: 3px solid #f5f5f5 !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
@@ -516,24 +516,24 @@ function injectFullStyles() {
         /* Desktop: Show styled vertical scrollbar */
         @media screen and (min-width: 1025px) {
             .tabulator-tableholder {
-                scrollbar-width: thin !important;
+                scrollbar-width: auto !important;
                 scrollbar-color: #f97316 #f5f5f5 !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar {
-                width: 10px !important;
-                height: 10px !important;
+                width: 16px !important;
+                height: 16px !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-track {
                 background: #f5f5f5 !important;
-                border-radius: 5px !important;
+                border-radius: 8px !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb {
                 background: #f97316 !important;
-                border-radius: 5px !important;
-                border: 2px solid #f5f5f5 !important;
+                border-radius: 8px !important;
+                border: 3px solid #f5f5f5 !important;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
