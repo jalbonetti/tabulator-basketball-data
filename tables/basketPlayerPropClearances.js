@@ -62,6 +62,28 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                     if (row._expanded === undefined) {
                         row._expanded = false;
                     }
+                    
+                    // Extract and store book names from Best Odds, then strip from display value
+                    // This ensures column widths are calculated on formatted data, not raw
+                    if (row["Player Best Over Odds"]) {
+                        const overVal = String(row["Player Best Over Odds"]);
+                        const overMatch = overVal.match(/\(([^)]+)\)/);
+                        row._bestOverBook = overMatch ? overMatch[1] : '-';
+                        // Replace with just the numeric part
+                        row["Player Best Over Odds"] = overVal.split('(')[0].trim();
+                    } else {
+                        row._bestOverBook = '-';
+                    }
+                    
+                    if (row["Player Best Under Odds"]) {
+                        const underVal = String(row["Player Best Under Odds"]);
+                        const underMatch = underVal.match(/\(([^)]+)\)/);
+                        row._bestUnderBook = underMatch ? underMatch[1] : '-';
+                        // Replace with just the numeric part
+                        row["Player Best Under Odds"] = underVal.split('(')[0].trim();
+                    } else {
+                        row._bestUnderBook = '-';
+                    }
                 });
                 
                 const element = document.querySelector(this.elementId);
@@ -400,23 +422,29 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Prop Rank (Average)", 
                         field: "Opponent Prop Rank", 
                         widthGrow: 0,
-                        minWidth: 60,
+                        minWidth: 55,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
                         resizable: false,
                         hozAlign: "center",
-                        cssClass: "cluster-b"
+                        cssClass: "cluster-b",
+                        titleFormatter: function() {
+                            return "Prop<br>Rank<br>(Average)";
+                        }
                     },
                     {
-                        title: "Season Prop Rank", 
+                        title: "Season Pace Rank", 
                         field: "Opponent Pace Rank", 
                         widthGrow: 0,
-                        minWidth: 60,
+                        minWidth: 55,
                         sorter: "number",
                         resizable: false,
                         hozAlign: "center",
-                        cssClass: "cluster-b"
+                        cssClass: "cluster-b",
+                        titleFormatter: function() {
+                            return "Season<br>Pace<br>Rank";
+                        }
                     }
                 ]
             },
@@ -640,9 +668,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const medianMinutes = data["Player Median Minutes"] || '-';
         const avgMinutes = data["Player Average Minutes"] || '-';
         
-        // Extract book names from Best Odds columns
-        const bestOverBook = this.extractBookName(data["Player Best Over Odds"]);
-        const bestUnderBook = this.extractBookName(data["Player Best Under Odds"]);
+        // Use pre-extracted book names (set in dataLoaded)
+        const bestOverBook = data._bestOverBook || '-';
+        const bestUnderBook = data._bestUnderBook || '-';
         
         // Subtables now use inline-block and fit-content to contract to data size
         subrowContainer.innerHTML = `
