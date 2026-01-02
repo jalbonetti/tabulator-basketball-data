@@ -402,11 +402,21 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // CLEARANCE GROUP - includes Split
+            // CLEARANCE GROUP - includes Split (now first)
             // =====================================================
             {
                 title: "Clearance", 
                 columns: [
+                    {
+                        title: "Split", 
+                        field: "Split", 
+                        widthGrow: 0,
+                        minWidth: 55,
+                        headerFilter: createCustomMultiSelect,
+                        resizable: false,
+                        hozAlign: "center",
+                        formatter: splitFormatter
+                    },
                     {
                         title: "% Over", 
                         field: "Player Clearance", 
@@ -429,16 +439,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         resizable: false,
                         hozAlign: "center",
                         cssClass: "cluster-a"
-                    },
-                    {
-                        title: "Split", 
-                        field: "Split", 
-                        widthGrow: 0,
-                        minWidth: 55,
-                        headerFilter: createCustomMultiSelect,
-                        resizable: false,
-                        hozAlign: "center",
-                        formatter: splitFormatter
                     }
                 ]
             },
@@ -836,12 +836,28 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     // =====================================================
-    // Helper to format numeric values with 1 decimal place (for subtable)
+    // Helper to format matchup total with 1 decimal place (handles "O/U 223.5" format)
     // =====================================================
-    formatOneDecimal(value) {
+    formatMatchupTotal(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
-        const num = parseFloat(value);
-        if (isNaN(num)) return '-';
+        const str = String(value);
+        
+        // Check if it has "O/U" prefix
+        if (str.includes('O/U')) {
+            // Extract the number after "O/U"
+            const match = str.match(/O\/U\s*([\d.]+)/);
+            if (match && match[1]) {
+                const num = parseFloat(match[1]);
+                if (!isNaN(num)) {
+                    return 'O/U ' + num.toFixed(1);
+                }
+            }
+            return str; // Return original if can't parse
+        }
+        
+        // If no O/U prefix, just format the number
+        const num = parseFloat(str);
+        if (isNaN(num)) return str;
         return num.toFixed(1);
     }
 
@@ -852,8 +868,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // Build subtable content
         const matchup = data["Matchup"] || '-';
         const spread = data["Matchup Spread"] || '-';
-        // FIXED: Format matchup total with 1 decimal place
-        const total = this.formatOneDecimal(data["Matchup Total"]);
+        // FIXED: Format matchup total with 1 decimal place (preserves "O/U" prefix)
+        const total = this.formatMatchupTotal(data["Matchup Total"]);
         
         // FIXED: Format minutes with 1 decimal place
         const medianMinutes = this.formatMinutes(data["Player Median Minutes"]);
