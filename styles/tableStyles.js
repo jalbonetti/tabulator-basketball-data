@@ -4,6 +4,8 @@
 // - Center-justified headers via CSS (not titleHozAlign option)
 // - Data cells remain single-line with ellipsis
 // - Dropdown filters positioned above table
+// - Vertical scrollbar visible on desktop only
+// - Subtle frozen column styling for mobile/tablet
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -83,7 +85,7 @@ function injectMinimalStyles() {
             overflow: visible !important;
         }
         
-        /* FROZEN COLUMN STYLES */
+        /* SUBTLE FROZEN COLUMN STYLES - for mobile/tablet */
         .tabulator-frozen {
             position: sticky !important;
             left: 0 !important;
@@ -92,7 +94,8 @@ function injectMinimalStyles() {
         }
         
         .tabulator-frozen.tabulator-frozen-left {
-            border-right: 2px solid #f97316 !important;
+            border-right: 1px solid rgba(249, 115, 22, 0.4) !important;
+            box-shadow: 1px 0 3px rgba(0,0,0,0.05) !important;
         }
         
         .tabulator-row .tabulator-frozen {
@@ -142,6 +145,46 @@ function injectMinimalStyles() {
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
             border-top: 2px solid #f97316 !important;
         }
+        
+        /* VERTICAL SCROLLBAR - Desktop only */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder {
+                overflow-y: auto !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                display: block !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+        }
+        
+        /* HIDE VERTICAL SCROLLBAR on mobile/tablet */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder {
+                overflow-y: auto !important;
+                -ms-overflow-style: none !important;
+                scrollbar-width: none !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+            }
+        }
     `;
     document.head.appendChild(style);
     console.log('Basketball minimal styles injected');
@@ -164,6 +207,8 @@ function injectFullStyles() {
            Headers wrap at word boundaries
            Center-justified via CSS
            Data cells single-line
+           Desktop-only vertical scrollbar
+           Subtle frozen columns
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -312,7 +357,10 @@ function injectFullStyles() {
             box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
         }
         
-        /* FROZEN COLUMN STYLES - For Name column on mobile/tablet */
+        /* =====================================================
+           SUBTLE FROZEN COLUMN STYLES - For Name column on mobile/tablet
+           Less aggressive styling than before
+           ===================================================== */
         .tabulator-frozen {
             position: sticky !important;
             left: 0 !important;
@@ -321,8 +369,8 @@ function injectFullStyles() {
         }
         
         .tabulator-frozen.tabulator-frozen-left {
-            border-right: 2px solid #f97316 !important;
-            box-shadow: 2px 0 4px rgba(0,0,0,0.1) !important;
+            border-right: 1px solid rgba(249, 115, 22, 0.4) !important;
+            box-shadow: 1px 0 3px rgba(0,0,0,0.05) !important;
         }
         
         /* Frozen column in header */
@@ -435,6 +483,61 @@ function injectFullStyles() {
             transition: transform 0.2s ease;
         }
         
+        /* =====================================================
+           VERTICAL SCROLLBAR - Desktop only
+           Hidden on mobile/tablet for finger scrolling
+           ===================================================== */
+        
+        /* DESKTOP: Show scrollbar on far right */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder {
+                overflow-y: auto !important;
+                overflow-x: auto !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                height: 8px !important;
+                display: block !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+            
+            /* Firefox scrollbar styling */
+            .tabulator-tableholder {
+                scrollbar-width: thin !important;
+                scrollbar-color: #f97316 #f1f1f1 !important;
+            }
+        }
+        
+        /* MOBILE/TABLET: Hide scrollbar for finger scrolling */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder {
+                overflow-y: auto !important;
+                overflow-x: auto !important;
+                -ms-overflow-style: none !important;
+                scrollbar-width: none !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
+        }
+        
         /* RESPONSIVE ADJUSTMENTS */
         @media screen and (max-width: 768px) {
             .tabulator,
@@ -535,30 +638,6 @@ function injectFullStyles() {
         
         @keyframes spin {
             to { transform: rotate(360deg); }
-        }
-        
-        /* Scrollbar styling */
-        .tabulator::-webkit-scrollbar,
-        .tabulator-tableholder::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        .tabulator::-webkit-scrollbar-track,
-        .tabulator-tableholder::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        .tabulator::-webkit-scrollbar-thumb,
-        .tabulator-tableholder::-webkit-scrollbar-thumb {
-            background: #f97316;
-            border-radius: 4px;
-        }
-        
-        .tabulator::-webkit-scrollbar-thumb:hover,
-        .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-            background: #ea580c;
         }
     `;
     document.head.appendChild(style);
