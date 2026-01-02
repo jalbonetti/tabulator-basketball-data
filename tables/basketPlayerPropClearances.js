@@ -97,15 +97,20 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
-            // Wait for table to be fully rendered before equalizing column widths
+            // Wait for table to be fully rendered before adjusting column widths
             setTimeout(() => {
                 this.equalizeClusteredColumns();
+                // After equalizing clusters, expand Name column to fill remaining space (desktop only)
+                if (!isSmallScreen) {
+                    this.expandNameColumnToFill();
+                }
             }, 200);
             
-            // Re-equalize on window resize (desktop only)
+            // Re-adjust on window resize (desktop only)
             if (!isSmallScreen) {
                 window.addEventListener('resize', this.debounce(() => {
                     this.equalizeClusteredColumns();
+                    this.expandNameColumnToFill();
                 }, 250));
             }
         });
@@ -161,6 +166,40 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.log(`Cluster ${clusterName}: equalized to ${maxWidth}px`);
             }
         });
+    }
+    
+    // Expand Name column to fill remaining container width (desktop only)
+    expandNameColumnToFill() {
+        if (!this.table) return;
+        
+        const tableElement = this.table.element;
+        if (!tableElement) return;
+        
+        // Get the container width
+        const containerWidth = tableElement.offsetWidth;
+        if (containerWidth <= 0) return;
+        
+        // Calculate total width of all columns except Name
+        let otherColumnsWidth = 0;
+        const columns = this.table.getColumns();
+        
+        columns.forEach(column => {
+            const field = column.getField();
+            if (field !== "Player Name") {
+                otherColumnsWidth += column.getWidth();
+            }
+        });
+        
+        // Calculate remaining space for Name column
+        // Subtract a small buffer (20px) for borders/padding
+        const remainingWidth = containerWidth - otherColumnsWidth - 20;
+        
+        // Only expand if there's meaningful space to fill (more than current minWidth)
+        const nameColumn = this.table.getColumn("Player Name");
+        if (nameColumn && remainingWidth > 120) {
+            nameColumn.setWidth(remainingWidth);
+            console.log(`Name column expanded to ${remainingWidth}px (container: ${containerWidth}px, others: ${otherColumnsWidth}px)`);
+        }
     }
 
     // Custom sorter for "X/Y" format - sorts by FULL first number (15 > 9, not 1 > 9)
