@@ -42,8 +42,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
             
-            // Use fitData so columns size to content only; Name column stretched via JS after render
-            layout: "fitData",
+            // fitDataFill: columns size to content, extra space distributed by widthGrow
+            // Name column has widthGrow:1 (absorbs extra), all others have widthGrow:0
+            layout: "fitDataFill",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -81,16 +82,15 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
-            // Stretch Name column to fill remaining space on desktop
+            // Equalize clustered column widths after render
+            setTimeout(() => {
+                this.equalizeClusteredColumns();
+            }, 150);
+            
+            // Re-equalize on window resize (desktop only)
             if (!isSmallScreen) {
-                // Delay slightly to ensure columns have rendered with correct widths
-                setTimeout(() => {
-                    this.stretchNameColumn();
-                }, 100);
-                
-                // Re-stretch on window resize
                 window.addEventListener('resize', this.debounce(() => {
-                    this.stretchNameColumn();
+                    this.equalizeClusteredColumns();
                 }, 250));
             }
         });
@@ -105,48 +105,45 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         };
     }
     
-    // Stretch Name column to fill remaining container width (desktop only)
-    stretchNameColumn() {
-        const tableElement = document.querySelector(this.elementId);
-        if (!tableElement) return;
+    // Equalize column widths within each cluster
+    equalizeClusteredColumns() {
+        if (!this.table) return;
         
-        const tabulatorElement = tableElement.querySelector('.tabulator');
-        if (!tabulatorElement) return;
+        // Define clusters by field names
+        const clusters = {
+            'cluster-a': ['Player Clearance', 'Player Games'],
+            'cluster-b': ['Opponent Prop Rank', 'Opponent Pace Rank'],
+            'cluster-c': ['Player Prop Median', 'Player Prop Average', 'Player Prop High', 'Player Prop Low', 'Player Prop Mode'],
+            'cluster-d': ['Player Median Over Odds', 'Player Median Under Odds', 'Player Best Over Odds', 'Player Best Under Odds']
+        };
         
-        const containerWidth = tableElement.offsetWidth;
-        
-        // Get all column header elements to calculate their widths
-        const headerCols = tabulatorElement.querySelectorAll('.tabulator-col:not(.tabulator-col-group)');
-        if (!headerCols || headerCols.length === 0) return;
-        
-        // Calculate total width of all columns except Name
-        let otherColumnsWidth = 0;
-        let nameColElement = null;
-        
-        headerCols.forEach(col => {
-            const field = col.getAttribute('tabulator-field');
-            if (field === 'Player Name') {
-                nameColElement = col;
-            } else {
-                otherColumnsWidth += col.offsetWidth;
+        // For each cluster, find the max width and apply to all columns in cluster
+        Object.keys(clusters).forEach(clusterName => {
+            const fields = clusters[clusterName];
+            let maxWidth = 0;
+            
+            // Find max width in this cluster
+            fields.forEach(field => {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    const width = column.getWidth();
+                    if (width > maxWidth) {
+                        maxWidth = width;
+                    }
+                }
+            });
+            
+            // Apply max width to all columns in cluster
+            if (maxWidth > 0) {
+                fields.forEach(field => {
+                    const column = this.table.getColumn(field);
+                    if (column) {
+                        column.setWidth(maxWidth);
+                    }
+                });
+                console.log(`Cluster ${clusterName}: equalized to ${maxWidth}px`);
             }
         });
-        
-        if (!nameColElement) return;
-        
-        // Calculate remaining width for Name column (with some padding buffer)
-        const remainingWidth = containerWidth - otherColumnsWidth - 20; // 20px buffer for borders/padding
-        const currentNameWidth = nameColElement.offsetWidth;
-        
-        // Only stretch if there's extra space to fill
-        if (remainingWidth > currentNameWidth) {
-            // Use Tabulator's API to update column width
-            const nameColumn = this.table.getColumn('Player Name');
-            if (nameColumn) {
-                nameColumn.setWidth(remainingWidth);
-                console.log(`Stretched Name column from ${currentNameWidth}px to ${remainingWidth}px`);
-            }
-        }
     }
 
     // Custom sorter for "X/Y" format - sorts by FULL first number (15 > 9, not 1 > 9)
@@ -207,15 +204,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
     getColumns(isSmallScreen = false) {
         const self = this;
-        
-        // =====================================================
-        // CLUSTERED WIDTH CONSTANTS
-        // Columns in each cluster share the same width
-        // =====================================================
-        const CLUSTER_A_WIDTH = 55;  // % Over, Games
-        const CLUSTER_B_WIDTH = 85;  // Prop Rank (Average), Season Prop Rank
-        const CLUSTER_C_WIDTH = 45;  // Med, Avg, High, Low, Mode (Player Stats)
-        const CLUSTER_D_WIDTH = 55;  // All 4 Odds columns (Median Over/Under, Best Over/Under)
         
         // =====================================================
         // FORMATTERS
@@ -298,14 +286,15 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
         return [
             // =====================================================
-            // NAME COLUMN - Standalone (no combined header)
-            // Frozen on mobile/tablet; stretched to fill remaining space on desktop via JS
+            // NAME COLUMN - widthGrow:1 means it absorbs ALL extra space
+            // Frozen on mobile/tablet for horizontal scrolling
             // =====================================================
             {
                 title: "Name", 
                 field: "Player Name", 
                 frozen: isSmallScreen,
-                minWidth: 100,
+                widthGrow: 1,
+                minWidth: 120,
                 sorter: "string", 
                 headerFilter: true,
                 resizable: false,
@@ -314,14 +303,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
             
             // =====================================================
-            // TEAM COLUMN - Standalone (no combined header)
-            // Auto-fit to content (header first, then data)
+            // TEAM COLUMN - widthGrow:0 means size to content only
             // =====================================================
             {
                 title: "Team", 
                 field: "Player Team", 
                 widthGrow: 0,
-                minWidth: 50,
+                minWidth: 45,
                 sorter: "string", 
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
@@ -329,8 +317,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
             
             // =====================================================
-            // PROP INFO GROUP - Now only contains Prop and Line
-            // (Split moved to Clearance section)
+            // PROP INFO GROUP
             // =====================================================
             {
                 title: "Prop Info", 
@@ -339,7 +326,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Prop", 
                         field: "Player Prop", 
                         widthGrow: 0,
-                        minWidth: 60,
+                        minWidth: 50,
                         sorter: "string", 
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
@@ -350,7 +337,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Line", 
                         field: "Player Prop Value", 
                         widthGrow: 0,
-                        minWidth: 45,
+                        minWidth: 40,
                         sorter: "number", 
                         headerFilter: createMinMaxFilter,
                         headerFilterFunc: minMaxFilterFunction,
@@ -362,8 +349,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // CLEARANCE DATA GROUP - Now includes Split
-            // Cluster A: % Over and Games share same width
+            // CLEARANCE GROUP - includes Split (moved here)
             // =====================================================
             {
                 title: "Clearance", 
@@ -372,30 +358,30 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "% Over", 
                         field: "Player Clearance", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_A_WIDTH,
-                        width: CLUSTER_A_WIDTH,
+                        minWidth: 50,
                         sorter: "number",
                         resizable: false,
                         formatter: clearanceFormatter,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-a"
                     },
                     {
                         title: "Games", 
                         field: "Player Games", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_A_WIDTH,
-                        width: CLUSTER_A_WIDTH,
+                        minWidth: 50,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-a"
                     },
                     {
                         title: "Split", 
                         field: "Split", 
                         widthGrow: 0,
-                        minWidth: 65,
+                        minWidth: 55,
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
                         hozAlign: "center",
@@ -405,8 +391,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // OPPONENT GROUP - Renamed headers
-            // Cluster B: Both rank columns share same width
+            // OPPONENT GROUP - renamed headers
             // =====================================================
             {
                 title: "Opponent", 
@@ -415,29 +400,29 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Prop Rank (Average)", 
                         field: "Opponent Prop Rank", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_B_WIDTH,
-                        width: CLUSTER_B_WIDTH,
+                        minWidth: 60,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-b"
                     },
                     {
                         title: "Season Prop Rank", 
                         field: "Opponent Pace Rank", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_B_WIDTH,
-                        width: CLUSTER_B_WIDTH,
+                        minWidth: 60,
                         sorter: "number",
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-b"
                     }
                 ]
             },
 
             // =====================================================
-            // LINEUP STATUS - Standalone column with abbreviations
+            // LINEUP STATUS
             // =====================================================
             {
                 title: "Lineup", 
@@ -453,7 +438,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
             // =====================================================
             // PLAYER STATS GROUP - "Median" renamed to "Med"
-            // Cluster C: All 5 stats columns share same width
             // =====================================================
             {
                 title: "Player Stats", 
@@ -462,60 +446,59 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Med", 
                         field: "Player Prop Median", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_C_WIDTH,
-                        width: CLUSTER_C_WIDTH,
+                        minWidth: 40,
                         sorter: "number",
                         resizable: false,
                         hozAlign: "center",
-                        formatter: oneDecimalFormatter
+                        formatter: oneDecimalFormatter,
+                        cssClass: "cluster-c"
                     },
                     {
                         title: "Avg", 
                         field: "Player Prop Average", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_C_WIDTH,
-                        width: CLUSTER_C_WIDTH,
+                        minWidth: 40,
                         sorter: "number",
                         resizable: false,
                         hozAlign: "center",
-                        formatter: oneDecimalFormatter
+                        formatter: oneDecimalFormatter,
+                        cssClass: "cluster-c"
                     },
                     {
                         title: "High", 
                         field: "Player Prop High", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_C_WIDTH,
-                        width: CLUSTER_C_WIDTH,
+                        minWidth: 40,
                         sorter: "number",
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-c"
                     },
                     {
                         title: "Low", 
                         field: "Player Prop Low", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_C_WIDTH,
-                        width: CLUSTER_C_WIDTH,
+                        minWidth: 40,
                         sorter: "number",
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-c"
                     },
                     {
                         title: "Mode", 
                         field: "Player Prop Mode", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_C_WIDTH,
-                        width: CLUSTER_C_WIDTH,
+                        minWidth: 40,
                         sorter: "number",
                         resizable: false,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-c"
                     }
                 ]
             },
 
             // =====================================================
             // MEDIAN ODDS GROUP
-            // Cluster D: All 4 odds columns share same width
             // =====================================================
             {
                 title: "Median Odds", 
@@ -524,37 +507,35 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Over", 
                         field: "Player Median Over Odds", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_D_WIDTH,
-                        width: CLUSTER_D_WIDTH,
+                        minWidth: 45,
                         sorter: "number",
                         headerFilter: createMinMaxFilter,
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: simpleOddsFormatter,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-d"
                     },
                     {
                         title: "Under", 
                         field: "Player Median Under Odds", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_D_WIDTH,
-                        width: CLUSTER_D_WIDTH,
+                        minWidth: 45,
                         sorter: "number",
                         headerFilter: createMinMaxFilter,
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: simpleOddsFormatter,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-d"
                     }
                 ]
             },
 
             // =====================================================
-            // BEST ODDS GROUP - Truncated (book names removed)
-            // Book names now shown in expandable subtable
-            // Cluster D: All 4 odds columns share same width
+            // BEST ODDS GROUP - truncated (book names in subtable)
             // =====================================================
             {
                 title: "Best Odds", 
@@ -563,8 +544,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Over", 
                         field: "Player Best Over Odds", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_D_WIDTH,
-                        width: CLUSTER_D_WIDTH,
+                        minWidth: 45,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
@@ -573,14 +553,14 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: bestOddsFormatter,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-d"
                     },
                     {
                         title: "Under", 
                         field: "Player Best Under Odds", 
                         widthGrow: 0,
-                        minWidth: CLUSTER_D_WIDTH,
-                        width: CLUSTER_D_WIDTH,
+                        minWidth: 45,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
@@ -589,7 +569,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterLiveFilter: false,
                         resizable: false,
                         formatter: bestOddsFormatter,
-                        hozAlign: "center"
+                        hozAlign: "center",
+                        cssClass: "cluster-d"
                     }
                 ]
             }
