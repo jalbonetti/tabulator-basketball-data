@@ -9,6 +9,7 @@
 // - More compact min/max filter inputs
 // - FIXED: Standalone headers (Name, Team, Lineup) now top-aligned on mobile/tablet
 //   to prevent other headers from showing above frozen columns when scrolling
+// - FIXED: Scrollbar CSS moved before mobile/tablet header fix to prevent cascade issues
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -70,6 +71,45 @@ function injectMinimalStyles() {
             border: 1px solid #333 !important;
             border-radius: 4px !important;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
+        }
+        
+        /* =====================================================
+           SCROLLBAR - Must be included in minimal styles for Webflow
+           MOVED BEFORE mobile/tablet header fix to prevent cascade issues
+           ===================================================== */
+        .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Desktop scrollbar styling */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                height: 8px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+        }
+        
+        /* Mobile/tablet: thin scrollbar */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 4px !important;
+                height: 4px !important;
+            }
         }
         
         /* =====================================================
@@ -163,44 +203,6 @@ function injectMinimalStyles() {
             flex-shrink: 0 !important;
             font-size: 9px !important;
             padding: 2px 3px !important;
-        }
-        
-        /* =====================================================
-           SCROLLBAR - Must be included in minimal styles for Webflow
-           ===================================================== */
-        .tabulator-tableholder {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Desktop scrollbar styling */
-        @media screen and (min-width: 1025px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 8px !important;
-                height: 8px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 4px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316 !important;
-                border-radius: 4px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c !important;
-            }
-        }
-        
-        /* Mobile/tablet: thin scrollbar */
-        @media screen and (max-width: 1024px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 4px !important;
-                height: 4px !important;
-            }
         }
     `;
     document.head.appendChild(style);
