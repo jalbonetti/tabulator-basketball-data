@@ -42,8 +42,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
             
-            // CRITICAL: Use fitDataStretch to auto-fit columns, Name fills remaining space on desktop
-            layout: isSmallScreen ? "fitDataFill" : "fitDataStretch",
+            // Use fitData so columns size to content only; Name column stretched via JS after render
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -81,41 +81,71 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
-            // Apply desktop scaling if needed
+            // Stretch Name column to fill remaining space on desktop
             if (!isSmallScreen) {
-                this.applyDesktopScaling();
+                // Delay slightly to ensure columns have rendered with correct widths
+                setTimeout(() => {
+                    this.stretchNameColumn();
+                }, 100);
+                
+                // Re-stretch on window resize
+                window.addEventListener('resize', this.debounce(() => {
+                    this.stretchNameColumn();
+                }, 250));
             }
         });
     }
     
-    // Apply scaling to fit table in browser width on desktop
-    applyDesktopScaling() {
+    // Simple debounce helper
+    debounce(func, wait) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+    
+    // Stretch Name column to fill remaining container width (desktop only)
+    stretchNameColumn() {
         const tableElement = document.querySelector(this.elementId);
         if (!tableElement) return;
         
         const tabulatorElement = tableElement.querySelector('.tabulator');
         if (!tabulatorElement) return;
         
-        // Check if table is wider than container
         const containerWidth = tableElement.offsetWidth;
-        const tableWidth = tabulatorElement.scrollWidth;
         
-        if (tableWidth > containerWidth) {
-            // Calculate scale factor
-            const scaleFactor = Math.max(0.75, containerWidth / tableWidth);
-            
-            // Apply font size scaling
-            const baseFontSize = 13;
-            const scaledFontSize = Math.floor(baseFontSize * scaleFactor);
-            
-            tabulatorElement.style.fontSize = `${scaledFontSize}px`;
-            
-            // Force redraw
-            if (this.table) {
-                this.table.redraw(true);
+        // Get all column header elements to calculate their widths
+        const headerCols = tabulatorElement.querySelectorAll('.tabulator-col:not(.tabulator-col-group)');
+        if (!headerCols || headerCols.length === 0) return;
+        
+        // Calculate total width of all columns except Name
+        let otherColumnsWidth = 0;
+        let nameColElement = null;
+        
+        headerCols.forEach(col => {
+            const field = col.getAttribute('tabulator-field');
+            if (field === 'Player Name') {
+                nameColElement = col;
+            } else {
+                otherColumnsWidth += col.offsetWidth;
             }
-            
-            console.log(`Applied desktop scaling: ${scaleFactor.toFixed(2)}, font size: ${scaledFontSize}px`);
+        });
+        
+        if (!nameColElement) return;
+        
+        // Calculate remaining width for Name column (with some padding buffer)
+        const remainingWidth = containerWidth - otherColumnsWidth - 20; // 20px buffer for borders/padding
+        const currentNameWidth = nameColElement.offsetWidth;
+        
+        // Only stretch if there's extra space to fill
+        if (remainingWidth > currentNameWidth) {
+            // Use Tabulator's API to update column width
+            const nameColumn = this.table.getColumn('Player Name');
+            if (nameColumn) {
+                nameColumn.setWidth(remainingWidth);
+                console.log(`Stretched Name column from ${currentNameWidth}px to ${remainingWidth}px`);
+            }
         }
     }
 
@@ -269,15 +299,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         return [
             // =====================================================
             // NAME COLUMN - Standalone (no combined header)
-            // Frozen on mobile/tablet, fills remaining space on desktop
-            // On small screens: follows same sizing as other columns
+            // Frozen on mobile/tablet; stretched to fill remaining space on desktop via JS
             // =====================================================
             {
                 title: "Name", 
                 field: "Player Name", 
                 frozen: isSmallScreen,
-                widthGrow: isSmallScreen ? 0 : 1,
-                minWidth: isSmallScreen ? 80 : 120,
+                minWidth: 100,
                 sorter: "string", 
                 headerFilter: true,
                 resizable: false,
