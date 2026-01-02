@@ -1,153 +1,194 @@
 // main.js - Basketball Props Table System
-// Entry point that initializes multiple tables with tab navigation
-// Dynamically creates tab UI and table containers inside the Webflow container
+// COMPLETE SYSTEM WITH PROPER DOM CREATION AND TABMANAGER INTEGRATION
+// Based on working baseball repository pattern
 
 import { injectStyles } from './styles/tableStyles.js';
 import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropClearances.js';
 import { BasketPlayerDDTDTable } from './tables/basketPlayerDDTD.js';
-import { TabManager, TAB_STYLES } from './components/tabManager.js';
+import { TabManager } from './components/tabManager.js';
 
-// Global state for expanded rows
+// Global state for expanded rows - shared across all tables
 window.globalExpandedState = window.globalExpandedState || new Map();
-
-// Tab configuration - defines all tabs in order
-// Set enabled: false for placeholder tabs not yet implemented
-const TAB_CONFIG = [
-    {
-        id: 'table0',
-        label: 'Prop Clearances',
-        tableClass: BasketPlayerPropClearancesTable,
-        enabled: true
-    },
-    {
-        id: 'table1',
-        label: 'Coming Soon',
-        tableClass: null,  // Placeholder - no table class yet
-        enabled: false     // Disabled placeholder
-    },
-    {
-        id: 'table2',
-        label: 'DD-TD Clearances',
-        tableClass: BasketPlayerDDTDTable,
-        enabled: true
-    }
-];
 
 document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded - initializing basketball table system with tabs");
     
     // Inject styles first
     injectStyles();
-    injectTabStyles();
     
     // Initialize global state management
     initializeGlobalState();
     
-    // Find the main container element
-    const mainContainer = document.getElementById('basketball-table');
-    if (!mainContainer) {
-        console.error("No #basketball-table element found - cannot initialize");
+    // Find the existing basketball-table element
+    const existingTable = document.getElementById('basketball-table');
+    if (!existingTable) {
+        console.log("No basketball-table element found - cannot proceed with table initialization");
         return;
     }
-    
-    console.log("Found main container: #basketball-table");
-    
-    // Build the tab UI and table containers dynamically
-    const { tablesWrapper, tables } = buildTabStructure(mainContainer);
-    
-    // Initialize TabManager with the table instances
-    const tabManager = new TabManager(tables);
-    
-    // Store references globally for debugging
-    window.basketballTables = tables;
-    window.tabManager = tabManager;
-    
-    // Setup debug tools
-    setupDebugTools(tabManager, tables);
-    
-    console.log("✅ Basketball table system initialized with tabs!");
+
+    console.log("Found existing basketball-table element, creating complete structure...");
+
+    try {
+        // Create the complete DOM structure
+        createCompleteTableStructure(existingTable);
+        
+        // Create all table instances but don't initialize them yet (lazy loading)
+        console.log("Creating table instances...");
+        const tableInstances = createAllTableInstances();
+        
+        // Initialize TabManager with all table instances
+        console.log("Initializing TabManager with all tables...");
+        const tabManager = new TabManager(tableInstances);
+        window.tabManager = tabManager;
+        
+        // Store references globally for debugging
+        window.basketballTables = tableInstances;
+        
+        // Setup debug tools
+        setupDebugTools(tabManager, tableInstances);
+        
+        console.log("✅ Basketball table system initialized successfully!");
+        
+    } catch (error) {
+        console.error("❌ Error initializing basketball table system:", error);
+        console.log("Falling back to basic table functionality...");
+        // Fallback - just initialize the prop clearances table
+        try {
+            const fallbackTable = new BasketPlayerPropClearancesTable('#basketball-table');
+            fallbackTable.initialize();
+            console.log("Fallback table initialized");
+        } catch (fallbackError) {
+            console.error("Even fallback failed:", fallbackError);
+        }
+    }
 });
 
-/**
- * Build the tab structure dynamically inside the container
- * Creates: tab buttons + table containers for each configured tab
- */
-function buildTabStructure(container) {
-    // Clear any existing content
-    container.innerHTML = '';
+function createCompleteTableStructure(existingTable) {
+    console.log("Creating complete DOM structure...");
     
-    // Create wrapper div
-    const wrapper = document.createElement('div');
-    wrapper.className = 'basketball-tables-wrapper';
-    wrapper.style.cssText = 'width: 100%;';
+    // Create main wrapper
+    const tabWrapper = document.createElement('div');
+    tabWrapper.className = 'table-wrapper';
+    tabWrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; width: 100%; margin: 0 auto;';
     
-    // Create tab buttons container
-    const tabButtonsContainer = document.createElement('div');
-    tabButtonsContainer.className = 'tab-buttons';
+    // Create tabs container with all tab buttons
+    const tabsContainer = document.createElement('div');
+    tabsContainer.className = 'tabs-container';
+    tabsContainer.innerHTML = `
+        <div class="tab-buttons">
+            <button class="tab-button active" data-tab="table0">Prop Clearances</button>
+            <button class="tab-button" data-tab="table1">DD-TD Clearances</button>
+        </div>
+    `;
     
-    // Create tab buttons for each enabled tab
-    const enabledTabs = TAB_CONFIG.filter(tab => tab.enabled);
-    enabledTabs.forEach((tab, index) => {
-        const button = document.createElement('button');
-        button.className = 'tab-button' + (index === 0 ? ' active' : '');
-        button.setAttribute('data-tab', tab.id);
-        button.textContent = tab.label;
-        tabButtonsContainer.appendChild(button);
-    });
+    // Create table containers wrapper
+    const tablesContainer = document.createElement('div');
+    tablesContainer.className = 'tables-container';
+    tablesContainer.style.cssText = 'width: 100%; position: relative; min-height: 500px;';
     
-    wrapper.appendChild(tabButtonsContainer);
+    // Table 0 - Prop Clearances (active by default)
+    const table0Container = document.createElement('div');
+    table0Container.className = 'table-container active-table';
+    table0Container.id = 'table0-container';
+    table0Container.style.cssText = 'width: 100%; display: block;';
     
-    // Create table containers
-    const tables = {};
+    // Create the table element for prop clearances
+    const propClearancesElement = document.createElement('div');
+    propClearancesElement.id = 'prop-clearances-table';
+    table0Container.appendChild(propClearancesElement);
+    tablesContainer.appendChild(table0Container);
     
-    enabledTabs.forEach((tab, index) => {
-        // Create container div
-        const tableContainer = document.createElement('div');
-        tableContainer.id = `${tab.id}-container`;
-        tableContainer.className = 'table-container' + (index === 0 ? ' active-table' : '');
-        tableContainer.style.display = index === 0 ? 'block' : 'none';
-        
-        // Create the actual table div inside the container
-        const tableDiv = document.createElement('div');
-        tableDiv.id = tab.id;
-        tableContainer.appendChild(tableDiv);
-        
-        wrapper.appendChild(tableContainer);
-        
-        // Create table instance (but don't initialize yet - TabManager handles lazy init)
-        if (tab.tableClass) {
-            const tableInstance = new tab.tableClass(`#${tab.id}`);
-            tableInstance.isInitialized = false;
-            tables[tab.id] = tableInstance;
+    // Table 1 - DD-TD Clearances (inactive)
+    const ddtdElement = document.createElement('div');
+    ddtdElement.id = 'ddtd-clearances-table';
+    const table1Container = document.createElement('div');
+    table1Container.className = 'table-container inactive-table';
+    table1Container.id = 'table1-container';
+    table1Container.style.cssText = 'width: 100%; display: none;';
+    table1Container.appendChild(ddtdElement);
+    tablesContainer.appendChild(table1Container);
+    
+    // Insert the wrapper before the existing table, then remove the original
+    existingTable.parentNode.insertBefore(tabWrapper, existingTable);
+    tabWrapper.appendChild(tabsContainer);
+    tabWrapper.appendChild(tablesContainer);
+    
+    // Remove the original table element (we've created new containers)
+    existingTable.remove();
+    
+    console.log("✅ DOM structure created with tab containers");
+}
+
+function createAllTableInstances() {
+    console.log("Creating all table instances (with lazy loading)...");
+    
+    // Create table instances but DON'T initialize them yet - TabManager handles lazy loading
+    const tableInstances = {
+        table0: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
+        table1: new BasketPlayerDDTDTable("#ddtd-clearances-table")
+    };
+    
+    // Enhance each table instance with state management
+    Object.keys(tableInstances).forEach(key => {
+        const instance = tableInstances[key];
+        if (instance) {
+            enhanceTableInstance(instance);
+            console.log(`✅ Enhanced table instance: ${key} (${instance.elementId})`);
+        } else {
+            console.log(`⚠️ Failed to create table instance: ${key}`);
         }
     });
     
-    container.appendChild(wrapper);
-    
-    console.log(`Built tab structure with ${enabledTabs.length} tabs`);
-    
-    return { tablesWrapper: wrapper, tables };
+    console.log("✅ All table instances created and enhanced");
+    return tableInstances;
 }
 
-/**
- * Inject tab-specific styles
- */
-function injectTabStyles() {
-    if (document.querySelector('style[data-tab-styles]')) {
-        return; // Already injected
+function enhanceTableInstance(instance) {
+    // Add isInitialized flag if not present
+    if (instance.isInitialized === undefined) {
+        instance.isInitialized = false;
     }
     
-    const style = document.createElement('style');
-    style.setAttribute('data-tab-styles', 'true');
-    style.textContent = TAB_STYLES;
-    document.head.appendChild(style);
+    // Wrap the initialize method to set the flag
+    const originalInitialize = instance.initialize.bind(instance);
+    instance.initialize = function() {
+        console.log(`Initializing table: ${instance.elementId}`);
+        originalInitialize();
+        instance.isInitialized = true;
+        console.log(`Table initialized: ${instance.elementId}`);
+    };
     
-    console.log("Tab styles injected");
+    // Ensure saveState and restoreState exist
+    if (!instance.saveState) {
+        instance.saveState = function() {
+            if (instance.table) {
+                instance._savedFilters = instance.table.getHeaderFilters();
+                instance._savedSort = instance.table.getSorters();
+            }
+        };
+    }
+    
+    if (!instance.restoreState) {
+        instance.restoreState = function() {
+            if (instance.table && instance._savedFilters) {
+                instance._savedFilters.forEach(filter => {
+                    instance.table.setHeaderFilterValue(filter.field, filter.value);
+                });
+            }
+            if (instance.table && instance._savedSort && instance._savedSort.length > 0) {
+                instance.table.setSort(instance._savedSort);
+            }
+        };
+    }
+    
+    // Ensure generateRowId exists
+    if (!instance.generateRowId) {
+        instance.generateRowId = function(data) {
+            return `${data["Player Name"] || ''}_${data["Player Team"] || ''}_${data["Player Prop"] || ''}_${data["Split"] || ''}`;
+        };
+    }
 }
 
-/**
- * Initialize global state management
- */
 function initializeGlobalState() {
     if (!window.globalExpandedState) {
         window.globalExpandedState = new Map();
@@ -175,46 +216,30 @@ function initializeGlobalState() {
     console.log("Global state management initialized");
 }
 
-/**
- * Setup debug tools accessible via console
- */
 function setupDebugTools(tabManager, tables) {
     window.tableDebug = {
-        // Get current active table
         getActiveTable: function() {
             return tabManager.getActiveTable();
         },
-        
-        // Get specific table by ID
         getTable: function(tableId) {
             if (tableId) {
                 return tables[tableId];
             }
             return tabManager.getActiveTable();
         },
-        
-        // Get all tables
         getAllTables: function() {
             return tables;
         },
-        
-        // Get TabManager instance
         getTabManager: function() {
             return tabManager;
         },
-        
-        // Get global expanded state
         getGlobalState: function() {
             return window.globalExpandedState;
         },
-        
-        // Clear global state
         clearGlobalState: function() {
             window.globalExpandedState.clear();
             console.log("Global state cleared");
         },
-        
-        // Get expanded rows for active table
         getExpandedRows: function() {
             const activeTable = tabManager.getActiveTable();
             if (activeTable && activeTable.expandedRowsCache) {
@@ -222,21 +247,15 @@ function setupDebugTools(tabManager, tables) {
             }
             return [];
         },
-        
-        // Refresh current tab's data
         refreshData: function() {
             return tabManager.refreshCurrentTab();
         },
-        
-        // Redraw active table
         redraw: function(force = false) {
             const activeTable = tabManager.getActiveTable();
             if (activeTable && activeTable.table) {
                 return activeTable.table.redraw(force);
             }
         },
-        
-        // Get filters for active table
         getFilters: function() {
             const activeTable = tabManager.getActiveTable();
             if (activeTable && activeTable.table) {
@@ -244,14 +263,10 @@ function setupDebugTools(tabManager, tables) {
             }
             return [];
         },
-        
-        // Clear filters on active table
         clearFilters: function() {
             tabManager.clearCurrentFilters();
             console.log("Filters cleared");
         },
-        
-        // Get data from active table
         getData: function() {
             const activeTable = tabManager.getActiveTable();
             if (activeTable && activeTable.table) {
@@ -259,8 +274,6 @@ function setupDebugTools(tabManager, tables) {
             }
             return [];
         },
-        
-        // Get row count from active table
         getRowCount: function() {
             const activeTable = tabManager.getActiveTable();
             if (activeTable && activeTable.table) {
@@ -268,30 +281,21 @@ function setupDebugTools(tabManager, tables) {
             }
             return 0;
         },
-        
-        // Switch to a specific tab
         switchTab: function(tabId) {
             tabManager.switchTab(tabId);
         },
-        
-        // Get current tab ID
         getCurrentTab: function() {
             return tabManager.currentActiveTab;
         },
-        
-        // List all tab IDs
         listTabs: function() {
             return Object.keys(tables);
         }
     };
     
     console.log("Debug tools available via window.tableDebug");
-    console.log("  - getActiveTable(), getTable(id), getAllTables()");
-    console.log("  - switchTab(id), getCurrentTab(), listTabs()");
-    console.log("  - refreshData(), redraw(), getFilters(), clearFilters()");
 }
 
-// Handle window resize - redraw active table and reapply scaling
+// Handle window resize
 window.addEventListener('resize', debounce(function() {
     if (window.tabManager) {
         const activeTable = window.tabManager.getActiveTable();
@@ -299,23 +303,18 @@ window.addEventListener('resize', debounce(function() {
             console.log("Window resized - redrawing active table");
             activeTable.table.redraw(true);
             
-            // Reapply desktop scaling if needed
             if (window.innerWidth > 1024) {
-                if (activeTable.applyDesktopScaling) {
-                    activeTable.applyDesktopScaling();
-                }
                 if (activeTable.equalizeClusteredColumns) {
-                    activeTable.equalizeClusteredColumns();
+                    setTimeout(() => activeTable.equalizeClusteredColumns(), 100);
                 }
                 if (activeTable.expandNameColumnToFill) {
-                    activeTable.expandNameColumnToFill();
+                    setTimeout(() => activeTable.expandNameColumnToFill(), 150);
                 }
             }
         }
     }
 }, 250));
 
-// Debounce helper
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -333,10 +332,6 @@ window.addEventListener('error', function(event) {
     console.error('Global error:', event.error);
 });
 
-// Unhandled promise rejection handler
 window.addEventListener('unhandledrejection', function(event) {
     console.error('Unhandled promise rejection:', event.reason);
 });
-
-// Export for module usage
-export { buildTabStructure, initializeGlobalState, TAB_CONFIG };
