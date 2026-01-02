@@ -1,4 +1,5 @@
 // components/minMaxFilter.js - Min/Max Range Filter for Tabulator
+// UPDATED: More compact inputs to prevent forcing column widths wider than necessary
 // Provides a dual-input filter for numeric columns (e.g., prop values, odds)
 
 /**
@@ -7,17 +8,36 @@
  * @param {function} onRendered - Callback when rendered
  * @param {function} success - Success callback
  * @param {function} cancel - Cancel callback
- * @param {object} editorParams - Additional parameters
+ * @param {object} editorParams - Additional parameters (supports maxWidth option)
  * @returns {HTMLElement} Filter container element
  */
 export function createMinMaxFilter(cell, onRendered, success, cancel, editorParams = {}) {
+    // Allow custom max width via editorParams, default to compact 45px
+    const maxWidth = editorParams.maxWidth || 45;
+    
     const container = document.createElement('div');
     container.className = 'min-max-filter-container';
     container.style.cssText = `
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 2px;
         width: 100%;
+        max-width: ${maxWidth}px;
+        margin: 0 auto;
+    `;
+    
+    // Shared input styles - very compact
+    const inputStyle = `
+        width: 100%;
+        padding: 2px 3px;
+        font-size: 9px;
+        border: 1px solid #ccc;
+        border-radius: 2px;
+        text-align: center;
+        box-sizing: border-box;
+        -moz-appearance: textfield;
+        -webkit-appearance: none;
+        appearance: none;
     `;
     
     // Create min input
@@ -25,32 +45,14 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
     minInput.type = 'number';
     minInput.className = 'min-max-input min-input';
     minInput.placeholder = 'Min';
-    minInput.style.cssText = `
-        width: 100%;
-        padding: 3px 5px;
-        font-size: 10px;
-        border: 1px solid #ccc;
-        border-radius: 2px;
-        text-align: center;
-        box-sizing: border-box;
-        -moz-appearance: textfield;
-    `;
+    minInput.style.cssText = inputStyle;
     
     // Create max input
     const maxInput = document.createElement('input');
     maxInput.type = 'number';
     maxInput.className = 'min-max-input max-input';
     maxInput.placeholder = 'Max';
-    maxInput.style.cssText = `
-        width: 100%;
-        padding: 3px 5px;
-        font-size: 10px;
-        border: 1px solid #ccc;
-        border-radius: 2px;
-        text-align: center;
-        box-sizing: border-box;
-        -moz-appearance: textfield;
-    `;
+    maxInput.style.cssText = inputStyle;
     
     // Debounce timer
     let filterTimeout = null;
@@ -102,7 +104,7 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
     // Focus styling
     minInput.addEventListener('focus', function() {
         minInput.style.borderColor = '#f97316';
-        minInput.style.boxShadow = '0 0 0 2px rgba(249, 115, 22, 0.2)';
+        minInput.style.boxShadow = '0 0 0 1px rgba(249, 115, 22, 0.2)';
     });
     
     minInput.addEventListener('blur', function() {
@@ -112,7 +114,7 @@ export function createMinMaxFilter(cell, onRendered, success, cancel, editorPara
     
     maxInput.addEventListener('focus', function() {
         maxInput.style.borderColor = '#f97316';
-        maxInput.style.boxShadow = '0 0 0 2px rgba(249, 115, 22, 0.2)';
+        maxInput.style.boxShadow = '0 0 0 1px rgba(249, 115, 22, 0.2)';
     });
     
     maxInput.addEventListener('blur', function() {
@@ -149,12 +151,8 @@ export function minMaxFilterFunction(headerValue, rowValue, rowData, filterParam
     
     const strValue = String(rowValue).trim();
     
-    // Handle odds format like "-110 (DraftKings)" or "+150"
-    if (strValue.includes('(')) {
-        const numPart = strValue.split('(')[0].trim();
-        numValue = parseFloat(numPart);
-    } else if (strValue.startsWith('+') || strValue.startsWith('-')) {
-        // Handle odds format like "+150" or "-110"
+    // Handle odds format with +/- prefix (e.g., "+150", "-110")
+    if (strValue.startsWith('+') || strValue.startsWith('-')) {
         numValue = parseFloat(strValue);
     } else {
         numValue = parseFloat(strValue);
