@@ -9,8 +9,8 @@
 // - Abbreviations for Prop, Split, and Lineup values
 // - Renamed headers: Prop Rank (Average), Season Prop Rank, Med
 // - Split moved under Clearance section
-// - Best Odds truncated; book names shown in new subtable
-// - Subtables contract to fit data
+// - Book names now in separate Supabase columns (Player Best Over Odds Books, Player Best Under Odds Books)
+// - Fixed sorting for odds columns with +/- prefixes
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -58,58 +58,27 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.log(`Basketball table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
-                // Debug: Log first row to see actual field names and values from Supabase
+                // Debug: Log first row to verify clean data structure
                 if (data.length > 0) {
-                    console.log('DEBUG - First row raw data:', JSON.stringify(data[0], null, 2));
-                    console.log('DEBUG - Median Over Odds:', data[0]["Player Median Over Odds"]);
-                    console.log('DEBUG - Median Under Odds:', data[0]["Player Median Under Odds"]);
-                    console.log('DEBUG - Best Over Odds:', data[0]["Player Best Over Odds"]);
-                    console.log('DEBUG - Best Under Odds:', data[0]["Player Best Under Odds"]);
+                    console.log('DEBUG - First row data sample:', {
+                        'Player Name': data[0]["Player Name"],
+                        'Median Over Odds': data[0]["Player Median Over Odds"],
+                        'Median Under Odds': data[0]["Player Median Under Odds"],
+                        'Best Over Odds': data[0]["Player Best Over Odds"],
+                        'Best Under Odds': data[0]["Player Best Under Odds"],
+                        'Best Over Books': data[0]["Player Best Over Odds Books"],
+                        'Best Under Books': data[0]["Player Best Under Odds Books"]
+                    });
                 }
                 
+                // Initialize expansion state for each row
                 data.forEach(row => {
                     if (row._expanded === undefined) {
                         row._expanded = false;
                     }
-                    
-                    // Extract and store book names from Best Odds ONLY, then strip from display value
-                    // IMPORTANT: Only modify Best Odds fields, not Median Odds
-                    if (row["Player Best Over Odds"] && row["Player Best Over Odds"] !== null) {
-                        const overVal = String(row["Player Best Over Odds"]);
-                        const overMatch = overVal.match(/\(([^)]+)\)/);
-                        row._bestOverBook = overMatch ? overMatch[1] : '-';
-                        // Only strip if there's a parenthesis (book name)
-                        if (overVal.includes('(')) {
-                            row["Player Best Over Odds"] = overVal.split('(')[0].trim();
-                        }
-                    } else {
-                        row._bestOverBook = '-';
-                    }
-                    
-                    if (row["Player Best Under Odds"] && row["Player Best Under Odds"] !== null) {
-                        const underVal = String(row["Player Best Under Odds"]);
-                        const underMatch = underVal.match(/\(([^)]+)\)/);
-                        row._bestUnderBook = underMatch ? underMatch[1] : '-';
-                        // Only strip if there's a parenthesis (book name)
-                        if (underVal.includes('(')) {
-                            row["Player Best Under Odds"] = underVal.split('(')[0].trim();
-                        }
-                    } else {
-                        row._bestUnderBook = '-';
-                    }
                 });
                 
-                // Debug: Log first row after processing
-                if (data.length > 0) {
-                    console.log('DEBUG - After processing:');
-                    console.log('DEBUG - Median Over Odds:', data[0]["Player Median Over Odds"]);
-                    console.log('DEBUG - Median Under Odds:', data[0]["Player Median Under Odds"]);
-                    console.log('DEBUG - Best Over Odds:', data[0]["Player Best Over Odds"]);
-                    console.log('DEBUG - Best Under Odds:', data[0]["Player Best Under Odds"]);
-                    console.log('DEBUG - Best Over Book:', data[0]._bestOverBook);
-                    console.log('DEBUG - Best Under Book:', data[0]._bestUnderBook);
-                }
-                
+                // Remove loading indicator
                 const element = document.querySelector(this.elementId);
                 if (element) {
                     const loadingDiv = element.querySelector('.loading-indicator');
@@ -128,18 +97,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Basketball Player Prop Clearances table built successfully");
-            // Wait for table to be fully rendered before resizing columns
+            // Wait for table to be fully rendered before equalizing column widths
             setTimeout(() => {
-                // First, resize Best Odds columns to fit their stripped content
-                const bestOverCol = this.table.getColumn('Player Best Over Odds');
-                const bestUnderCol = this.table.getColumn('Player Best Under Odds');
-                if (bestOverCol) bestOverCol.setWidth(true);
-                if (bestUnderCol) bestUnderCol.setWidth(true);
-                
-                // Then equalize clustered columns
-                setTimeout(() => {
-                    this.equalizeClusteredColumns();
-                }, 50);
+                this.equalizeClusteredColumns();
             }, 200);
             
             // Re-equalize on window resize (desktop only)
@@ -165,11 +125,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         if (!this.table) return;
         
         // Define clusters by field names
+        // Note: Odds columns separated into two clusters (Median vs Best) for better sizing
         const clusters = {
             'cluster-a': ['Player Clearance', 'Player Games'],
             'cluster-b': ['Opponent Prop Rank', 'Opponent Pace Rank'],
             'cluster-c': ['Player Prop Median', 'Player Prop Average', 'Player Prop High', 'Player Prop Low', 'Player Prop Mode'],
-            'cluster-d': ['Player Median Over Odds', 'Player Median Under Odds', 'Player Best Over Odds', 'Player Best Under Odds']
+            'cluster-d-median': ['Player Median Over Odds', 'Player Median Under Odds'],
+            'cluster-d-best': ['Player Best Over Odds', 'Player Best Under Odds']
         };
         
         // For each cluster, find the max width and apply to all columns in cluster
@@ -241,20 +203,41 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         return getFirstNum(a) - getFirstNum(b);
     }
 
-    // Custom sorter for odds that may include book names like "-110 (DraftKings)"
+    // Custom sorter for odds with +/- prefixes (e.g., "-110", "+150")
+    // Designed to be stable and never return NaN to prevent row detachment issues
     oddsSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getOddsNum = (val) => {
-            if (!val || val === '-') return 0;
+            // Handle all null/undefined/empty cases
+            if (val === null || val === undefined || val === '' || val === '-') {
+                return -99999; // Sort empty/null values to the end
+            }
+            
+            // Convert to string and trim
             const str = String(val).trim();
+            
+            // Handle dash after string conversion
+            if (str === '-' || str === '') {
+                return -99999;
+            }
+            
+            // Extract numeric value including +/- sign
             const match = str.match(/^([+-]?\d+)/);
             if (match) {
-                return parseInt(match[1], 10);
+                const parsed = parseInt(match[1], 10);
+                // Final NaN check - should never happen but be safe
+                return isNaN(parsed) ? -99999 : parsed;
             }
-            const numPart = str.split('(')[0].trim();
-            const num = parseInt(numPart, 10);
-            return isNaN(num) ? 0 : num;
+            
+            // Fallback: try direct parse
+            const num = parseInt(str, 10);
+            return isNaN(num) ? -99999 : num;
         };
-        return getOddsNum(a) - getOddsNum(b);
+        
+        const aNum = getOddsNum(a);
+        const bNum = getOddsNum(b);
+        
+        // Ensure we always return a valid number (never NaN)
+        return aNum - bNum;
     }
 
     getColumns(isSmallScreen = false) {
@@ -313,28 +296,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return str;
         };
 
-        // Simple odds formatter for median odds (no book name)
-        const simpleOddsFormatter = (cell) => {
+        // Odds formatter - handles +/- prefixes for display
+        const oddsFormatter = (cell) => {
             const value = cell.getValue();
-            if (value === null || value === undefined || value === '') return '-';
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
             const num = parseInt(value, 10);
-            if (isNaN(num)) return '-';
-            return num > 0 ? `+${num}` : `${num}`;
-        };
-
-        // Best odds formatter - TRUNCATED (removes book name, shows only numeric odds)
-        const bestOddsFormatter = (cell) => {
-            const value = cell.getValue();
-            if (value === null || value === undefined || value === '') return '-';
-            const str = String(value).trim();
-            
-            // Extract just the numeric part (before any parenthesis)
-            let numPart = str;
-            if (str.includes('(')) {
-                numPart = str.split('(')[0].trim();
-            }
-            
-            const num = parseInt(numPart, 10);
             if (isNaN(num)) return '-';
             return num > 0 ? `+${num}` : `${num}`;
         };
@@ -559,7 +525,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // MEDIAN ODDS GROUP
+            // MEDIAN ODDS GROUP - uses custom oddsSorter for +/- values
             // =====================================================
             {
                 title: "Median Odds", 
@@ -568,35 +534,39 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Over", 
                         field: "Player Median Over Odds", 
                         widthGrow: 0,
-                        minWidth: 40,
-                        sorter: "number",
+                        minWidth: 45,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
                         headerFilter: createMinMaxFilter,
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
-                        formatter: simpleOddsFormatter,
+                        formatter: oddsFormatter,
                         hozAlign: "center",
-                        cssClass: "cluster-d"
+                        cssClass: "cluster-d-median"
                     },
                     {
                         title: "Under", 
                         field: "Player Median Under Odds", 
                         widthGrow: 0,
-                        minWidth: 40,
-                        sorter: "number",
+                        minWidth: 45,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                        },
                         headerFilter: createMinMaxFilter,
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
-                        formatter: simpleOddsFormatter,
+                        formatter: oddsFormatter,
                         hozAlign: "center",
-                        cssClass: "cluster-d"
+                        cssClass: "cluster-d-median"
                     }
                 ]
             },
 
             // =====================================================
-            // BEST ODDS GROUP - truncated (book names in subtable)
+            // BEST ODDS GROUP - uses custom oddsSorter for +/- values
             // =====================================================
             {
                 title: "Best Odds", 
@@ -605,7 +575,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Over", 
                         field: "Player Best Over Odds", 
                         widthGrow: 0,
-                        minWidth: 40,
+                        minWidth: 45,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
@@ -613,15 +583,15 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
-                        formatter: bestOddsFormatter,
+                        formatter: oddsFormatter,
                         hozAlign: "center",
-                        cssClass: "cluster-d"
+                        cssClass: "cluster-d-best"
                     },
                     {
                         title: "Under", 
                         field: "Player Best Under Odds", 
                         widthGrow: 0,
-                        minWidth: 40,
+                        minWidth: 45,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                             return self.oddsSorter(a, b, aRow, bRow, column, dir, sorterParams);
                         },
@@ -629,9 +599,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         headerFilterFunc: minMaxFilterFunction,
                         headerFilterLiveFilter: false,
                         resizable: false,
-                        formatter: bestOddsFormatter,
+                        formatter: oddsFormatter,
                         hozAlign: "center",
-                        cssClass: "cluster-d"
+                        cssClass: "cluster-d-best"
                     }
                 ]
             }
@@ -663,17 +633,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         };
     }
 
-    // Helper function to extract book name from odds string like "-110 (DraftKings)"
-    extractBookName(oddsValue) {
-        if (!oddsValue || oddsValue === '-') return '-';
-        const str = String(oddsValue).trim();
-        const match = str.match(/\(([^)]+)\)/);
-        if (match && match[1]) {
-            return match[1];
-        }
-        return '-';
-    }
-
     createSubtable(row, data) {
         const rowElement = row.getElement();
         
@@ -701,11 +660,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const medianMinutes = data["Player Median Minutes"] || '-';
         const avgMinutes = data["Player Average Minutes"] || '-';
         
-        // Use pre-extracted book names (set in dataLoaded)
-        const bestOverBook = data._bestOverBook || '-';
-        const bestUnderBook = data._bestUnderBook || '-';
+        // Read book names directly from the new Supabase columns
+        const bestOverBook = data["Player Best Over Odds Books"] || '-';
+        const bestUnderBook = data["Player Best Under Odds Books"] || '-';
         
-        // Subtables now use inline-block and fit-content to contract to data size
+        // Subtables use inline-block and fit-content to contract to data size
         subrowContainer.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
                 <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
