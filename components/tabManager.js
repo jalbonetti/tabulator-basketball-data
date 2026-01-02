@@ -1,10 +1,9 @@
 // components/tabManager.js - Tab Manager for Basketball Tables
+// Updated to work with dynamically generated tab structure
+
 export const TAB_STYLES = `
-    .tabs-container {
-        display: flex;
-        flex-direction: column;
+    .basketball-tables-wrapper {
         width: 100%;
-        margin-bottom: 20px;
     }
     
     .tab-buttons {
@@ -14,7 +13,8 @@ export const TAB_STYLES = `
         gap: 5px;
         padding: 10px;
         background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        border-radius: 8px;
+        border-radius: 8px 8px 0 0;
+        margin-bottom: 0;
     }
     
     .tab-button {
@@ -41,6 +41,12 @@ export const TAB_STYLES = `
         font-weight: bold;
     }
     
+    .tab-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
     .table-container {
         width: 100%;
         display: none;
@@ -48,6 +54,12 @@ export const TAB_STYLES = `
     
     .table-container.active-table {
         display: block;
+    }
+    
+    /* Ensure table connects visually to tabs */
+    .table-container .tabulator {
+        border-radius: 0 0 6px 6px;
+        border-top: none;
     }
     
     @media screen and (max-width: 768px) {
@@ -66,23 +78,32 @@ export const TAB_STYLES = `
 export class TabManager {
     constructor(tables) {
         this.tables = tables;
-        this.currentActiveTab = 'table0';
+        this.currentActiveTab = null;
         this.tabInitialized = {};
         this.tableStates = {};
         this.scrollPositions = {};
         this.expandedRowsStates = {};
+        this.isTransitioning = false;
         
-        // Mark first tab as initialized
-        this.tabInitialized['table0'] = false;
+        // Find the first available tab
+        const tabIds = Object.keys(tables);
+        if (tabIds.length > 0) {
+            this.currentActiveTab = tabIds[0];
+        }
+        
+        // Mark all tabs as not initialized
+        tabIds.forEach(tabId => {
+            this.tabInitialized[tabId] = false;
+        });
+        
+        // Make TabManager globally accessible for components that need to check state
+        window.tabManager = this;
         
         this.init();
     }
 
     init() {
         console.log("TabManager: Initializing...");
-        
-        // Inject tab styles
-        this.injectTabStyles();
         
         // Setup tab click handlers
         this.setupTabHandlers();
@@ -91,18 +112,11 @@ export class TabManager {
         this.setupResponsive();
         
         // Initialize first tab
-        this.initializeTab('table0');
+        if (this.currentActiveTab) {
+            this.initializeTab(this.currentActiveTab);
+        }
         
         console.log("TabManager: Initialization complete");
-    }
-
-    injectTabStyles() {
-        if (!document.querySelector('style[data-tab-styles]')) {
-            const style = document.createElement('style');
-            style.setAttribute('data-tab-styles', 'true');
-            style.textContent = TAB_STYLES;
-            document.head.appendChild(style);
-        }
     }
 
     setupTabHandlers() {
@@ -111,18 +125,27 @@ export class TabManager {
         tabButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const tabId = e.target.dataset.tab;
-                this.switchTab(tabId);
+                if (tabId && !e.target.disabled) {
+                    this.switchTab(tabId);
+                }
             });
         });
+        
+        console.log(`TabManager: Set up handlers for ${tabButtons.length} tabs`);
     }
 
     switchTab(tabId) {
         if (tabId === this.currentActiveTab) return;
+        if (this.isTransitioning) return;
         
         console.log(`TabManager: Switching from ${this.currentActiveTab} to ${tabId}`);
         
+        this.isTransitioning = true;
+        
         // Save state of current tab
-        this.saveTabState(this.currentActiveTab);
+        if (this.currentActiveTab) {
+            this.saveTabState(this.currentActiveTab);
+        }
         
         // Update button states
         document.querySelectorAll('.tab-button').forEach(btn => {
@@ -142,19 +165,39 @@ export class TabManager {
             targetContainer.style.display = 'block';
         }
         
-        // Initialize tab if needed
+        const previousTab = this.currentActiveTab;
+        this.currentActiveTab = tabId;
+        
+        // Initialize tab if needed, then restore state
         if (!this.tabInitialized[tabId]) {
-            this.initializeTab(tabId);
+            this.initializeTab(tabId).then(() => {
+                this.isTransitioning = false;
+            });
         } else {
             // Restore state and redraw
             this.restoreTabState(tabId);
             const tableWrapper = this.tables[tabId];
             if (tableWrapper && tableWrapper.table) {
-                tableWrapper.table.redraw(true);
+                // Force redraw after tab switch
+                setTimeout(() => {
+                    tableWrapper.table.redraw(true);
+                    
+                    // Re-equalize columns after redraw (desktop only)
+                    if (window.innerWidth > 1024) {
+                        if (tableWrapper.equalizeClusteredColumns) {
+                            tableWrapper.equalizeClusteredColumns();
+                        }
+                        if (tableWrapper.expandNameColumnToFill) {
+                            tableWrapper.expandNameColumnToFill();
+                        }
+                    }
+                    
+                    this.isTransitioning = false;
+                }, 100);
+            } else {
+                this.isTransitioning = false;
             }
         }
-        
-        this.currentActiveTab = tabId;
     }
 
     initializeTab(tabId) {
@@ -169,16 +212,22 @@ export class TabManager {
                 const tableWrapper = this.tables[tabId];
                 
                 if (tableWrapper && !tableWrapper.isInitialized) {
-                    tableWrapper.initialize();
-                    tableWrapper.isInitialized = true;
-                    this.tabInitialized[tabId] = true;
-                    
-                    if (!this.tableStates[tabId]) {
-                        this.tableStates[tabId] = {};
+                    try {
+                        tableWrapper.initialize();
+                        tableWrapper.isInitialized = true;
+                        this.tabInitialized[tabId] = true;
+                        
+                        if (!this.tableStates[tabId]) {
+                            this.tableStates[tabId] = {};
+                        }
+                        this.tableStates[tabId].initializedAt = Date.now();
+                        
+                        console.log(`TabManager: Tab ${tabId} initialized successfully`);
+                    } catch (error) {
+                        console.error(`TabManager: Error initializing tab ${tabId}:`, error);
                     }
-                    this.tableStates[tabId].initializedAt = Date.now();
-                    
-                    console.log(`TabManager: Tab ${tabId} initialized`);
+                } else if (!tableWrapper) {
+                    console.warn(`TabManager: No table wrapper found for tab ${tabId}`);
                 }
                 
                 resolve();
@@ -190,72 +239,84 @@ export class TabManager {
         const tableWrapper = this.tables[tabId];
         if (!tableWrapper || !tableWrapper.table) return;
         
-        // Save scroll position
-        const tableHolder = tableWrapper.table.element.querySelector('.tabulator-tableHolder');
-        if (tableHolder) {
-            this.scrollPositions[tabId] = tableHolder.scrollTop;
-        }
-        
-        // Save filter state
-        if (tableWrapper.saveState) {
-            tableWrapper.saveState();
-        }
-        
-        // Save expanded rows
-        const expandedRows = [];
-        const rows = tableWrapper.table.getRows();
-        rows.forEach(row => {
-            const data = row.getData();
-            if (data._expanded) {
-                expandedRows.push(tableWrapper.generateRowId ? 
-                    tableWrapper.generateRowId(data) : JSON.stringify(data));
+        try {
+            // Save scroll position
+            const tableHolder = tableWrapper.table.element.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                this.scrollPositions[tabId] = {
+                    top: tableHolder.scrollTop,
+                    left: tableHolder.scrollLeft
+                };
             }
-        });
-        
-        this.expandedRowsStates[tabId] = expandedRows;
-        
-        console.log(`TabManager: Saved state for ${tabId}: ${expandedRows.length} expanded rows`);
+            
+            // Save filter state
+            if (tableWrapper.saveState) {
+                tableWrapper.saveState();
+            }
+            
+            // Save expanded rows
+            const expandedRows = [];
+            const rows = tableWrapper.table.getRows();
+            rows.forEach(row => {
+                const data = row.getData();
+                if (data._expanded) {
+                    expandedRows.push(tableWrapper.generateRowId ? 
+                        tableWrapper.generateRowId(data) : JSON.stringify(data));
+                }
+            });
+            
+            this.expandedRowsStates[tabId] = expandedRows;
+            
+            console.log(`TabManager: Saved state for ${tabId}: ${expandedRows.length} expanded rows`);
+        } catch (error) {
+            console.error(`TabManager: Error saving state for ${tabId}:`, error);
+        }
     }
 
     restoreTabState(tabId) {
         const tableWrapper = this.tables[tabId];
         if (!tableWrapper || !tableWrapper.table) return;
         
-        // Restore filter/sort state
-        if (tableWrapper.restoreState) {
-            tableWrapper.restoreState();
-        }
-        
-        // Restore expanded rows
-        const expandedRowIds = this.expandedRowsStates[tabId] || [];
-        if (expandedRowIds.length > 0) {
-            console.log(`TabManager: Restoring ${expandedRowIds.length} expanded rows for ${tabId}`);
+        try {
+            // Restore filter/sort state
+            if (tableWrapper.restoreState) {
+                tableWrapper.restoreState();
+            }
             
-            setTimeout(() => {
-                const rows = tableWrapper.table.getRows();
-                rows.forEach(row => {
-                    const data = row.getData();
-                    const rowId = tableWrapper.generateRowId ? 
-                        tableWrapper.generateRowId(data) : JSON.stringify(data);
-                    
-                    if (expandedRowIds.includes(rowId)) {
-                        if (!data._expanded) {
-                            data._expanded = true;
-                            row.reformat();
+            // Restore expanded rows
+            const expandedRowIds = this.expandedRowsStates[tabId] || [];
+            if (expandedRowIds.length > 0) {
+                console.log(`TabManager: Restoring ${expandedRowIds.length} expanded rows for ${tabId}`);
+                
+                setTimeout(() => {
+                    const rows = tableWrapper.table.getRows();
+                    rows.forEach(row => {
+                        const data = row.getData();
+                        const rowId = tableWrapper.generateRowId ? 
+                            tableWrapper.generateRowId(data) : JSON.stringify(data);
+                        
+                        if (expandedRowIds.includes(rowId)) {
+                            if (!data._expanded) {
+                                data._expanded = true;
+                                row.reformat();
+                            }
                         }
+                    });
+                }, 200);
+            }
+            
+            // Restore scroll position
+            if (this.scrollPositions[tabId]) {
+                setTimeout(() => {
+                    const tableHolder = tableWrapper.table.element.querySelector('.tabulator-tableholder');
+                    if (tableHolder) {
+                        tableHolder.scrollTop = this.scrollPositions[tabId].top || 0;
+                        tableHolder.scrollLeft = this.scrollPositions[tabId].left || 0;
                     }
-                });
-            }, 200);
-        }
-        
-        // Restore scroll position
-        if (this.scrollPositions[tabId]) {
-            setTimeout(() => {
-                const tableHolder = tableWrapper.table.element.querySelector('.tabulator-tableHolder');
-                if (tableHolder) {
-                    tableHolder.scrollTop = this.scrollPositions[tabId];
-                }
-            }, 300);
+                }, 300);
+            }
+        } catch (error) {
+            console.error(`TabManager: Error restoring state for ${tabId}:`, error);
         }
     }
 
@@ -279,7 +340,7 @@ export class TabManager {
         handleResize();
     }
 
-    // Get current active table
+    // Get current active table instance
     getActiveTable() {
         return this.tables[this.currentActiveTab];
     }
@@ -297,6 +358,18 @@ export class TabManager {
         const table = this.getActiveTable();
         if (table && table.clearFilters) {
             table.clearFilters();
+        } else if (table && table.table) {
+            table.table.clearHeaderFilter();
         }
+    }
+    
+    // Get list of all tab IDs
+    getTabIds() {
+        return Object.keys(this.tables);
+    }
+    
+    // Check if a tab is initialized
+    isTabInitialized(tabId) {
+        return this.tabInitialized[tabId] === true;
     }
 }
