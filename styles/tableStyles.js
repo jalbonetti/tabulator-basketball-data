@@ -152,18 +152,52 @@ function injectMinimalStyles() {
             border-top: 2px solid #f97316 !important;
         }
         
-        /* SCROLLBAR - Hidden on all devices (finger scrolling) */
+        /* SCROLLBAR - Visible on desktop, hidden on mobile/tablet */
         .tabulator-tableholder {
             overflow-y: auto !important;
             overflow-x: auto !important;
-            -ms-overflow-style: none !important;
-            scrollbar-width: none !important;
         }
         
-        .tabulator-tableholder::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
+        /* Desktop: Show styled vertical scrollbar */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder {
+                scrollbar-width: thin !important;
+                scrollbar-color: #f97316 #f5f5f5 !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 10px !important;
+                height: 10px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f5f5f5 !important;
+                border-radius: 5px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 5px !important;
+                border: 2px solid #f5f5f5 !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+        }
+        
+        /* Mobile/Tablet: Hide scrollbar (finger scrolling) */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder {
+                -ms-overflow-style: none !important;
+                scrollbar-width: none !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -472,19 +506,53 @@ function injectFullStyles() {
         }
         
         /* =====================================================
-           SCROLLBAR - Hidden on all devices (finger scrolling)
+           SCROLLBAR - Visible on desktop, hidden on mobile/tablet
            ===================================================== */
         .tabulator-tableholder {
             overflow-y: auto !important;
             overflow-x: auto !important;
-            -ms-overflow-style: none !important;
-            scrollbar-width: none !important;
         }
         
-        .tabulator-tableholder::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
+        /* Desktop: Show styled vertical scrollbar */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder {
+                scrollbar-width: thin !important;
+                scrollbar-color: #f97316 #f5f5f5 !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 10px !important;
+                height: 10px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f5f5f5 !important;
+                border-radius: 5px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 5px !important;
+                border: 2px solid #f5f5f5 !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+        }
+        
+        /* Mobile/Tablet: Hide scrollbar (finger scrolling) */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder {
+                -ms-overflow-style: none !important;
+                scrollbar-width: none !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
         }
         
         /* RESPONSIVE ADJUSTMENTS */
