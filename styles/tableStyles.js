@@ -164,9 +164,47 @@ function injectMinimalStyles() {
             font-size: 9px !important;
             padding: 2px 3px !important;
         }
+        
+        /* =====================================================
+           SCROLLBAR - Must be included in minimal styles for Webflow
+           ===================================================== */
+        .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Desktop scrollbar styling */
+        @media screen and (min-width: 1025px) {
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                height: 8px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+            }
+            
+            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+        }
+        
+        /* Mobile/tablet: thin scrollbar */
+        @media screen and (max-width: 1024px) {
+            .tabulator-tableholder::-webkit-scrollbar {
+                width: 4px !important;
+                height: 4px !important;
+            }
+        }
     `;
     document.head.appendChild(style);
-    console.log('Basketball minimal styles injected with standalone header fix');
+    console.log('Basketball minimal styles injected with standalone header fix and scrollbar');
 }
 
 function injectFullStyles() {
