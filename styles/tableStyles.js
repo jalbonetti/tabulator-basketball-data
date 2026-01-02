@@ -9,7 +9,7 @@
 // - More compact min/max filter inputs
 // - FIXED: Standalone headers (Name, Team, Lineup) now top-aligned on mobile/tablet
 //   to prevent other headers from showing above frozen columns when scrolling
-// - FIXED: Scrollbar CSS moved before mobile/tablet header fix to prevent cascade issues
+// - FIXED: Desktop scrollbar - moved to END with higher specificity selectors
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -71,45 +71,6 @@ function injectMinimalStyles() {
             border: 1px solid #333 !important;
             border-radius: 4px !important;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
-        }
-        
-        /* =====================================================
-           SCROLLBAR - Must be included in minimal styles for Webflow
-           MOVED BEFORE mobile/tablet header fix to prevent cascade issues
-           ===================================================== */
-        .tabulator-tableholder {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Desktop scrollbar styling */
-        @media screen and (min-width: 1025px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 8px !important;
-                height: 8px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 4px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316 !important;
-                border-radius: 4px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c !important;
-            }
-        }
-        
-        /* Mobile/tablet: thin scrollbar */
-        @media screen and (max-width: 1024px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 4px !important;
-                height: 4px !important;
-            }
         }
         
         /* =====================================================
@@ -177,6 +138,12 @@ function injectMinimalStyles() {
             .tabulator-header .tabulator-col.tabulator-frozen {
                 background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
             }
+            
+            /* Mobile/tablet: thin scrollbar */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar {
+                width: 4px !important;
+                height: 4px !important;
+            }
         }
         
         /* Expandable row styling */
@@ -203,6 +170,57 @@ function injectMinimalStyles() {
             flex-shrink: 0 !important;
             font-size: 9px !important;
             padding: 2px 3px !important;
+        }
+        
+        /* =====================================================
+           SCROLLBAR - MUST BE AT END WITH HIGH SPECIFICITY
+           These rules must come LAST to ensure they're not overridden
+           ===================================================== */
+        
+        /* Base overflow - applies to all screen sizes */
+        .tabulator .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Desktop scrollbar styling - HIGH SPECIFICITY selectors */
+        @media screen and (min-width: 1025px) {
+            /* Reset any potential interference */
+            .tabulator .tabulator-tableholder {
+                overflow-y: auto !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Scrollbar width/height */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                height: 8px !important;
+                display: block !important;
+            }
+            
+            /* Scrollbar track */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            /* Scrollbar thumb */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+                min-height: 30px !important;
+            }
+            
+            /* Scrollbar thumb hover */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+            
+            /* Scrollbar corner (where horizontal and vertical meet) */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-corner {
+                background: #f1f1f1 !important;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -472,44 +490,6 @@ function injectFullStyles() {
         }
         
         /* =====================================================
-           SCROLLBAR - Visible on desktop, hidden on mobile/tablet
-           ===================================================== */
-        .tabulator-tableholder {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-        }
-        
-        /* Desktop scrollbar styling */
-        @media screen and (min-width: 1025px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 8px;
-                height: 8px;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f1f1f1;
-                border-radius: 4px;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316;
-                border-radius: 4px;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c;
-            }
-        }
-        
-        /* Mobile/tablet: thin scrollbar */
-        @media screen and (max-width: 1024px) {
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 4px;
-                height: 4px;
-            }
-        }
-        
-        /* =====================================================
            CRITICAL FIX: Standalone header vertical alignment
            On mobile/tablet, columns without parent groups (Name, Team, Lineup)
            need to be top-aligned and fill full header height to prevent
@@ -579,6 +559,12 @@ function injectFullStyles() {
                 height: 100% !important;
                 background: inherit !important;
                 z-index: -1 !important;
+            }
+            
+            /* Mobile/tablet: thin scrollbar */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar {
+                width: 4px !important;
+                height: 4px !important;
             }
         }
         
@@ -656,6 +642,57 @@ function injectFullStyles() {
         
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+        
+        /* =====================================================
+           SCROLLBAR - MUST BE AT END WITH HIGH SPECIFICITY
+           These rules must come LAST to ensure they're not overridden
+           ===================================================== */
+        
+        /* Base overflow - applies to all screen sizes */
+        .tabulator .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+        }
+        
+        /* Desktop scrollbar styling - HIGH SPECIFICITY selectors */
+        @media screen and (min-width: 1025px) {
+            /* Reset any potential interference */
+            .tabulator .tabulator-tableholder {
+                overflow-y: auto !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Scrollbar width/height */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar {
+                width: 8px !important;
+                height: 8px !important;
+                display: block !important;
+            }
+            
+            /* Scrollbar track */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 4px !important;
+            }
+            
+            /* Scrollbar thumb */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316 !important;
+                border-radius: 4px !important;
+                min-height: 30px !important;
+            }
+            
+            /* Scrollbar thumb hover */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c !important;
+            }
+            
+            /* Scrollbar corner (where horizontal and vertical meet) */
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-corner {
+                background: #f1f1f1 !important;
+            }
         }
     `;
     document.head.appendChild(style);
