@@ -1,6 +1,6 @@
 // main.js - Basketball Props Table System
 // COMPLETE SYSTEM WITH PROPER DOM CREATION AND TABMANAGER INTEGRATION
-// Based on working baseball repository pattern
+// Based exactly on working baseball repository pattern
 
 import { injectStyles } from './styles/tableStyles.js';
 import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropClearances.js';
@@ -44,15 +44,11 @@ document.addEventListener("DOMContentLoaded", function() {
         // Store references globally for debugging
         window.basketballTables = tableInstances;
         
-        // Setup debug tools
-        setupDebugTools(tabManager, tableInstances);
-        
         console.log("✅ Basketball table system initialized successfully!");
         
     } catch (error) {
         console.error("❌ Error initializing basketball table system:", error);
         console.log("Falling back to basic table functionality...");
-        // Fallback - just initialize the prop clearances table
         try {
             const fallbackTable = new BasketPlayerPropClearancesTable('#basketball-table');
             fallbackTable.initialize();
@@ -81,24 +77,44 @@ function createCompleteTableStructure(existingTable) {
         </div>
     `;
     
-    // Create table containers wrapper
+    // Create tables container that will hold all table divs
     const tablesContainer = document.createElement('div');
     tablesContainer.className = 'tables-container';
-    tablesContainer.style.cssText = 'width: 100%; position: relative; min-height: 500px;';
+    tablesContainer.style.cssText = 'width: 100%; position: relative;';
     
-    // Table 0 - Prop Clearances (active by default)
+    // Build the main structure FIRST (before inserting into DOM)
+    tabWrapper.appendChild(tabsContainer);
+    tabWrapper.appendChild(tablesContainer);
+    
+    // Insert into DOM - insert before the existing element
+    if (existingTable && existingTable.parentElement) {
+        existingTable.parentElement.insertBefore(tabWrapper, existingTable);
+        existingTable.style.display = 'none'; // Hide original element but keep it
+    } else {
+        document.body.appendChild(tabWrapper);
+    }
+    
+    // Create all individual table containers and elements
+    createAllTableContainers(tablesContainer);
+    
+    console.log("✅ Complete DOM structure created");
+}
+
+function createAllTableContainers(tablesContainer) {
+    console.log("Creating all table containers...");
+    
+    // Table 0 - Prop Clearances (Active by default)
+    const propClearancesElement = document.createElement('div');
+    propClearancesElement.id = 'prop-clearances-table';
     const table0Container = document.createElement('div');
     table0Container.className = 'table-container active-table';
     table0Container.id = 'table0-container';
     table0Container.style.cssText = 'width: 100%; display: block;';
-    
-    // Create the table element for prop clearances
-    const propClearancesElement = document.createElement('div');
-    propClearancesElement.id = 'prop-clearances-table';
     table0Container.appendChild(propClearancesElement);
     tablesContainer.appendChild(table0Container);
+    console.log("✅ Created table0-container (Prop Clearances)");
     
-    // Table 1 - DD-TD Clearances (inactive)
+    // Table 1 - DD-TD Clearances (Inactive)
     const ddtdElement = document.createElement('div');
     ddtdElement.id = 'ddtd-clearances-table';
     const table1Container = document.createElement('div');
@@ -107,16 +123,9 @@ function createCompleteTableStructure(existingTable) {
     table1Container.style.cssText = 'width: 100%; display: none;';
     table1Container.appendChild(ddtdElement);
     tablesContainer.appendChild(table1Container);
+    console.log("✅ Created table1-container (DD-TD Clearances)");
     
-    // Insert the wrapper before the existing table, then remove the original
-    existingTable.parentNode.insertBefore(tabWrapper, existingTable);
-    tabWrapper.appendChild(tabsContainer);
-    tabWrapper.appendChild(tablesContainer);
-    
-    // Remove the original table element (we've created new containers)
-    existingTable.remove();
-    
-    console.log("✅ DOM structure created with tab containers");
+    console.log("✅ All table containers created");
 }
 
 function createAllTableInstances() {
@@ -155,10 +164,10 @@ function enhanceTableInstance(instance) {
         console.log(`Initializing table: ${instance.elementId}`);
         originalInitialize();
         instance.isInitialized = true;
-        console.log(`Table initialized: ${instance.elementId}`);
+        console.log(`✅ Table initialized: ${instance.elementId}`);
     };
     
-    // Ensure saveState and restoreState exist
+    // Ensure saveState exists
     if (!instance.saveState) {
         instance.saveState = function() {
             if (instance.table) {
@@ -168,15 +177,24 @@ function enhanceTableInstance(instance) {
         };
     }
     
+    // Ensure restoreState exists
     if (!instance.restoreState) {
         instance.restoreState = function() {
             if (instance.table && instance._savedFilters) {
                 instance._savedFilters.forEach(filter => {
-                    instance.table.setHeaderFilterValue(filter.field, filter.value);
+                    try {
+                        instance.table.setHeaderFilterValue(filter.field, filter.value);
+                    } catch (e) {
+                        console.warn("Could not restore filter:", filter.field);
+                    }
                 });
             }
             if (instance.table && instance._savedSort && instance._savedSort.length > 0) {
-                instance.table.setSort(instance._savedSort);
+                try {
+                    instance.table.setSort(instance._savedSort);
+                } catch (e) {
+                    console.warn("Could not restore sort");
+                }
             }
         };
     }
@@ -216,91 +234,11 @@ function initializeGlobalState() {
     console.log("Global state management initialized");
 }
 
-function setupDebugTools(tabManager, tables) {
-    window.tableDebug = {
-        getActiveTable: function() {
-            return tabManager.getActiveTable();
-        },
-        getTable: function(tableId) {
-            if (tableId) {
-                return tables[tableId];
-            }
-            return tabManager.getActiveTable();
-        },
-        getAllTables: function() {
-            return tables;
-        },
-        getTabManager: function() {
-            return tabManager;
-        },
-        getGlobalState: function() {
-            return window.globalExpandedState;
-        },
-        clearGlobalState: function() {
-            window.globalExpandedState.clear();
-            console.log("Global state cleared");
-        },
-        getExpandedRows: function() {
-            const activeTable = tabManager.getActiveTable();
-            if (activeTable && activeTable.expandedRowsCache) {
-                return Array.from(activeTable.expandedRowsCache);
-            }
-            return [];
-        },
-        refreshData: function() {
-            return tabManager.refreshCurrentTab();
-        },
-        redraw: function(force = false) {
-            const activeTable = tabManager.getActiveTable();
-            if (activeTable && activeTable.table) {
-                return activeTable.table.redraw(force);
-            }
-        },
-        getFilters: function() {
-            const activeTable = tabManager.getActiveTable();
-            if (activeTable && activeTable.table) {
-                return activeTable.table.getHeaderFilters();
-            }
-            return [];
-        },
-        clearFilters: function() {
-            tabManager.clearCurrentFilters();
-            console.log("Filters cleared");
-        },
-        getData: function() {
-            const activeTable = tabManager.getActiveTable();
-            if (activeTable && activeTable.table) {
-                return activeTable.table.getData();
-            }
-            return [];
-        },
-        getRowCount: function() {
-            const activeTable = tabManager.getActiveTable();
-            if (activeTable && activeTable.table) {
-                return activeTable.table.getDataCount();
-            }
-            return 0;
-        },
-        switchTab: function(tabId) {
-            tabManager.switchTab(tabId);
-        },
-        getCurrentTab: function() {
-            return tabManager.currentActiveTab;
-        },
-        listTabs: function() {
-            return Object.keys(tables);
-        }
-    };
-    
-    console.log("Debug tools available via window.tableDebug");
-}
-
 // Handle window resize
 window.addEventListener('resize', debounce(function() {
     if (window.tabManager) {
         const activeTable = window.tabManager.getActiveTable();
         if (activeTable && activeTable.table) {
-            console.log("Window resized - redrawing active table");
             activeTable.table.redraw(true);
             
             if (window.innerWidth > 1024) {
