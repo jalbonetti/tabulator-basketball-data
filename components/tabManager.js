@@ -1,5 +1,5 @@
 // components/tabManager.js - Tab Manager for Basketball Tables
-// Based on working baseball repository pattern
+// Based exactly on working baseball repository pattern
 
 export const TAB_STYLES = `
     /* Table wrapper */
@@ -53,12 +53,6 @@ export const TAB_STYLES = `
         font-weight: bold;
     }
     
-    .tab-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-    }
-    
     /* Tables container */
     .tables-container {
         width: 100%;
@@ -66,17 +60,17 @@ export const TAB_STYLES = `
         min-height: 500px;
     }
     
-    /* Individual table containers */
+    /* Individual table containers - USE !important to ensure these work */
     .table-container {
         width: 100%;
     }
     
     .table-container.active-table {
-        display: block;
+        display: block !important;
     }
     
     .table-container.inactive-table {
-        display: none;
+        display: none !important;
     }
     
     /* Ensure table connects visually to tabs */
@@ -96,22 +90,6 @@ export const TAB_STYLES = `
             padding: 8px;
         }
     }
-    
-    /* Tablet responsive */
-    @media screen and (min-width: 769px) and (max-width: 1199px) {
-        .tabs-container {
-            transform: none !important;
-            width: 100% !important;
-        }
-        
-        .tab-buttons {
-            transform: none !important;
-        }
-        
-        .tab-button {
-            transform: none !important;
-        }
-    }
 `;
 
 export class TabManager {
@@ -129,7 +107,7 @@ export class TabManager {
             this.tabInitialized[tabId] = false;
         });
         
-        // Inject styles
+        // Inject styles first
         this.injectStyles();
         
         // Setup tab switching
@@ -137,9 +115,6 @@ export class TabManager {
         
         // Initialize the first tab only
         this.initializeTab(this.currentActiveTab);
-        
-        // Setup responsive handler
-        this.setupResponsiveHandler();
         
         console.log("TabManager: Initialized with tabs:", Object.keys(tables));
     }
@@ -154,49 +129,54 @@ export class TabManager {
         }
     }
 
-    setupResponsiveHandler() {
-        const handleResize = () => {
-            const width = window.innerWidth;
-            const tabButtons = document.querySelectorAll('.tab-button');
-            
-            tabButtons.forEach(button => {
-                if (width <= 768) {
-                    button.style.fontSize = '11px';
-                    button.style.padding = '8px 12px';
-                } else {
-                    button.style.fontSize = '13px';
-                    button.style.padding = '10px 16px';
-                }
-            });
+    getContainerIdForTab(tabId) {
+        // Maps tab IDs to their container element IDs
+        const containerMap = {
+            'table0': 'table0-container',
+            'table1': 'table1-container'
         };
-        
-        window.addEventListener('resize', handleResize);
-        handleResize();
+        return containerMap[tabId] || `${tabId}-container`;
     }
 
     setupTabSwitching() {
-        // Use event delegation on document for tab clicks
-        document.addEventListener('click', async (e) => {
+        const self = this;
+        
+        // Use event delegation on document for tab clicks (exactly like baseball)
+        document.addEventListener('click', async function(e) {
             if (e.target.classList.contains('tab-button')) {
                 e.preventDefault();
                 
-                if (this.isTransitioning) return;
+                if (self.isTransitioning) {
+                    console.log("TabManager: Already transitioning, ignoring click");
+                    return;
+                }
                 
                 const targetTab = e.target.getAttribute('data-tab');
-                if (targetTab === this.currentActiveTab) return;
+                console.log(`TabManager: Tab clicked - target: ${targetTab}, current: ${self.currentActiveTab}`);
                 
-                this.isTransitioning = true;
+                if (targetTab === self.currentActiveTab) {
+                    console.log("TabManager: Already on this tab");
+                    return;
+                }
+                
+                self.isTransitioning = true;
                 
                 try {
                     // Save current state
-                    this.saveTabState(this.currentActiveTab);
+                    self.saveTabState(self.currentActiveTab);
                     
-                    // Hide current table
-                    const currentContainer = document.getElementById(`${this.currentActiveTab}-container`);
+                    // Hide current table container
+                    const currentContainerId = self.getContainerIdForTab(self.currentActiveTab);
+                    const currentContainer = document.querySelector(`#${currentContainerId}`);
+                    console.log(`TabManager: Looking for current container #${currentContainerId}:`, currentContainer);
+                    
                     if (currentContainer) {
                         currentContainer.style.display = 'none';
                         currentContainer.classList.remove('active-table');
                         currentContainer.classList.add('inactive-table');
+                        console.log(`TabManager: Hidden container #${currentContainerId}`);
+                    } else {
+                        console.error(`TabManager: Could not find current container #${currentContainerId}`);
                     }
                     
                     // Update active tab button
@@ -206,26 +186,32 @@ export class TabManager {
                     e.target.classList.add('active');
                     
                     // Initialize target tab if needed
-                    await this.initializeTab(targetTab);
+                    await self.initializeTab(targetTab);
                     
-                    // Show target table
-                    const targetContainer = document.getElementById(`${targetTab}-container`);
+                    // Show target table container
+                    const targetContainerId = self.getContainerIdForTab(targetTab);
+                    const targetContainer = document.querySelector(`#${targetContainerId}`);
+                    console.log(`TabManager: Looking for target container #${targetContainerId}:`, targetContainer);
+                    
                     if (targetContainer) {
                         targetContainer.style.display = 'block';
                         targetContainer.classList.add('active-table');
                         targetContainer.classList.remove('inactive-table');
+                        console.log(`TabManager: Shown container #${targetContainerId}`);
+                    } else {
+                        console.error(`TabManager: Could not find target container #${targetContainerId}`);
                     }
                     
-                    this.currentActiveTab = targetTab;
+                    self.currentActiveTab = targetTab;
                     
                     // Wait for display change
                     await new Promise(resolve => setTimeout(resolve, 50));
                     
                     // Redraw and restore state
-                    const targetTableWrapper = this.tables[targetTab];
+                    const targetTableWrapper = self.tables[targetTab];
                     if (targetTableWrapper && targetTableWrapper.table) {
                         targetTableWrapper.table.redraw(true);
-                        this.restoreTabState(targetTab);
+                        self.restoreTabState(targetTab);
                         
                         // Re-equalize columns after tab switch (desktop only)
                         if (window.innerWidth > 1024) {
@@ -240,8 +226,12 @@ export class TabManager {
                         }
                     }
                     
+                    console.log(`TabManager: Successfully switched to ${targetTab}`);
+                    
+                } catch (error) {
+                    console.error("TabManager: Error during tab switch:", error);
                 } finally {
-                    this.isTransitioning = false;
+                    self.isTransitioning = false;
                 }
             }
         });
@@ -251,6 +241,7 @@ export class TabManager {
 
     initializeTab(tabId) {
         if (this.tabInitialized[tabId]) {
+            console.log(`TabManager: Tab ${tabId} already initialized`);
             return Promise.resolve();
         }
         
@@ -262,6 +253,7 @@ export class TabManager {
                 
                 if (tableWrapper && !tableWrapper.isInitialized) {
                     try {
+                        console.log(`TabManager: Calling initialize() on ${tabId}`);
                         tableWrapper.initialize();
                         this.tabInitialized[tabId] = true;
                         console.log(`TabManager: Tab ${tabId} initialized successfully`);
@@ -270,6 +262,9 @@ export class TabManager {
                     }
                 } else if (tableWrapper && tableWrapper.isInitialized) {
                     this.tabInitialized[tabId] = true;
+                    console.log(`TabManager: Tab ${tabId} was already initialized`);
+                } else {
+                    console.error(`TabManager: No table wrapper found for ${tabId}`);
                 }
                 
                 // Small delay to ensure table is fully rendered
@@ -280,7 +275,10 @@ export class TabManager {
 
     saveTabState(tabId) {
         const tableWrapper = this.tables[tabId];
-        if (!tableWrapper || !tableWrapper.table) return;
+        if (!tableWrapper || !tableWrapper.table) {
+            console.log(`TabManager: No table to save state for ${tabId}`);
+            return;
+        }
         
         try {
             // Save scroll position
@@ -389,15 +387,5 @@ export class TabManager {
         if (tabButton) {
             tabButton.click();
         }
-    }
-    
-    // Get list of all tab IDs
-    getTabIds() {
-        return Object.keys(this.tables);
-    }
-    
-    // Check if a tab is initialized
-    isTabInitialized(tabId) {
-        return this.tabInitialized[tabId] === true;
     }
 }
