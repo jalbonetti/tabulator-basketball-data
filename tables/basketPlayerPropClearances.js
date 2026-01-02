@@ -386,7 +386,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Prop", 
                         field: "Player Prop", 
                         widthGrow: 0,
-                        minWidth: 65,
+                        minWidth: 75,
                         sorter: "string", 
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
