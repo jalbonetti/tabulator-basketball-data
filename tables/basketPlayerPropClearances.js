@@ -5,6 +5,7 @@
 // - Properly removes subtable from within row element when collapsing - fixes close issue
 // - Calls row.normalizeHeight() after expansion/collapse changes
 // - Minutes data now displays with 1 decimal place
+// - MOVED Lineup column between Team and Prop Info (all standalone headers now adjacent)
 // - Based on working baseball repository expansion pattern
 
 import { BaseTable } from './baseTable.js';
@@ -316,6 +317,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             // =====================================================
             // NAME COLUMN - widthGrow:1 means it absorbs ALL extra space
             // Frozen on mobile/tablet for horizontal scrolling
+            // Standalone header (no parent group)
             // =====================================================
             {
                 title: "Name", 
@@ -327,11 +329,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 headerFilter: true,
                 resizable: false,
                 formatter: this.createNameFormatter(),
-                hozAlign: "left"
+                hozAlign: "left",
+                cssClass: "standalone-header"
             },
             
             // =====================================================
             // TEAM COLUMN - widthGrow:0 means size to content only
+            // Standalone header (no parent group)
             // =====================================================
             {
                 title: "Team", 
@@ -341,7 +345,25 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 sorter: "string", 
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                cssClass: "standalone-header"
+            },
+
+            // =====================================================
+            // LINEUP STATUS - MOVED HERE (between Team and Prop Info)
+            // Standalone header (no parent group) - now adjacent to Name and Team
+            // =====================================================
+            {
+                title: "Lineup", 
+                field: "Lineup Status", 
+                widthGrow: 0,
+                minWidth: 70,
+                sorter: "string",
+                headerFilter: createCustomMultiSelect,
+                resizable: false,
+                hozAlign: "center",
+                formatter: lineupFormatter,
+                cssClass: "standalone-header"
             },
             
             // =====================================================
@@ -377,7 +399,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             },
 
             // =====================================================
-            // CLEARANCE GROUP - includes Split (moved here)
+            // CLEARANCE GROUP - includes Split
             // =====================================================
             {
                 title: "Clearance", 
@@ -453,21 +475,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         }
                     }
                 ]
-            },
-
-            // =====================================================
-            // LINEUP STATUS
-            // =====================================================
-            {
-                title: "Lineup", 
-                field: "Lineup Status", 
-                widthGrow: 0,
-                minWidth: 70,
-                sorter: "string",
-                headerFilter: createCustomMultiSelect,
-                resizable: false,
-                hozAlign: "center",
-                formatter: lineupFormatter
             },
 
             // =====================================================
