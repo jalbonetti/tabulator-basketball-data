@@ -145,12 +145,22 @@ function injectMinimalStyles() {
             border-top: 2px solid #f97316 !important;
         }
         
-        /* Min/Max filter compact styling */
-        .min-max-filter-container {
+        /* Min/Max filter - MUST stack vertically */
+        .min-max-filter-container,
+        .tabulator .min-max-filter-container,
+        .tabulator-header-filter .min-max-filter-container {
+            display: flex !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
             max-width: 45px !important;
+            margin: 0 auto !important;
         }
         
-        .min-max-input {
+        .min-max-input,
+        .min-max-filter-container > input {
+            width: 100% !important;
+            flex-shrink: 0 !important;
             font-size: 9px !important;
             padding: 2px 3px !important;
         }
@@ -222,10 +232,8 @@ function injectFullStyles() {
             overflow: visible !important;
         }
         
-        /* CRITICAL: Allow overflow for dropdowns */
-        .tabulator-tableholder {
-            overflow: visible !important;
-        }
+        /* Note: Dropdowns use position:fixed, so they don't need overflow:visible here.
+           The scrollbar rules below will handle the tableholder overflow. */
         
         /* Header styling - Basketball Orange/Blue theme */
         .tabulator-header {
@@ -367,18 +375,25 @@ function injectFullStyles() {
         }
         
         /* =====================================================
-           COMPACT Min/Max Filter Styles
+           COMPACT Min/Max Filter Styles - MUST stack vertically
+           High specificity to prevent override by flexbox rules
            ===================================================== */
-        .min-max-filter-container {
+        .min-max-filter-container,
+        .tabulator .min-max-filter-container,
+        .tabulator-header .min-max-filter-container,
+        .tabulator-header-filter .min-max-filter-container {
             display: flex !important;
             flex-direction: column !important;
+            flex-wrap: nowrap !important;
             gap: 2px !important;
             max-width: 45px !important;
             margin: 0 auto !important;
         }
         
-        .min-max-input {
+        .min-max-input,
+        .min-max-filter-container > input {
             width: 100% !important;
+            flex-shrink: 0 !important;
             padding: 2px 3px !important;
             font-size: 9px !important;
             border: 1px solid #ccc !important;
