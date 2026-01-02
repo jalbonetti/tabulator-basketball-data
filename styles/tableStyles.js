@@ -59,8 +59,8 @@ function injectScrollbarFix() {
             html body .tabulator .tabulator-tableholder::-webkit-scrollbar,
             html body div.tabulator div.tabulator-tableholder::-webkit-scrollbar {
                 display: block !important;
-                width: 8px !important;
-                height: 8px !important;
+                width: 12px !important;
+                height: 12px !important;
                 visibility: visible !important;
                 -webkit-appearance: scrollbar !important;
             }
@@ -69,7 +69,7 @@ function injectScrollbarFix() {
             html body div.tabulator div.tabulator-tableholder::-webkit-scrollbar-track {
                 display: block !important;
                 background: #f1f1f1 !important;
-                border-radius: 4px !important;
+                border-radius: 6px !important;
                 visibility: visible !important;
             }
             
@@ -77,9 +77,9 @@ function injectScrollbarFix() {
             html body div.tabulator div.tabulator-tableholder::-webkit-scrollbar-thumb {
                 display: block !important;
                 background: #f97316 !important;
-                border-radius: 4px !important;
+                border-radius: 6px !important;
                 visibility: visible !important;
-                min-height: 30px !important;
+                min-height: 40px !important;
             }
             
             html body .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover,
