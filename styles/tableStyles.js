@@ -6,7 +6,9 @@
 // - Dropdown filters positioned above table
 // - Vertical scrollbar visible on desktop only
 // - Subtle frozen column styling for mobile/tablet
-// - UPDATED: More compact min/max filter inputs
+// - More compact min/max filter inputs
+// - FIXED: Standalone headers (Name, Team, Lineup) now top-aligned on mobile/tablet
+//   to prevent other headers from showing above frozen columns when scrolling
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -50,167 +52,120 @@ function injectMinimalStyles() {
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            line-height: 1.2 !important;
         }
         
-        /* Column group headers (primary headers) - centered */
-        .tabulator-col-group > .tabulator-col-title-holder > .tabulator-col-title {
-            text-align: center !important;
-            justify-content: center !important;
-        }
-        
-        /* DATA CELLS: Single line with ellipsis overflow */
+        /* DATA CELLS: Single-line with ellipsis */
         .tabulator-cell {
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
         
-        /* CRITICAL: Dropdown filters open ABOVE with maximum z-index */
+        /* DROPDOWNS: Position ABOVE the table */
         .custom-multiselect-dropdown,
         [id^="dropdown_"] {
             z-index: 2147483647 !important;
             position: fixed !important;
-        }
-        
-        /* Ensure header allows overflow for dropdowns */
-        .tabulator-header {
-            overflow: visible !important;
-        }
-        
-        .tabulator-header-filter {
-            overflow: visible !important;
-        }
-        
-        .tabulator-col {
-            overflow: visible !important;
-        }
-        
-        /* SUBTLE FROZEN COLUMN STYLES - for mobile/tablet */
-        .tabulator-frozen {
-            position: sticky !important;
-            left: 0 !important;
-            z-index: 10 !important;
             background: white !important;
+            border: 1px solid #333 !important;
+            border-radius: 4px !important;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
         }
         
-        .tabulator-frozen.tabulator-frozen-left {
-            border-right: 1px solid rgba(249, 115, 22, 0.4) !important;
-            box-shadow: 1px 0 3px rgba(0,0,0,0.05) !important;
+        /* =====================================================
+           CRITICAL FIX: Standalone header vertical alignment
+           On mobile/tablet, columns without parent groups (Name, Team, Lineup)
+           need to be top-aligned and fill full header height
+           ===================================================== */
+        
+        /* Mobile and Tablet: Fix standalone header alignment */
+        @media screen and (max-width: 1024px) {
+            /* Ensure header uses flexbox for proper alignment */
+            .tabulator-header {
+                display: flex !important;
+                align-items: stretch !important;
+            }
+            
+            /* All top-level columns should stretch to fill header height */
+            .tabulator-header > .tabulator-headers > .tabulator-col {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            
+            /* Standalone columns (not column groups) - align content to TOP */
+            .tabulator-col.standalone-header,
+            .tabulator-col:not(.tabulator-col-group) {
+                justify-content: flex-start !important;
+                align-items: stretch !important;
+            }
+            
+            /* The col-content inside standalone headers should be at top */
+            .tabulator-col.standalone-header > .tabulator-col-content,
+            .tabulator-col:not(.tabulator-col-group) > .tabulator-col-content {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                height: 100% !important;
+                padding-top: 8px !important;
+            }
+            
+            /* Ensure the title wrapper fills available space */
+            .tabulator-col.standalone-header .tabulator-col-title-holder,
+            .tabulator-col:not(.tabulator-col-group) .tabulator-col-title-holder {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                height: auto !important;
+            }
+            
+            /* Title text alignment */
+            .tabulator-col.standalone-header .tabulator-col-title,
+            .tabulator-col:not(.tabulator-col-group) .tabulator-col-title {
+                text-align: center !important;
+                padding-top: 4px !important;
+            }
+            
+            /* Frozen columns should have solid background to hide content scrolling behind */
+            .tabulator-header .tabulator-frozen {
+                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+                z-index: 100 !important;
+            }
+            
+            /* Ensure frozen header cells have no transparency */
+            .tabulator-header .tabulator-col.tabulator-frozen {
+                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+            }
         }
         
-        .tabulator-row .tabulator-frozen {
-            background: inherit !important;
-        }
-        
-        .tabulator-row:nth-child(even) .tabulator-frozen {
-            background: #fafafa !important;
-        }
-        
-        .tabulator-row:hover .tabulator-frozen {
-            background: #fff7ed !important;
-        }
-        
-        /* COMPACT Min/Max Filter Styles */
-        .min-max-filter-container {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 2px !important;
-            max-width: 45px !important;
-            margin: 0 auto !important;
-        }
-        
-        .min-max-input {
-            width: 100% !important;
-            padding: 2px 3px !important;
-            font-size: 9px !important;
-            border: 1px solid #ccc !important;
-            border-radius: 2px !important;
-            text-align: center !important;
-            box-sizing: border-box !important;
-            -moz-appearance: textfield !important;
-            -webkit-appearance: none !important;
-            appearance: none !important;
-        }
-        
-        /* Hide number input arrows */
-        .min-max-input::-webkit-outer-spin-button,
-        .min-max-input::-webkit-inner-spin-button {
-            -webkit-appearance: none !important;
-            margin: 0 !important;
-        }
-        
-        .min-max-input:focus {
-            outline: none !important;
-            border-color: #f97316 !important;
-            box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2) !important;
-        }
-        
-        /* Expandable row basketball theme */
+        /* Expandable row styling */
         .subrow-container {
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
             border-top: 2px solid #f97316 !important;
         }
         
-        /* SCROLLBAR - Visible on desktop, hidden on mobile/tablet */
-        .tabulator-tableholder {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
+        /* Min/Max filter compact styling */
+        .min-max-filter-container {
+            max-width: 45px !important;
         }
         
-        /* Desktop: Show styled vertical scrollbar */
-        @media screen and (min-width: 1025px) {
-            .tabulator-tableholder {
-                scrollbar-width: auto !important;
-                scrollbar-color: #f97316 #f5f5f5 !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar {
-                width: 16px !important;
-                height: 16px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f5f5f5 !important;
-                border-radius: 8px !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316 !important;
-                border-radius: 8px !important;
-                border: 3px solid #f5f5f5 !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c !important;
-            }
-        }
-        
-        /* Mobile/Tablet: Hide scrollbar (finger scrolling) */
-        @media screen and (max-width: 1024px) {
-            .tabulator-tableholder {
-                -ms-overflow-style: none !important;
-                scrollbar-width: none !important;
-            }
-            
-            .tabulator-tableholder::-webkit-scrollbar {
-                display: none !important;
-                width: 0 !important;
-                height: 0 !important;
-            }
+        .min-max-input {
+            font-size: 9px !important;
+            padding: 2px 3px !important;
         }
     `;
     document.head.appendChild(style);
-    console.log('Basketball minimal styles injected');
+    console.log('Basketball minimal styles injected with standalone header fix');
 }
 
 function injectFullStyles() {
     const mobile = isMobile();
     const tablet = isTablet();
-    const isSmallScreen = mobile || tablet;
+    const scale = getDeviceScale();
     
-    // Calculate appropriate font size based on screen
-    const baseFontSize = isSmallScreen ? 11 : 12;
+    // Base font size adjusted for device
+    const baseFontSize = mobile ? 10 : tablet ? 11 : 12;
     
     const style = document.createElement('style');
     style.setAttribute('data-source', 'github-basketball-full');
@@ -224,6 +179,7 @@ function injectFullStyles() {
            Desktop-only vertical scrollbar
            Subtle frozen columns
            Compact min/max filters
+           Standalone headers top-aligned on mobile
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -277,66 +233,70 @@ function injectFullStyles() {
             color: white;
             font-weight: bold;
             border-bottom: 2px solid #c2410c;
-            font-size: ${baseFontSize}px !important;
-            overflow: visible !important;
         }
         
         .tabulator-col {
-            background: transparent;
+            background: transparent !important;
             border-right: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 6px 4px;
-            font-size: ${baseFontSize}px !important;
-            overflow: visible !important;
         }
         
         .tabulator-col:last-child {
             border-right: none;
         }
         
-        /* =====================================================
-           HEADERS: Word-wrap allowed, center-justified
-           One word per line is acceptable
-           ===================================================== */
+        /* HEADERS: Allow word wrapping, center-justified */
         .tabulator-col-title {
-            color: white;
-            font-weight: 600;
-            font-size: ${baseFontSize}px !important;
-            /* Allow wrapping at word boundaries */
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: break-word !important;
-            hyphens: none !important;
-            /* Center justify */
             text-align: center !important;
+            color: white !important;
+            font-weight: 600 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            line-height: 1.2 !important;
-            min-height: 20px !important;
         }
         
-        /* Column group headers (primary headers) - also centered */
-        .tabulator-col-group > .tabulator-col-title-holder > .tabulator-col-title,
-        .tabulator-col-group .tabulator-col-title {
-            text-align: center !important;
-            justify-content: center !important;
-        }
-        
+        /* Column group headers */
         .tabulator-col-group-cols {
             border-top: 1px solid rgba(255, 255, 255, 0.3);
         }
         
-        .tabulator-col-group .tabulator-col-group-cols .tabulator-col {
-            padding: 4px 3px;
+        /* DATA CELLS: Single-line with ellipsis */
+        .tabulator-cell {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            padding: 8px 6px !important;
+            border-right: 1px solid #f0f0f0;
         }
         
-        /* Header filter containers must allow dropdowns to overflow */
-        .tabulator-header-filter {
-            overflow: visible !important;
-            margin-top: 4px;
+        .tabulator-cell:last-child {
+            border-right: none;
         }
         
-        /* DROPDOWN FILTER STYLES - POSITIONED ABOVE TABLE */
+        /* Row styling with alternating colors */
+        .tabulator-row {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.15s ease;
+        }
+        
+        .tabulator-row:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        .tabulator-row:hover {
+            background-color: #fff7ed !important;
+        }
+        
+        /* Expanded row styling */
+        .tabulator-row.row-expanded {
+            background-color: #fff7ed !important;
+        }
+        
+        /* =====================================================
+           DROPDOWN FILTERS - Position ABOVE table
+           ===================================================== */
         .custom-multiselect-dropdown,
         [id^="dropdown_"] {
             z-index: 2147483647 !important;
@@ -373,8 +333,7 @@ function injectFullStyles() {
         }
         
         /* =====================================================
-           SUBTLE FROZEN COLUMN STYLES - For Name column on mobile/tablet
-           Less aggressive styling than before
+           FROZEN COLUMN STYLES - For Name column on mobile/tablet
            ===================================================== */
         .tabulator-frozen {
             position: sticky !important;
@@ -388,9 +347,10 @@ function injectFullStyles() {
             box-shadow: 1px 0 3px rgba(0,0,0,0.05) !important;
         }
         
-        /* Frozen column in header */
+        /* Frozen column in header - SOLID background to hide scrolling content */
         .tabulator-header .tabulator-frozen {
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+            z-index: 100 !important;
         }
         
         /* Frozen column in rows - maintain alternating colors */
@@ -402,47 +362,8 @@ function injectFullStyles() {
             background: #fafafa !important;
         }
         
-        .tabulator-row:nth-child(odd) .tabulator-frozen {
-            background: white !important;
-        }
-        
         .tabulator-row:hover .tabulator-frozen {
             background: #fff7ed !important;
-        }
-        
-        /* Row styling with alternating colors */
-        .tabulator-row {
-            border-bottom: 1px solid #f0f0f0;
-            transition: all 0.2s ease;
-            font-size: ${baseFontSize}px !important;
-        }
-        
-        .tabulator-row:nth-child(even) {
-            background-color: #fafafa;
-        }
-        
-        .tabulator-row:hover {
-            background-color: #fff7ed !important;
-        }
-        
-        .tabulator-row.tabulator-selected {
-            background-color: #ffedd5 !important;
-        }
-        
-        /* =====================================================
-           DATA CELLS: Single line with ellipsis overflow
-           ===================================================== */
-        .tabulator-cell {
-            padding: 5px 4px;
-            border-right: 1px solid #f0f0f0;
-            font-size: ${baseFontSize}px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-        }
-        
-        .tabulator-cell:last-child {
-            border-right: none;
         }
         
         /* =====================================================
@@ -482,26 +403,16 @@ function injectFullStyles() {
             box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2) !important;
         }
         
-        /* Expandable row basketball theme */
+        /* =====================================================
+           EXPANDABLE ROW / SUBTABLE Styles
+           ===================================================== */
         .subrow-container {
-            padding: 15px 20px !important;
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
             border-top: 2px solid #f97316 !important;
-            margin: 0 !important;
-            display: block !important;
-            width: 100% !important;
         }
         
-        /* Expand icon styling */
         .expand-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            margin-right: 6px;
-            font-size: 10px;
-            color: #f97316;
+            cursor: pointer;
             transition: transform 0.2s ease;
         }
         
@@ -513,94 +424,116 @@ function injectFullStyles() {
             overflow-x: auto !important;
         }
         
-        /* Desktop: Show styled vertical scrollbar */
+        /* Desktop scrollbar styling */
         @media screen and (min-width: 1025px) {
-            .tabulator-tableholder {
-                scrollbar-width: auto !important;
-                scrollbar-color: #f97316 #f5f5f5 !important;
-            }
-            
             .tabulator-tableholder::-webkit-scrollbar {
-                width: 16px !important;
-                height: 16px !important;
+                width: 8px;
+                height: 8px;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f5f5f5 !important;
-                border-radius: 8px !important;
+                background: #f1f1f1;
+                border-radius: 4px;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316 !important;
-                border-radius: 8px !important;
-                border: 3px solid #f5f5f5 !important;
+                background: #f97316;
+                border-radius: 4px;
             }
             
             .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c !important;
+                background: #ea580c;
             }
         }
         
-        /* Mobile/Tablet: Hide scrollbar (finger scrolling) */
+        /* Mobile/tablet: thin scrollbar */
         @media screen and (max-width: 1024px) {
-            .tabulator-tableholder {
-                -ms-overflow-style: none !important;
-                scrollbar-width: none !important;
-            }
-            
             .tabulator-tableholder::-webkit-scrollbar {
-                display: none !important;
-                width: 0 !important;
-                height: 0 !important;
+                width: 4px;
+                height: 4px;
             }
         }
         
-        /* RESPONSIVE ADJUSTMENTS */
+        /* =====================================================
+           CRITICAL FIX: Standalone header vertical alignment
+           On mobile/tablet, columns without parent groups (Name, Team, Lineup)
+           need to be top-aligned and fill full header height to prevent
+           other headers from showing above frozen columns when scrolling
+           ===================================================== */
+        
+        @media screen and (max-width: 1024px) {
+            /* Ensure header container uses flexbox */
+            .tabulator-header {
+                display: flex !important;
+                align-items: stretch !important;
+            }
+            
+            .tabulator-headers {
+                display: flex !important;
+                align-items: stretch !important;
+            }
+            
+            /* All top-level columns should stretch to fill header height */
+            .tabulator-headers > .tabulator-col {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            
+            /* Standalone columns (marked with cssClass or not a column group) */
+            .tabulator-col.standalone-header {
+                justify-content: flex-start !important;
+            }
+            
+            /* The content inside standalone headers should start at top */
+            .tabulator-col.standalone-header > .tabulator-col-content {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                height: 100% !important;
+                padding-top: 6px !important;
+            }
+            
+            /* Title holder fills space and aligns to top */
+            .tabulator-col.standalone-header .tabulator-col-title-holder {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                flex-grow: 0 !important;
+            }
+            
+            /* Header filter container at bottom */
+            .tabulator-col.standalone-header .tabulator-header-filter {
+                margin-top: auto !important;
+            }
+            
+            /* Ensure frozen header has opaque background */
+            .tabulator-header .tabulator-col.tabulator-frozen {
+                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+                z-index: 100 !important;
+            }
+            
+            /* Add a pseudo-element to fill any gap above standalone headers */
+            .tabulator-col.standalone-header::before {
+                content: '' !important;
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                height: 100% !important;
+                background: inherit !important;
+                z-index: -1 !important;
+            }
+        }
+        
+        /* =====================================================
+           RESPONSIVE BREAKPOINTS
+           ===================================================== */
+        
+        /* Mobile styles */
         @media screen and (max-width: 768px) {
-            .tabulator,
-            .tabulator *,
-            .tabulator-header *,
-            .tabulator-row *,
-            .tabulator-cell * {
-                font-size: 10px !important;
-            }
-            
-            .tabulator-col {
-                padding: 4px 2px !important;
-            }
-            
-            .tabulator-cell {
-                padding: 3px 2px !important;
-            }
-            
-            .custom-multiselect-button {
-                font-size: 9px !important;
-                padding: 3px 4px !important;
-            }
-            
-            .min-max-input {
-                font-size: 8px !important;
-                padding: 1px 2px !important;
-            }
-            
-            .min-max-filter-container {
-                max-width: 38px !important;
-            }
-        }
-        
-        @media screen and (max-width: 480px) {
-            .tabulator,
-            .tabulator *,
-            .tabulator-header *,
-            .tabulator-row *,
-            .tabulator-cell * {
-                font-size: 9px !important;
-            }
-            
-            .tabulator-col {
-                padding: 3px 1px !important;
-            }
-            
+            .tabulator-col,
             .tabulator-cell {
                 padding: 2px 1px !important;
             }
@@ -615,7 +548,7 @@ function injectFullStyles() {
             }
         }
         
-        /* DESKTOP: Ensure table fits in browser width */
+        /* Desktop: Ensure table fits in browser width */
         @media screen and (min-width: 1025px) {
             .tabulator {
                 width: 100% !important;
@@ -671,5 +604,5 @@ function injectFullStyles() {
         }
     `;
     document.head.appendChild(style);
-    console.log('Basketball full styles injected');
+    console.log('Basketball full styles injected with standalone header fix');
 }
