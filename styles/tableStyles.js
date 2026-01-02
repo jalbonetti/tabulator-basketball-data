@@ -6,6 +6,7 @@
 // - Dropdown filters positioned above table
 // - Vertical scrollbar visible on desktop only
 // - Subtle frozen column styling for mobile/tablet
+// - UPDATED: More compact min/max filter inputs
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -110,21 +111,26 @@ function injectMinimalStyles() {
             background: #fff7ed !important;
         }
         
-        /* Min/Max Filter Styles - no arrows */
+        /* COMPACT Min/Max Filter Styles */
         .min-max-filter-container {
             display: flex !important;
             flex-direction: column !important;
-            gap: 3px !important;
+            gap: 2px !important;
+            max-width: 45px !important;
+            margin: 0 auto !important;
         }
         
         .min-max-input {
             width: 100% !important;
-            padding: 3px 5px !important;
-            font-size: 10px !important;
+            padding: 2px 3px !important;
+            font-size: 9px !important;
             border: 1px solid #ccc !important;
             border-radius: 2px !important;
             text-align: center !important;
+            box-sizing: border-box !important;
             -moz-appearance: textfield !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
         }
         
         /* Hide number input arrows */
@@ -137,7 +143,7 @@ function injectMinimalStyles() {
         .min-max-input:focus {
             outline: none !important;
             border-color: #f97316 !important;
-            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
+            box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2) !important;
         }
         
         /* Expandable row basketball theme */
@@ -183,6 +189,7 @@ function injectFullStyles() {
            Data cells single-line
            Desktop-only vertical scrollbar
            Subtle frozen columns
+           Compact min/max filters
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -404,21 +411,28 @@ function injectFullStyles() {
             border-right: none;
         }
         
-        /* Min/Max Filter Styles */
+        /* =====================================================
+           COMPACT Min/Max Filter Styles
+           ===================================================== */
         .min-max-filter-container {
             display: flex !important;
             flex-direction: column !important;
-            gap: 3px !important;
+            gap: 2px !important;
+            max-width: 45px !important;
+            margin: 0 auto !important;
         }
         
         .min-max-input {
             width: 100% !important;
-            padding: 3px 5px !important;
-            font-size: 10px !important;
+            padding: 2px 3px !important;
+            font-size: 9px !important;
             border: 1px solid #ccc !important;
             border-radius: 2px !important;
             text-align: center !important;
+            box-sizing: border-box !important;
             -moz-appearance: textfield !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
         }
         
         /* Hide number input arrows */
@@ -431,7 +445,7 @@ function injectFullStyles() {
         .min-max-input:focus {
             outline: none !important;
             border-color: #f97316 !important;
-            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
+            box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2) !important;
         }
         
         /* Expandable row basketball theme */
@@ -497,8 +511,12 @@ function injectFullStyles() {
             }
             
             .min-max-input {
-                font-size: 9px !important;
-                padding: 2px 3px !important;
+                font-size: 8px !important;
+                padding: 1px 2px !important;
+            }
+            
+            .min-max-filter-container {
+                max-width: 38px !important;
             }
         }
         
@@ -517,6 +535,15 @@ function injectFullStyles() {
             
             .tabulator-cell {
                 padding: 2px 1px !important;
+            }
+            
+            .min-max-input {
+                font-size: 8px !important;
+                padding: 1px 2px !important;
+            }
+            
+            .min-max-filter-container {
+                max-width: 35px !important;
             }
         }
         
