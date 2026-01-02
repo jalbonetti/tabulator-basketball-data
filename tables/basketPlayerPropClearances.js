@@ -1,16 +1,11 @@
-// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (UPDATED)
-// Changes: 
-// - Removed "Player Info" combined header - Name and Team are now standalone columns
-// - Name column is frozen on mobile/tablet, fills remaining space on desktop
-// - All columns except Name auto-fit to content width
-// - All headers are center-justified (via CSS)
-// - Desktop text scaling to fit browser width
-// - Clustered column widths for visual consistency
-// - Abbreviations for Prop, Split, and Lineup values
-// - Renamed headers: Prop Rank (Average), Season Prop Rank, Med
-// - Split moved under Clearance section
-// - Book names now in separate Supabase columns (Player Best Over Odds Books, Player Best Under Odds Books)
-// - Fixed sorting for odds columns with +/- prefixes
+// tables/basketPlayerPropClearances.js - Basketball Player Prop Clearances (FIXED)
+// FIXES APPLIED:
+// - Changed from rowClick to cellClick on "Player Name" field for expansion toggle
+// - Subtable now appends INSIDE the row element (not after it) - fixes scrolling/anchor issue
+// - Properly removes subtable from within row element when collapsing - fixes close issue
+// - Calls row.normalizeHeight() after expansion/collapse changes
+// - Minutes data now displays with 1 decimal place
+// - Based on working baseball repository expansion pattern
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -173,97 +168,70 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         if (!this.table) return;
         
         const tableElement = this.table.element;
-        if (!tableElement) return;
-        
-        // Get the container width
         const containerWidth = tableElement.offsetWidth;
-        if (containerWidth <= 0) return;
         
-        // Calculate total width of all columns except Name
-        let otherColumnsWidth = 0;
+        // Get current total width of all columns
+        let totalColumnWidth = 0;
         const columns = this.table.getColumns();
-        
-        columns.forEach(column => {
-            const field = column.getField();
-            if (field !== "Player Name") {
-                otherColumnsWidth += column.getWidth();
-            }
+        columns.forEach(col => {
+            totalColumnWidth += col.getWidth();
         });
         
-        // Calculate remaining space for Name column
-        // Subtract buffer for borders/padding (8px) + scrollbar width (16px)
-        const remainingWidth = containerWidth - otherColumnsWidth - 24;
+        // Calculate remaining space
+        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
         
-        // Only expand if there's meaningful space to fill (more than current minWidth)
-        const nameColumn = this.table.getColumn("Player Name");
-        if (nameColumn && remainingWidth > 120) {
-            nameColumn.setWidth(remainingWidth);
-            console.log(`Name column expanded to ${remainingWidth}px (container: ${containerWidth}px, others: ${otherColumnsWidth}px)`);
+        if (remainingSpace > 0) {
+            const nameColumn = this.table.getColumn("Player Name");
+            if (nameColumn) {
+                const currentWidth = nameColumn.getWidth();
+                nameColumn.setWidth(currentWidth + remainingSpace);
+                console.log(`Name column expanded by ${remainingSpace}px to fill container`);
+            }
         }
     }
 
-    // Custom sorter for "X/Y" format - sorts by FULL first number (15 > 9, not 1 > 9)
+    // Custom sorter for Games format "X/Y" - sorts by first number
     gamesPlayedSorter(a, b, aRow, bRow, column, dir, sorterParams) {
-        const getFirstNum = (val) => {
+        const getGamesNum = (val) => {
             if (!val || val === '-') return -1;
-            const str = String(val).trim();
+            const str = String(val);
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return parseInt(match[1], 10);
-            }
-            if (str.includes('/')) {
-                const firstPart = str.split('/')[0].trim();
-                const num = parseInt(firstPart, 10);
-                return isNaN(num) ? -1 : num;
-            }
-            const num = parseInt(str, 10);
-            return isNaN(num) ? -1 : num;
+            return match ? parseInt(match[1], 10) : -1;
         };
-        return getFirstNum(a) - getFirstNum(b);
+        
+        const aNum = getGamesNum(a);
+        const bNum = getGamesNum(b);
+        
+        return aNum - bNum;
     }
 
-    // Custom sorter for "X (Y.Y)" format - sorts by first number (rank)
+    // Custom sorter for Rank with value format "X (Y.Y)" - sorts by rank number
     rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
-        const getFirstNum = (val) => {
-            if (!val || val === '-') return 9999;
-            const str = String(val).trim();
+        const getRankNum = (val) => {
+            if (!val || val === '-') return 99999;
+            const str = String(val);
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return parseInt(match[1], 10);
-            }
-            if (str.includes('(')) {
-                const firstPart = str.split('(')[0].trim();
-                const num = parseInt(firstPart, 10);
-                return isNaN(num) ? 9999 : num;
-            }
-            const num = parseInt(str, 10);
-            return isNaN(num) ? 9999 : num;
+            return match ? parseInt(match[1], 10) : 99999;
         };
-        return getFirstNum(a) - getFirstNum(b);
+        
+        const aNum = getRankNum(a);
+        const bNum = getRankNum(b);
+        
+        return aNum - bNum;
     }
 
-    // Custom sorter for odds with +/- prefixes (e.g., "-110", "+150")
-    // Designed to be stable and never return NaN to prevent row detachment issues
+    // Custom sorter for odds with +/- prefix
     oddsSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getOddsNum = (val) => {
-            // Handle all null/undefined/empty cases
-            if (val === null || val === undefined || val === '' || val === '-') {
-                return -99999; // Sort empty/null values to the end
-            }
-            
-            // Convert to string and trim
+            if (val === null || val === undefined || val === '' || val === '-') return -99999;
             const str = String(val).trim();
             
-            // Handle dash after string conversion
-            if (str === '-' || str === '') {
-                return -99999;
-            }
-            
-            // Extract numeric value including +/- sign
-            const match = str.match(/^([+-]?\d+)/);
-            if (match) {
-                const parsed = parseInt(match[1], 10);
-                // Final NaN check - should never happen but be safe
+            // Handle +/- prefix
+            if (str.startsWith('+')) {
+                const parsed = parseInt(str.substring(1), 10);
+                return isNaN(parsed) ? -99999 : parsed;
+            } else if (str.startsWith('-')) {
+                const parsed = parseInt(str, 10);
                 return isNaN(parsed) ? -99999 : parsed;
             }
             
@@ -647,6 +615,131 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         ];
     }
 
+    // =====================================================
+    // FIXED: Name formatter with expand icon (matches baseball pattern)
+    // =====================================================
+    createNameFormatter() {
+        const self = this;
+        
+        return (cell) => {
+            const value = cell.getValue();
+            if (!value) return '-';
+            
+            const data = cell.getRow().getData();
+            const expanded = data._expanded || false;
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
+            
+            const icon = document.createElement('span');
+            icon.className = 'expand-icon';
+            icon.style.cssText = 'margin-right: 6px; font-size: 10px; transition: transform 0.2s; color: #f97316; display: inline-flex; width: 12px;';
+            icon.innerHTML = '▶';
+            
+            if (expanded) {
+                icon.style.transform = 'rotate(90deg)';
+            }
+            
+            const text = document.createElement('span');
+            text.textContent = value;
+            text.style.cssText = 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+            
+            container.appendChild(icon);
+            container.appendChild(text);
+            
+            return container;
+        };
+    }
+
+    // =====================================================
+    // FIXED: Row expansion using cellClick (matches baseball pattern)
+    // This fixes the open/close issue and scrolling anchor issue
+    // =====================================================
+    setupRowExpansion() {
+        if (!this.table) return;
+        
+        const self = this;
+        let expansionTimeout;
+        
+        // Use cellClick on "Player Name" field instead of rowClick
+        this.table.on("cellClick", (e, cell) => {
+            const field = cell.getField();
+            
+            // Only expand/collapse when clicking on the Player Name column
+            if (field === "Player Name") {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Debounce rapid clicks
+                if (expansionTimeout) {
+                    clearTimeout(expansionTimeout);
+                }
+                
+                expansionTimeout = setTimeout(() => {
+                    const row = cell.getRow();
+                    const data = row.getData();
+                    
+                    if (data._expanded === undefined) {
+                        data._expanded = false;
+                    }
+                    
+                    // Toggle expansion state
+                    data._expanded = !data._expanded;
+                    
+                    // Update global state
+                    const rowId = self.generateRowId(data);
+                    if (data._expanded) {
+                        self.expandedRowsCache.add(rowId);
+                        if (window.globalExpandedState) {
+                            window.globalExpandedState.set(`${self.elementId}_${rowId}`, true);
+                        }
+                    } else {
+                        self.expandedRowsCache.delete(rowId);
+                        if (window.globalExpandedState) {
+                            window.globalExpandedState.delete(`${self.elementId}_${rowId}`);
+                        }
+                    }
+                    
+                    console.log(`Row ${data._expanded ? 'expanded' : 'collapsed'}: ${data["Player Name"]}`);
+                    
+                    // Update row data
+                    row.update(data);
+                    
+                    // Update icon immediately
+                    const cellElement = cell.getElement();
+                    const expanderIcon = cellElement.querySelector('.expand-icon');
+                    if (expanderIcon) {
+                        expanderIcon.style.transform = data._expanded ? 'rotate(90deg)' : '';
+                    }
+                    
+                    // Reformat row to trigger rowFormatter
+                    requestAnimationFrame(() => {
+                        row.reformat();
+                        
+                        // Update icon again after reformat (it may have been reset)
+                        requestAnimationFrame(() => {
+                            try {
+                                const updatedCellElement = cell.getElement();
+                                if (updatedCellElement) {
+                                    const updatedExpanderIcon = updatedCellElement.querySelector('.expand-icon');
+                                    if (updatedExpanderIcon) {
+                                        updatedExpanderIcon.style.transform = data._expanded ? 'rotate(90deg)' : '';
+                                    }
+                                }
+                            } catch (error) {
+                                console.error("Error updating expander icon:", error);
+                            }
+                        });
+                    });
+                }, 50);
+            }
+        });
+    }
+
+    // =====================================================
+    // FIXED: Row formatter - subtable INSIDE row element (matches baseball pattern)
+    // This fixes the scrolling/anchor issue
+    // =====================================================
     createRowFormatter() {
         const self = this;
         
@@ -658,53 +751,99 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 data._expanded = false;
             }
             
-            // Clear any existing subrows first
-            const existingSubrows = rowElement.parentNode?.querySelectorAll('.subrow-container');
-            existingSubrows?.forEach(sr => {
-                if (sr.dataset.rowId === row.getPosition()) {
-                    sr.remove();
-                }
-            });
-            
+            // Add/remove expanded class
             if (data._expanded) {
-                self.createSubtable(row, data);
+                rowElement.classList.add('row-expanded');
+            } else {
+                rowElement.classList.remove('row-expanded');
+            }
+            
+            // Handle expansion
+            if (data._expanded) {
+                // Check if subtable already exists INSIDE the row element
+                let existingSubrow = rowElement.querySelector('.subrow-container');
+                
+                if (!existingSubrow) {
+                    // Create subtable container using requestAnimationFrame for better performance
+                    requestAnimationFrame(() => {
+                        // Double-check it doesn't exist after animation frame
+                        if (rowElement.querySelector('.subrow-container')) return;
+                        
+                        const holderEl = document.createElement("div");
+                        holderEl.classList.add('subrow-container');
+                        holderEl.style.cssText = `
+                            padding: 15px 20px;
+                            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+                            border-top: 2px solid #f97316;
+                            margin: 0;
+                            display: block;
+                            width: 100%;
+                            position: relative;
+                            z-index: 1;
+                        `;
+                        
+                        // Create subtable content
+                        try {
+                            self.createSubtableContent(holderEl, data);
+                        } catch (error) {
+                            console.error("Error creating subtable content:", error);
+                            holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
+                        }
+                        
+                        // CRITICAL FIX: Append INSIDE the row element, not after it
+                        rowElement.appendChild(holderEl);
+                        
+                        // Normalize row height after adding content
+                        setTimeout(() => {
+                            row.normalizeHeight();
+                        }, 50);
+                    });
+                }
+            } else {
+                // Handle collapse - find and remove subtable from INSIDE the row element
+                const existingSubrow = rowElement.querySelector('.subrow-container');
+                if (existingSubrow) {
+                    existingSubrow.remove();
+                    rowElement.classList.remove('row-expanded');
+                    
+                    // Normalize row height after removing content
+                    setTimeout(() => {
+                        row.normalizeHeight();
+                    }, 50);
+                }
             }
         };
     }
 
-    createSubtable(row, data) {
-        const rowElement = row.getElement();
-        
-        // Remove existing subtable if any
-        const existingSubtable = rowElement.nextElementSibling;
-        if (existingSubtable && existingSubtable.classList.contains('subrow-container')) {
-            existingSubtable.remove();
-        }
-        
-        // Create subtable container
-        const subrowContainer = document.createElement('div');
-        subrowContainer.className = 'subrow-container';
-        subrowContainer.dataset.rowId = row.getPosition();
-        subrowContainer.style.cssText = `
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-            border-top: 2px solid #f97316;
-            margin: 0;
-        `;
-        
+    // =====================================================
+    // FIXED: Helper to format minutes with 1 decimal place
+    // =====================================================
+    formatMinutes(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '-';
+        return num.toFixed(1);
+    }
+
+    // =====================================================
+    // UPDATED: Subtable content with 1 decimal place for minutes
+    // =====================================================
+    createSubtableContent(container, data) {
         // Build subtable content
         const matchup = data["Matchup"] || '-';
         const spread = data["Matchup Spread"] || '-';
         const total = data["Matchup Total"] || '-';
-        const medianMinutes = data["Player Median Minutes"] || '-';
-        const avgMinutes = data["Player Average Minutes"] || '-';
+        
+        // FIXED: Format minutes with 1 decimal place
+        const medianMinutes = this.formatMinutes(data["Player Median Minutes"]);
+        const avgMinutes = this.formatMinutes(data["Player Average Minutes"]);
         
         // Read book names directly from the new Supabase columns
         const bestOverBook = data["Player Best Over Odds Books"] || '-';
         const bestUnderBook = data["Player Best Under Odds Books"] || '-';
         
         // Subtables use inline-block and fit-content to contract to data size
-        subrowContainer.innerHTML = `
+        container.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
                 <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
@@ -730,8 +869,5 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 </div>
             </div>
         `;
-        
-        // Insert after the row
-        rowElement.insertAdjacentElement('afterend', subrowContainer);
     }
 }
