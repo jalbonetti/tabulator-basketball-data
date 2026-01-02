@@ -191,8 +191,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         });
         
         // Calculate remaining space for Name column
-        // Subtract a small buffer (20px) for borders/padding
-        const remainingWidth = containerWidth - otherColumnsWidth - 20;
+        // Subtract buffer for borders/padding (10px) + scrollbar width (12px)
+        const remainingWidth = containerWidth - otherColumnsWidth - 22;
         
         // Only expand if there's meaningful space to fill (more than current minWidth)
         const nameColumn = this.table.getColumn("Player Name");
