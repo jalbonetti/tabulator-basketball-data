@@ -7,6 +7,8 @@
 // - Minutes data now displays with 1 decimal place
 // - MOVED Lineup column between Team and Prop Info (all standalone headers now adjacent)
 // - Based on working baseball repository expansion pattern
+// - UPDATED: Clearance now converts from decimal to percentage (multiply by 100)
+// - UPDATED: Matchup Total now displays with 1 forced decimal place
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -255,7 +257,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // FORMATTERS
         // =====================================================
         
-        // Clearance formatter - ensures exactly ONE decimal place
+        // Clearance formatter - converts decimal to percentage with exactly ONE decimal place
         const clearanceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -263,7 +265,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             const str = String(value).replace('%', '').trim();
             const num = parseFloat(str);
             if (isNaN(num)) return '-';
-            return num.toFixed(1) + '%';
+            // Multiply by 100 to convert decimal (e.g., 0.75) to percentage (e.g., 75.0%)
+            return (num * 100).toFixed(1) + '%';
         };
 
         // One decimal formatter
@@ -833,13 +836,24 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     // =====================================================
-    // UPDATED: Subtable content with 1 decimal place for minutes
+    // Helper to format numeric values with 1 decimal place (for subtable)
+    // =====================================================
+    formatOneDecimal(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '-';
+        return num.toFixed(1);
+    }
+
+    // =====================================================
+    // UPDATED: Subtable content with 1 decimal place for minutes and total
     // =====================================================
     createSubtableContent(container, data) {
         // Build subtable content
         const matchup = data["Matchup"] || '-';
         const spread = data["Matchup Spread"] || '-';
-        const total = data["Matchup Total"] || '-';
+        // FIXED: Format matchup total with 1 decimal place
+        const total = this.formatOneDecimal(data["Matchup Total"]);
         
         // FIXED: Format minutes with 1 decimal place
         const medianMinutes = this.formatMinutes(data["Player Median Minutes"]);
