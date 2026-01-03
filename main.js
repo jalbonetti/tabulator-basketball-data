@@ -5,6 +5,7 @@
 import { injectStyles } from './styles/tableStyles.js';
 import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropClearances.js';
 import { BasketPlayerDDTDTable } from './tables/basketPlayerDDTD.js';
+import { BasketPlayerDKTable } from './tables/basketPlayerDK.js';
 import { TabManager } from './components/tabManager.js';
 
 // Global state for expanded rows - shared across all tables
@@ -74,6 +75,7 @@ function createCompleteTableStructure(existingTable) {
         <div class="tab-buttons">
             <button class="tab-button active" data-tab="table0">Prop Clearances</button>
             <button class="tab-button" data-tab="table1">DD-TD Clearances</button>
+            <button class="tab-button" data-tab="table2">DraftKings DFS</button>
         </div>
     `;
     
@@ -125,6 +127,17 @@ function createAllTableContainers(tablesContainer) {
     tablesContainer.appendChild(table1Container);
     console.log("✅ Created table1-container (DD-TD Clearances)");
     
+    // Table 2 - DraftKings DFS (Inactive)
+    const dkElement = document.createElement('div');
+    dkElement.id = 'dk-dfs-table';
+    const table2Container = document.createElement('div');
+    table2Container.className = 'table-container inactive-table';
+    table2Container.id = 'table2-container';
+    table2Container.style.cssText = 'width: 100%; display: none;';
+    table2Container.appendChild(dkElement);
+    tablesContainer.appendChild(table2Container);
+    console.log("✅ Created table2-container (DraftKings DFS)");
+    
     console.log("✅ All table containers created");
 }
 
@@ -134,7 +147,8 @@ function createAllTableInstances() {
     // Create table instances but DON'T initialize them yet - TabManager handles lazy loading
     const tableInstances = {
         table0: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
-        table1: new BasketPlayerDDTDTable("#ddtd-clearances-table")
+        table1: new BasketPlayerDDTDTable("#ddtd-clearances-table"),
+        table2: new BasketPlayerDKTable("#dk-dfs-table")
     };
     
     // Enhance each table instance with state management
