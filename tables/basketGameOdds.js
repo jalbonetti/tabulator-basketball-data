@@ -67,14 +67,14 @@ export class BasketGameOddsTable extends BaseTable {
             setTimeout(() => {
                 this.equalizeClusteredColumns();
                 if (!isSmallScreen) {
-                    this.expandMatchupColumnToFill();
+                    this.expandNameColumnToFill();
                 }
             }, 200);
             
             if (!isSmallScreen) {
                 window.addEventListener('resize', this.debounce(() => {
                     this.equalizeClusteredColumns();
-                    this.expandMatchupColumnToFill();
+                    this.expandNameColumnToFill();
                 }, 250));
             }
         });
@@ -122,7 +122,7 @@ export class BasketGameOddsTable extends BaseTable {
         });
     }
     
-    expandMatchupColumnToFill() {
+    expandNameColumnToFill() {
         if (!this.table) return;
         
         const tableElement = this.table.element;
