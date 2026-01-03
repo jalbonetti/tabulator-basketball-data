@@ -427,7 +427,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 title: "Opponent", 
                 columns: [
                     {
-                        title: "DFS Rank (Avg)", 
+                        title: "DK Pts Rank", 
                         field: "Opponent DK Rank", 
                         widthGrow: 0,
                         minWidth: 55,
@@ -438,7 +438,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         hozAlign: "center",
                         cssClass: "cluster-opponent",
                         titleFormatter: function() {
-                            return "DFS<br>Rank<br>(Avg)";
+                            return "DK Pts<br>Rank";
                         }
                     },
                     {
@@ -765,9 +765,9 @@ export class BasketPlayerDKTable extends BaseTable {
                     </div>
                 </div>
                 
-                <!-- Player and Opponent Stats Table -->
+                <!-- Player and Opponent DFS Points Makeup Table -->
                 <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
-                    <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent Stats</h4>
+                    <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
                     <table style="font-size: 11px; border-collapse: collapse; width: 100%;">
                         <thead>
                             <tr style="background: #f8f9fa;">
