@@ -133,7 +133,8 @@ export class TabManager {
         // Maps tab IDs to their container element IDs
         const containerMap = {
             'table0': 'table0-container',
-            'table1': 'table1-container'
+            'table1': 'table1-container',
+            'table2': 'table2-container'
         };
         return containerMap[tabId] || `${tabId}-container`;
     }
