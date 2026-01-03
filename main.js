@@ -7,6 +7,8 @@ import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropCleara
 import { BasketPlayerDDTDTable } from './tables/basketPlayerDDTD.js';
 import { BasketPlayerDKTable } from './tables/basketPlayerDK.js';
 import { BasketPlayerFDTable } from './tables/basketPlayerFD.js';
+import { BasketPlayerPropOddsTable } from './tables/basketPlayerPropOdds.js';
+import { BasketGameOddsTable } from './tables/basketGameOdds.js';
 import { TabManager } from './components/tabManager.js';
 
 // Global state for expanded rows - shared across all tables
@@ -76,8 +78,10 @@ function createCompleteTableStructure(existingTable) {
         <div class="tab-buttons">
             <button class="tab-button active" data-tab="table0">Prop Clearances</button>
             <button class="tab-button" data-tab="table1">DD-TD Clearances</button>
-            <button class="tab-button" data-tab="table2">DraftKings DFS</button>
-            <button class="tab-button" data-tab="table3">FanDuel DFS</button>
+            <button class="tab-button" data-tab="table2">Prop Odds</button>
+            <button class="tab-button" data-tab="table3">Game Odds</button>
+            <button class="tab-button" data-tab="table4">DraftKings DFS</button>
+            <button class="tab-button" data-tab="table5">FanDuel DFS</button>
         </div>
     `;
     
@@ -129,27 +133,49 @@ function createAllTableContainers(tablesContainer) {
     tablesContainer.appendChild(table1Container);
     console.log("✅ Created table1-container (DD-TD Clearances)");
     
-    // Table 2 - DraftKings DFS (Inactive)
-    const dkElement = document.createElement('div');
-    dkElement.id = 'dk-dfs-table';
+    // Table 2 - Prop Odds (Inactive)
+    const propOddsElement = document.createElement('div');
+    propOddsElement.id = 'prop-odds-table';
     const table2Container = document.createElement('div');
     table2Container.className = 'table-container inactive-table';
     table2Container.id = 'table2-container';
     table2Container.style.cssText = 'width: 100%; display: none;';
-    table2Container.appendChild(dkElement);
+    table2Container.appendChild(propOddsElement);
     tablesContainer.appendChild(table2Container);
-    console.log("✅ Created table2-container (DraftKings DFS)");
+    console.log("✅ Created table2-container (Prop Odds)");
     
-    // Table 3 - FanDuel DFS (Inactive)
-    const fdElement = document.createElement('div');
-    fdElement.id = 'fd-dfs-table';
+    // Table 3 - Game Odds (Inactive)
+    const gameOddsElement = document.createElement('div');
+    gameOddsElement.id = 'game-odds-table';
     const table3Container = document.createElement('div');
     table3Container.className = 'table-container inactive-table';
     table3Container.id = 'table3-container';
     table3Container.style.cssText = 'width: 100%; display: none;';
-    table3Container.appendChild(fdElement);
+    table3Container.appendChild(gameOddsElement);
     tablesContainer.appendChild(table3Container);
-    console.log("✅ Created table3-container (FanDuel DFS)");
+    console.log("✅ Created table3-container (Game Odds)");
+    
+    // Table 4 - DraftKings DFS (Inactive)
+    const dkElement = document.createElement('div');
+    dkElement.id = 'dk-dfs-table';
+    const table4Container = document.createElement('div');
+    table4Container.className = 'table-container inactive-table';
+    table4Container.id = 'table4-container';
+    table4Container.style.cssText = 'width: 100%; display: none;';
+    table4Container.appendChild(dkElement);
+    tablesContainer.appendChild(table4Container);
+    console.log("✅ Created table4-container (DraftKings DFS)");
+    
+    // Table 5 - FanDuel DFS (Inactive)
+    const fdElement = document.createElement('div');
+    fdElement.id = 'fd-dfs-table';
+    const table5Container = document.createElement('div');
+    table5Container.className = 'table-container inactive-table';
+    table5Container.id = 'table5-container';
+    table5Container.style.cssText = 'width: 100%; display: none;';
+    table5Container.appendChild(fdElement);
+    tablesContainer.appendChild(table5Container);
+    console.log("✅ Created table5-container (FanDuel DFS)");
     
     console.log("✅ All table containers created");
 }
@@ -161,8 +187,10 @@ function createAllTableInstances() {
     const tableInstances = {
         table0: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
         table1: new BasketPlayerDDTDTable("#ddtd-clearances-table"),
-        table2: new BasketPlayerDKTable("#dk-dfs-table"),
-        table3: new BasketPlayerFDTable("#fd-dfs-table")
+        table2: new BasketPlayerPropOddsTable("#prop-odds-table"),
+        table3: new BasketGameOddsTable("#game-odds-table"),
+        table4: new BasketPlayerDKTable("#dk-dfs-table"),
+        table5: new BasketPlayerFDTable("#fd-dfs-table")
     };
     
     // Enhance each table instance with state management
