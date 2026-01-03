@@ -6,6 +6,7 @@ import { injectStyles } from './styles/tableStyles.js';
 import { BasketPlayerPropClearancesTable } from './tables/basketPlayerPropClearances.js';
 import { BasketPlayerDDTDTable } from './tables/basketPlayerDDTD.js';
 import { BasketPlayerDKTable } from './tables/basketPlayerDK.js';
+import { BasketPlayerFDTable } from './tables/basketPlayerFD.js';
 import { TabManager } from './components/tabManager.js';
 
 // Global state for expanded rows - shared across all tables
@@ -76,6 +77,7 @@ function createCompleteTableStructure(existingTable) {
             <button class="tab-button active" data-tab="table0">Prop Clearances</button>
             <button class="tab-button" data-tab="table1">DD-TD Clearances</button>
             <button class="tab-button" data-tab="table2">DraftKings DFS</button>
+            <button class="tab-button" data-tab="table3">FanDuel DFS</button>
         </div>
     `;
     
@@ -138,6 +140,17 @@ function createAllTableContainers(tablesContainer) {
     tablesContainer.appendChild(table2Container);
     console.log("✅ Created table2-container (DraftKings DFS)");
     
+    // Table 3 - FanDuel DFS (Inactive)
+    const fdElement = document.createElement('div');
+    fdElement.id = 'fd-dfs-table';
+    const table3Container = document.createElement('div');
+    table3Container.className = 'table-container inactive-table';
+    table3Container.id = 'table3-container';
+    table3Container.style.cssText = 'width: 100%; display: none;';
+    table3Container.appendChild(fdElement);
+    tablesContainer.appendChild(table3Container);
+    console.log("✅ Created table3-container (FanDuel DFS)");
+    
     console.log("✅ All table containers created");
 }
 
@@ -148,7 +161,8 @@ function createAllTableInstances() {
     const tableInstances = {
         table0: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
         table1: new BasketPlayerDDTDTable("#ddtd-clearances-table"),
-        table2: new BasketPlayerDKTable("#dk-dfs-table")
+        table2: new BasketPlayerDKTable("#dk-dfs-table"),
+        table3: new BasketPlayerFDTable("#fd-dfs-table")
     };
     
     // Enhance each table instance with state management
