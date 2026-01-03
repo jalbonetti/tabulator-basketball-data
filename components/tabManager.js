@@ -135,7 +135,9 @@ export class TabManager {
             'table0': 'table0-container',
             'table1': 'table1-container',
             'table2': 'table2-container',
-            'table3': 'table3-container'
+            'table3': 'table3-container',
+            'table4': 'table4-container',
+            'table5': 'table5-container'
         };
         return containerMap[tabId] || `${tabId}-container`;
     }
