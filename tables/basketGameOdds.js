@@ -298,9 +298,7 @@ export class BasketGameOddsTable extends BaseTable {
                 widthGrow: 0,
                 minWidth: 70,
                 sorter: "string", 
-                headerFilter: createMinMaxFilter,
-                headerFilterFunc: minMaxFilterFunction,
-                headerFilterLiveFilter: false,
+                headerFilter: createCustomMultiSelect,
                 resizable: false,
                 hozAlign: "center"
             }
