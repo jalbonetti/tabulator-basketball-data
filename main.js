@@ -9,6 +9,7 @@ import { BasketPlayerDKTable } from './tables/basketPlayerDK.js';
 import { BasketPlayerFDTable } from './tables/basketPlayerFD.js';
 import { BasketPlayerPropOddsTable } from './tables/basketPlayerPropOdds.js';
 import { BasketGameOddsTable } from './tables/basketGameOdds.js';
+import { BasketMatchupsTable } from './tables/basketMatchups.js';
 import { TabManager } from './components/tabManager.js';
 
 // Global state for expanded rows - shared across all tables
@@ -82,6 +83,7 @@ function createCompleteTableStructure(existingTable) {
             <button class="tab-button" data-tab="table3">Game Odds</button>
             <button class="tab-button" data-tab="table4">DraftKings DFS</button>
             <button class="tab-button" data-tab="table5">FanDuel DFS</button>
+            <button class="tab-button" data-tab="table6">Matchups</button>
         </div>
     `;
     
@@ -177,6 +179,17 @@ function createAllTableContainers(tablesContainer) {
     tablesContainer.appendChild(table5Container);
     console.log("✅ Created table5-container (FanDuel DFS)");
     
+    // Table 6 - Matchups (Inactive)
+    const matchupsElement = document.createElement('div');
+    matchupsElement.id = 'matchups-table';
+    const table6Container = document.createElement('div');
+    table6Container.className = 'table-container inactive-table';
+    table6Container.id = 'table6-container';
+    table6Container.style.cssText = 'width: 100%; display: none;';
+    table6Container.appendChild(matchupsElement);
+    tablesContainer.appendChild(table6Container);
+    console.log("✅ Created table6-container (Matchups)");
+    
     console.log("✅ All table containers created");
 }
 
@@ -190,7 +203,8 @@ function createAllTableInstances() {
         table2: new BasketPlayerPropOddsTable("#prop-odds-table"),
         table3: new BasketGameOddsTable("#game-odds-table"),
         table4: new BasketPlayerDKTable("#dk-dfs-table"),
-        table5: new BasketPlayerFDTable("#fd-dfs-table")
+        table5: new BasketPlayerFDTable("#fd-dfs-table"),
+        table6: new BasketMatchupsTable("#matchups-table")
     };
     
     // Enhance each table instance with state management
