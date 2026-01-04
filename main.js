@@ -77,13 +77,13 @@ function createCompleteTableStructure(existingTable) {
     tabsContainer.className = 'tabs-container';
     tabsContainer.innerHTML = `
         <div class="tab-buttons">
-            <button class="tab-button active" data-tab="table0">Prop Clearances</button>
-            <button class="tab-button" data-tab="table1">DD-TD Clearances</button>
-            <button class="tab-button" data-tab="table2">Prop Odds</button>
-            <button class="tab-button" data-tab="table3">Game Odds</button>
-            <button class="tab-button" data-tab="table4">DraftKings DFS</button>
-            <button class="tab-button" data-tab="table5">FanDuel DFS</button>
-            <button class="tab-button" data-tab="table6">Matchups</button>
+            <button class="tab-button active" data-tab="table0">Matchups</button>
+            <button class="tab-button" data-tab="table1">Prop Clearances</button>
+            <button class="tab-button" data-tab="table2">DD-TD Clearances</button>
+            <button class="tab-button" data-tab="table3">Prop Odds</button>
+            <button class="tab-button" data-tab="table4">Game Odds</button>
+            <button class="tab-button" data-tab="table5">DraftKings DFS</button>
+            <button class="tab-button" data-tab="table6">FanDuel DFS</button>
         </div>
     `;
     
@@ -113,82 +113,82 @@ function createCompleteTableStructure(existingTable) {
 function createAllTableContainers(tablesContainer) {
     console.log("Creating all table containers...");
     
-    // Table 0 - Prop Clearances (Active by default)
-    const propClearancesElement = document.createElement('div');
-    propClearancesElement.id = 'prop-clearances-table';
+    // Table 0 - Matchups (Active by default)
+    const matchupsElement = document.createElement('div');
+    matchupsElement.id = 'matchups-table';
     const table0Container = document.createElement('div');
     table0Container.className = 'table-container active-table';
     table0Container.id = 'table0-container';
     table0Container.style.cssText = 'width: 100%; display: block;';
-    table0Container.appendChild(propClearancesElement);
+    table0Container.appendChild(matchupsElement);
     tablesContainer.appendChild(table0Container);
-    console.log("✅ Created table0-container (Prop Clearances)");
+    console.log("✅ Created table0-container (Matchups)");
     
-    // Table 1 - DD-TD Clearances (Inactive)
-    const ddtdElement = document.createElement('div');
-    ddtdElement.id = 'ddtd-clearances-table';
+    // Table 1 - Prop Clearances (Inactive)
+    const propClearancesElement = document.createElement('div');
+    propClearancesElement.id = 'prop-clearances-table';
     const table1Container = document.createElement('div');
     table1Container.className = 'table-container inactive-table';
     table1Container.id = 'table1-container';
     table1Container.style.cssText = 'width: 100%; display: none;';
-    table1Container.appendChild(ddtdElement);
+    table1Container.appendChild(propClearancesElement);
     tablesContainer.appendChild(table1Container);
-    console.log("✅ Created table1-container (DD-TD Clearances)");
+    console.log("✅ Created table1-container (Prop Clearances)");
     
-    // Table 2 - Prop Odds (Inactive)
-    const propOddsElement = document.createElement('div');
-    propOddsElement.id = 'prop-odds-table';
+    // Table 2 - DD-TD Clearances (Inactive)
+    const ddtdElement = document.createElement('div');
+    ddtdElement.id = 'ddtd-clearances-table';
     const table2Container = document.createElement('div');
     table2Container.className = 'table-container inactive-table';
     table2Container.id = 'table2-container';
     table2Container.style.cssText = 'width: 100%; display: none;';
-    table2Container.appendChild(propOddsElement);
+    table2Container.appendChild(ddtdElement);
     tablesContainer.appendChild(table2Container);
-    console.log("✅ Created table2-container (Prop Odds)");
+    console.log("✅ Created table2-container (DD-TD Clearances)");
     
-    // Table 3 - Game Odds (Inactive)
-    const gameOddsElement = document.createElement('div');
-    gameOddsElement.id = 'game-odds-table';
+    // Table 3 - Prop Odds (Inactive)
+    const propOddsElement = document.createElement('div');
+    propOddsElement.id = 'prop-odds-table';
     const table3Container = document.createElement('div');
     table3Container.className = 'table-container inactive-table';
     table3Container.id = 'table3-container';
     table3Container.style.cssText = 'width: 100%; display: none;';
-    table3Container.appendChild(gameOddsElement);
+    table3Container.appendChild(propOddsElement);
     tablesContainer.appendChild(table3Container);
-    console.log("✅ Created table3-container (Game Odds)");
+    console.log("✅ Created table3-container (Prop Odds)");
     
-    // Table 4 - DraftKings DFS (Inactive)
-    const dkElement = document.createElement('div');
-    dkElement.id = 'dk-dfs-table';
+    // Table 4 - Game Odds (Inactive)
+    const gameOddsElement = document.createElement('div');
+    gameOddsElement.id = 'game-odds-table';
     const table4Container = document.createElement('div');
     table4Container.className = 'table-container inactive-table';
     table4Container.id = 'table4-container';
     table4Container.style.cssText = 'width: 100%; display: none;';
-    table4Container.appendChild(dkElement);
+    table4Container.appendChild(gameOddsElement);
     tablesContainer.appendChild(table4Container);
-    console.log("✅ Created table4-container (DraftKings DFS)");
+    console.log("✅ Created table4-container (Game Odds)");
     
-    // Table 5 - FanDuel DFS (Inactive)
-    const fdElement = document.createElement('div');
-    fdElement.id = 'fd-dfs-table';
+    // Table 5 - DraftKings DFS (Inactive)
+    const dkElement = document.createElement('div');
+    dkElement.id = 'dk-dfs-table';
     const table5Container = document.createElement('div');
     table5Container.className = 'table-container inactive-table';
     table5Container.id = 'table5-container';
     table5Container.style.cssText = 'width: 100%; display: none;';
-    table5Container.appendChild(fdElement);
+    table5Container.appendChild(dkElement);
     tablesContainer.appendChild(table5Container);
-    console.log("✅ Created table5-container (FanDuel DFS)");
+    console.log("✅ Created table5-container (DraftKings DFS)");
     
-    // Table 6 - Matchups (Inactive)
-    const matchupsElement = document.createElement('div');
-    matchupsElement.id = 'matchups-table';
+    // Table 6 - FanDuel DFS (Inactive)
+    const fdElement = document.createElement('div');
+    fdElement.id = 'fd-dfs-table';
     const table6Container = document.createElement('div');
     table6Container.className = 'table-container inactive-table';
     table6Container.id = 'table6-container';
     table6Container.style.cssText = 'width: 100%; display: none;';
-    table6Container.appendChild(matchupsElement);
+    table6Container.appendChild(fdElement);
     tablesContainer.appendChild(table6Container);
-    console.log("✅ Created table6-container (Matchups)");
+    console.log("✅ Created table6-container (FanDuel DFS)");
     
     console.log("✅ All table containers created");
 }
@@ -198,13 +198,13 @@ function createAllTableInstances() {
     
     // Create table instances but DON'T initialize them yet - TabManager handles lazy loading
     const tableInstances = {
-        table0: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
-        table1: new BasketPlayerDDTDTable("#ddtd-clearances-table"),
-        table2: new BasketPlayerPropOddsTable("#prop-odds-table"),
-        table3: new BasketGameOddsTable("#game-odds-table"),
-        table4: new BasketPlayerDKTable("#dk-dfs-table"),
-        table5: new BasketPlayerFDTable("#fd-dfs-table"),
-        table6: new BasketMatchupsTable("#matchups-table")
+        table0: new BasketMatchupsTable("#matchups-table"),
+        table1: new BasketPlayerPropClearancesTable("#prop-clearances-table"),
+        table2: new BasketPlayerDDTDTable("#ddtd-clearances-table"),
+        table3: new BasketPlayerPropOddsTable("#prop-odds-table"),
+        table4: new BasketGameOddsTable("#game-odds-table"),
+        table5: new BasketPlayerDKTable("#dk-dfs-table"),
+        table6: new BasketPlayerFDTable("#fd-dfs-table")
     };
     
     // Enhance each table instance with state management
