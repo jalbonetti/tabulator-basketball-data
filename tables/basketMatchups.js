@@ -170,9 +170,11 @@ export class BasketMatchupsTable extends BaseTable {
         
         // Handle render complete - restore any missing subtables
         this.table.on("renderComplete", () => {
-            if (this.subtableDataReady) {
+            console.log(`[renderComplete] fired - subtableDataReady: ${this.subtableDataReady}, isScrolling: ${this.isScrolling}`);
+            if (this.subtableDataReady && !this.isScrolling) {
                 // Small delay to let DOM settle
                 setTimeout(() => {
+                    console.log(`[renderComplete] calling restoreExpandedSubtables after delay`);
                     this.restoreExpandedSubtables();
                 }, 50);
             }
@@ -316,9 +318,13 @@ export class BasketMatchupsTable extends BaseTable {
                 
                 // Only restore subtable if NOT actively scrolling and cache is ready
                 const existingSubtable = rowElement.querySelector('.subrow-container');
-                if (!existingSubtable && self.subtableDataReady && !self.isScrolling) {
-                    console.log(`rowFormatter: Recreating missing subtable for Matchup ID ${data["Matchup ID"]}`);
-                    self.createAndAppendSubtable(rowElement, data, true);
+                if (!existingSubtable && self.subtableDataReady) {
+                    if (self.isScrolling) {
+                        console.log(`[rowFormatter] BLOCKED - isScrolling=true for Matchup ID ${data["Matchup ID"]}`);
+                    } else {
+                        console.log(`[rowFormatter] RESTORING subtable for Matchup ID ${data["Matchup ID"]}, isScrolling=${self.isScrolling}`);
+                        self.createAndAppendSubtable(rowElement, data, true);
+                    }
                 }
             } else {
                 rowElement.classList.remove('row-expanded');
@@ -342,7 +348,9 @@ export class BasketMatchupsTable extends BaseTable {
         
         // Get scroll position BEFORE adding content
         const tableHolder = this.table?.element?.querySelector('.tabulator-tableholder');
-        const scrollTop = preserveScroll && tableHolder ? tableHolder.scrollTop : null;
+        const scrollTopBefore = preserveScroll && tableHolder ? tableHolder.scrollTop : null;
+        
+        console.log(`[createAndAppendSubtable] START - Matchup ID ${data["Matchup ID"]}, scrollTop BEFORE: ${scrollTopBefore}, isScrolling: ${this.isScrolling}`);
         
         const holderEl = document.createElement("div");
         holderEl.classList.add('subrow-container');
@@ -366,11 +374,16 @@ export class BasketMatchupsTable extends BaseTable {
         
         rowElement.appendChild(holderEl);
         
+        const scrollTopAfterAppend = tableHolder ? tableHolder.scrollTop : null;
+        console.log(`[createAndAppendSubtable] AFTER APPEND - scrollTop: ${scrollTopAfterAppend}`);
+        
         // Restore scroll position AFTER adding content
-        if (scrollTop !== null && tableHolder) {
+        if (scrollTopBefore !== null && tableHolder) {
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
-                tableHolder.scrollTop = scrollTop;
+                const scrollTopBeforeRestore = tableHolder.scrollTop;
+                tableHolder.scrollTop = scrollTopBefore;
+                console.log(`[createAndAppendSubtable] RESTORED scrollTop from ${scrollTopBeforeRestore} to ${scrollTopBefore}, actual: ${tableHolder.scrollTop}`);
             });
         }
     }
@@ -379,15 +392,30 @@ export class BasketMatchupsTable extends BaseTable {
     setupSubtableObserver() {
         const self = this;
         
+        // Track row elements to detect if they're being replaced entirely
+        this.trackedRowElements = new WeakMap();
+        
         // Create observer that watches for removed subtables
         this.subtableObserver = new MutationObserver((mutations) => {
             // Don't restore during active scrolling
-            if (!self.subtableDataReady || !self.table || self.isScrolling) return;
+            if (!self.subtableDataReady || !self.table) return;
             
             mutations.forEach((mutation) => {
                 // Check for removed nodes
                 mutation.removedNodes.forEach((node) => {
+                    // Check if an entire row was removed (could indicate virtual scrolling recycling)
+                    if (node.classList && node.classList.contains('tabulator-row')) {
+                        console.log(`[MutationObserver] ENTIRE ROW removed from DOM`);
+                    }
+                    
                     if (node.classList && node.classList.contains('subrow-container')) {
+                        console.log(`[MutationObserver] subrow-container REMOVED, isScrolling: ${self.isScrolling}`);
+                        
+                        if (self.isScrolling) {
+                            console.log(`[MutationObserver] BLOCKED restoration - isScrolling=true`);
+                            return;
+                        }
+                        
                         // A subtable was removed - check if it should be restored
                         const rowElement = mutation.target;
                         if (rowElement.classList.contains('tabulator-row')) {
@@ -397,7 +425,7 @@ export class BasketMatchupsTable extends BaseTable {
                                 if (row.getElement() === rowElement) {
                                     const data = row.getData();
                                     if (data._expanded) {
-                                        console.log(`MutationObserver: Restoring subtable for Matchup ID ${data["Matchup ID"]}`);
+                                        console.log(`[MutationObserver] RESTORING subtable for Matchup ID ${data["Matchup ID"]}`);
                                         // Use setTimeout to avoid recursion with the observer
                                         setTimeout(() => {
                                             if (!rowElement.querySelector('.subrow-container') && data._expanded) {
@@ -409,6 +437,13 @@ export class BasketMatchupsTable extends BaseTable {
                                 }
                             }
                         }
+                    }
+                });
+                
+                // Also watch for added rows (could be virtual scroll adding new row elements)
+                mutation.addedNodes.forEach((node) => {
+                    if (node.classList && node.classList.contains('tabulator-row')) {
+                        console.log(`[MutationObserver] NEW ROW added to DOM`);
                     }
                 });
             });
@@ -428,7 +463,12 @@ export class BasketMatchupsTable extends BaseTable {
             this.scrollEndTimeout = null;
             
             tableHolder.addEventListener('scroll', () => {
+                const wasScrolling = self.isScrolling;
                 self.isScrolling = true;
+                
+                if (!wasScrolling) {
+                    console.log(`[scroll] STARTED scrolling, scrollTop: ${tableHolder.scrollTop}`);
+                }
                 
                 // Clear existing timeout
                 if (self.scrollEndTimeout) {
@@ -437,6 +477,7 @@ export class BasketMatchupsTable extends BaseTable {
                 
                 // Set scrolling to false after scroll stops for 200ms
                 self.scrollEndTimeout = setTimeout(() => {
+                    console.log(`[scroll] ENDED (200ms idle), scrollTop: ${tableHolder.scrollTop}`);
                     self.isScrolling = false;
                     // After scrolling stops, do one check for missing subtables
                     self.restoreExpandedSubtables();
@@ -457,7 +498,12 @@ export class BasketMatchupsTable extends BaseTable {
         // Check every 500ms for missing subtables (but not during scrolling)
         this.subtableWatchdog = setInterval(() => {
             // Skip if scrolling, no table, or cache not ready
-            if (self.isScrolling || !self.table || !self.subtableDataReady) return;
+            if (!self.table || !self.subtableDataReady) return;
+            
+            if (self.isScrolling) {
+                // Don't log every 500ms during scroll - too noisy
+                return;
+            }
             
             const rows = self.table.getRows();
             let restoredAny = false;
@@ -467,7 +513,7 @@ export class BasketMatchupsTable extends BaseTable {
                 if (data._expanded) {
                     const rowElement = row.getElement();
                     if (rowElement && !rowElement.querySelector('.subrow-container')) {
-                        console.log(`Watchdog: Restoring subtable for Matchup ID ${data["Matchup ID"]}`);
+                        console.log(`[Watchdog] RESTORING subtable for Matchup ID ${data["Matchup ID"]}`);
                         self.createAndAppendSubtable(rowElement, data, true);
                         restoredAny = true;
                     }
@@ -661,7 +707,13 @@ export class BasketMatchupsTable extends BaseTable {
         if (!this.table || !this.subtableDataReady) return;
         
         // Don't restore during active scrolling
-        if (this.isScrolling) return;
+        if (this.isScrolling) {
+            console.log(`[restoreExpandedSubtables] BLOCKED - isScrolling=true`);
+            return;
+        }
+        
+        const tableHolder = this.table?.element?.querySelector('.tabulator-tableholder');
+        console.log(`[restoreExpandedSubtables] START - scrollTop: ${tableHolder?.scrollTop}, isScrolling: ${this.isScrolling}`);
         
         const rows = this.table.getRows();
         let restoredCount = 0;
@@ -678,7 +730,7 @@ export class BasketMatchupsTable extends BaseTable {
         });
         
         if (restoredCount > 0) {
-            console.log(`Restored ${restoredCount} expanded subtables`);
+            console.log(`[restoreExpandedSubtables] Restored ${restoredCount} subtables`);
         }
     }
 
