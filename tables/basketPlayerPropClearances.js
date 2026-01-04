@@ -36,7 +36,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "virtual",
+            // NOTE: renderHorizontal: "virtual" removed - incompatible with fitData layout
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -101,17 +101,41 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             console.log("Basketball Player Prop Clearances table built successfully");
             // Wait for table to be fully rendered before adjusting column widths
             setTimeout(() => {
-                this.equalizeClusteredColumns();
-                // Calculate and apply dynamic widths based on content and subtable needs
-                this.calculateAndApplyWidths();
+                // Only proceed if we have data loaded
+                const rowCount = this.table.getDataCount();
+                console.log(`Table has ${rowCount} rows loaded`);
+                
+                if (rowCount > 0) {
+                    this.equalizeClusteredColumns();
+                    // Calculate and apply dynamic widths based on content and subtable needs
+                    this.calculateAndApplyWidths();
+                } else {
+                    console.log('No data yet, width calculation deferred');
+                }
             }, 200);
             
             // Re-adjust on window resize
             window.addEventListener('resize', this.debounce(() => {
-                this.equalizeClusteredColumns();
-                this.calculateAndApplyWidths();
+                if (this.table && this.table.getDataCount() > 0) {
+                    this.equalizeClusteredColumns();
+                    this.calculateAndApplyWidths();
+                }
             }, 250));
         });
+        
+        // Also run width calculation after data loads
+        this.table.on("dataLoaded", () => {
+            setTimeout(() => {
+                console.log("Data loaded, recalculating widths...");
+                this.equalizeClusteredColumns();
+                this.calculateAndApplyWidths();
+            }, 100);
+        });
+    }
+    
+    // Backward compatibility alias for main.js resize handler
+    expandNameColumnToFill() {
+        this.calculateAndApplyWidths();
     }
     
     // Simple debounce helper
@@ -168,58 +192,70 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     
     // Calculate and apply widths based on content and subtable requirements
     calculateAndApplyWidths() {
-        if (!this.table) return;
+        if (!this.table) {
+            console.log('calculateAndApplyWidths: table not ready');
+            return;
+        }
         
         const tableElement = this.table.element;
-        if (!tableElement) return;
+        if (!tableElement) {
+            console.log('calculateAndApplyWidths: tableElement not ready');
+            return;
+        }
         
-        // Get all columns and calculate total width of non-Name columns
-        const columns = this.table.getColumns();
-        let otherColumnsWidth = 0;
-        let nameColumn = null;
-        let nameColumnWidth = 0;
-        
-        columns.forEach(col => {
-            const field = col.getField();
-            const width = col.getWidth();
+        try {
+            // Get all columns and calculate total width of non-Name columns
+            const columns = this.table.getColumns();
+            let otherColumnsWidth = 0;
+            let nameColumn = null;
+            let nameColumnWidth = 0;
             
-            if (field === "Player Name") {
-                nameColumn = col;
-                nameColumnWidth = width;
-            } else {
-                otherColumnsWidth += width;
+            columns.forEach(col => {
+                const field = col.getField();
+                const width = col.getWidth();
+                
+                if (field === "Player Name") {
+                    nameColumn = col;
+                    nameColumnWidth = width;
+                } else {
+                    otherColumnsWidth += width;
+                }
+            });
+            
+            // Calculate current primary row width
+            const primaryRowWidth = nameColumnWidth + otherColumnsWidth;
+            
+            console.log(`Width calculation: Name=${nameColumnWidth}px, Others=${otherColumnsWidth}px, Primary Row=${primaryRowWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            
+            // If subtables need more width than primary row provides, expand Name column
+            if (SUBTABLE_MIN_WIDTH > primaryRowWidth && nameColumn) {
+                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - primaryRowWidth;
+                const newNameWidth = nameColumnWidth + additionalWidthNeeded;
+                
+                nameColumn.setWidth(newNameWidth);
+                console.log(`Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
             }
-        });
-        
-        // Calculate current primary row width
-        const primaryRowWidth = nameColumnWidth + otherColumnsWidth;
-        
-        console.log(`Width calculation: Name=${nameColumnWidth}px, Others=${otherColumnsWidth}px, Primary Row=${primaryRowWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
-        
-        // If subtables need more width than primary row provides, expand Name column
-        if (SUBTABLE_MIN_WIDTH > primaryRowWidth && nameColumn) {
-            const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - primaryRowWidth;
-            const newNameWidth = nameColumnWidth + additionalWidthNeeded;
             
-            nameColumn.setWidth(newNameWidth);
-            console.log(`Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+            // Calculate final total width
+            const finalNameWidth = nameColumn ? nameColumn.getWidth() : nameColumnWidth;
+            const finalTotalWidth = finalNameWidth + otherColumnsWidth;
+            
+            // Set width constraints on the table element itself (left-justified like Matchups)
+            tableElement.style.width = finalTotalWidth + 'px';
+            tableElement.style.maxWidth = finalTotalWidth + 'px';
+            
+            // Set the table container to contract to content width (left-justified)
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.maxWidth = finalTotalWidth + 'px';
+            }
+            
+            console.log(`Set table width to ${finalTotalWidth}px (left-justified)`);
+            
+        } catch (error) {
+            console.error('Error in calculateAndApplyWidths:', error);
         }
-        
-        // Calculate final total width
-        const finalNameWidth = nameColumn ? nameColumn.getWidth() : nameColumnWidth;
-        const finalTotalWidth = finalNameWidth + otherColumnsWidth;
-        
-        // Set container max-width to prevent excess stretching
-        // Find the table container and apply max-width
-        const tableContainer = tableElement.closest('.table-container');
-        if (tableContainer) {
-            tableContainer.style.maxWidth = finalTotalWidth + 'px';
-            tableContainer.style.margin = '0 auto'; // Center the contracted container
-            console.log(`Set container max-width to ${finalTotalWidth}px`);
-        }
-        
-        // Also set the tabulator element itself
-        tableElement.style.maxWidth = finalTotalWidth + 'px';
     }
 
     // Custom sorter for Games format "X/Y" - sorts by first number
