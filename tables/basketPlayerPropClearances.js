@@ -30,13 +30,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // Build config - need to remove renderHorizontal which is incompatible with fitData layout
         const config = {
             ...this.tableConfig,
             // Optimize for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: false,  // Explicitly disable - incompatible with fitData layout
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -93,6 +93,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.error("Error loading basketball data:", error);
             }
         };
+
+        // Remove renderHorizontal - it's incompatible with fitData layout
+        delete config.renderHorizontal;
 
         this.table = new Tabulator(this.elementId, config);
         this.setupRowExpansion();
@@ -240,18 +243,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             const finalNameWidth = nameColumn ? nameColumn.getWidth() : nameColumnWidth;
             const finalTotalWidth = finalNameWidth + otherColumnsWidth;
             
-            // Set width constraints on the table element itself (left-justified like Matchups)
-            tableElement.style.width = finalTotalWidth + 'px';
-            tableElement.style.maxWidth = finalTotalWidth + 'px';
-            
-            // Set the table container to contract to content width (left-justified)
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.width = 'fit-content';
-                tableContainer.style.maxWidth = finalTotalWidth + 'px';
-            }
-            
-            console.log(`Set table width to ${finalTotalWidth}px (left-justified)`);
+            // With fitData layout, the table should naturally size to content
+            // Just log the calculated width for debugging
+            console.log(`Table calculated width: ${finalTotalWidth}px (left-justified via fitData layout)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
