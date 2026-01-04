@@ -9,11 +9,16 @@
 // - Based on working baseball repository expansion pattern
 // - UPDATED: Clearance now converts from decimal to percentage (multiply by 100)
 // - UPDATED: Matchup Total now displays with 1 forced decimal place
+// - UPDATED: Dynamic width calculation - container contracts to content, expands for subtables
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+
+// Minimum width needed for subtables (3 boxes + gaps)
+// Matchup Details (~180px) + Minutes Data (~150px) + Best Books (~150px) + gaps (30px)
+const SUBTABLE_MIN_WIDTH = 550;
 
 export class BasketPlayerPropClearancesTable extends BaseTable {
     constructor(elementId) {
@@ -40,9 +45,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
             
-            // fitDataFill: columns size to content, extra space distributed by widthGrow
-            // Name column has widthGrow:1 (absorbs extra), all others have widthGrow:0
-            layout: "fitDataFill",
+            // fitData: columns size to content only, no fill
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -98,19 +102,15 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             // Wait for table to be fully rendered before adjusting column widths
             setTimeout(() => {
                 this.equalizeClusteredColumns();
-                // After equalizing clusters, expand Name column to fill remaining space (desktop only)
-                if (!isSmallScreen) {
-                    this.expandNameColumnToFill();
-                }
+                // Calculate and apply dynamic widths based on content and subtable needs
+                this.calculateAndApplyWidths();
             }, 200);
             
-            // Re-adjust on window resize (desktop only)
-            if (!isSmallScreen) {
-                window.addEventListener('resize', this.debounce(() => {
-                    this.equalizeClusteredColumns();
-                    this.expandNameColumnToFill();
-                }, 250));
-            }
+            // Re-adjust on window resize
+            window.addEventListener('resize', this.debounce(() => {
+                this.equalizeClusteredColumns();
+                this.calculateAndApplyWidths();
+            }, 250));
         });
     }
     
@@ -166,31 +166,60 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         });
     }
     
-    // Expand Name column to fill remaining container width (desktop only)
-    expandNameColumnToFill() {
+    // Calculate and apply widths based on content and subtable requirements
+    calculateAndApplyWidths() {
         if (!this.table) return;
         
         const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
+        if (!tableElement) return;
         
-        // Get current total width of all columns
-        let totalColumnWidth = 0;
+        // Get all columns and calculate total width of non-Name columns
         const columns = this.table.getColumns();
+        let otherColumnsWidth = 0;
+        let nameColumn = null;
+        let nameColumnWidth = 0;
+        
         columns.forEach(col => {
-            totalColumnWidth += col.getWidth();
+            const field = col.getField();
+            const width = col.getWidth();
+            
+            if (field === "Player Name") {
+                nameColumn = col;
+                nameColumnWidth = width;
+            } else {
+                otherColumnsWidth += width;
+            }
         });
         
-        // Calculate remaining space
-        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
+        // Calculate current primary row width
+        const primaryRowWidth = nameColumnWidth + otherColumnsWidth;
         
-        if (remainingSpace > 0) {
-            const nameColumn = this.table.getColumn("Player Name");
-            if (nameColumn) {
-                const currentWidth = nameColumn.getWidth();
-                nameColumn.setWidth(currentWidth + remainingSpace);
-                console.log(`Name column expanded by ${remainingSpace}px to fill container`);
-            }
+        console.log(`Width calculation: Name=${nameColumnWidth}px, Others=${otherColumnsWidth}px, Primary Row=${primaryRowWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+        
+        // If subtables need more width than primary row provides, expand Name column
+        if (SUBTABLE_MIN_WIDTH > primaryRowWidth && nameColumn) {
+            const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - primaryRowWidth;
+            const newNameWidth = nameColumnWidth + additionalWidthNeeded;
+            
+            nameColumn.setWidth(newNameWidth);
+            console.log(`Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
         }
+        
+        // Calculate final total width
+        const finalNameWidth = nameColumn ? nameColumn.getWidth() : nameColumnWidth;
+        const finalTotalWidth = finalNameWidth + otherColumnsWidth;
+        
+        // Set container max-width to prevent excess stretching
+        // Find the table container and apply max-width
+        const tableContainer = tableElement.closest('.table-container');
+        if (tableContainer) {
+            tableContainer.style.maxWidth = finalTotalWidth + 'px';
+            tableContainer.style.margin = '0 auto'; // Center the contracted container
+            console.log(`Set container max-width to ${finalTotalWidth}px`);
+        }
+        
+        // Also set the tabulator element itself
+        tableElement.style.maxWidth = finalTotalWidth + 'px';
     }
 
     // Custom sorter for Games format "X/Y" - sorts by first number
@@ -318,7 +347,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
         return [
             // =====================================================
-            // NAME COLUMN - widthGrow:1 means it absorbs ALL extra space
+            // NAME COLUMN - No widthGrow, sizes to content
+            // Will be expanded by calculateAndApplyWidths() if subtables need more space
             // Frozen on mobile/tablet for horizontal scrolling
             // Standalone header (no parent group)
             // =====================================================
@@ -326,7 +356,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 title: "Name", 
                 field: "Player Name", 
                 frozen: isSmallScreen,
-                widthGrow: 1,
+                // widthGrow removed - column sizes to content, expanded dynamically if needed
                 minWidth: 120,
                 sorter: "string", 
                 headerFilter: true,
@@ -862,7 +892,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
 
     // =====================================================
-    // UPDATED: Subtable content with 1 decimal place for minutes and total
+    // UPDATED: Subtable content with flex-nowrap to keep boxes in a row
     // =====================================================
     createSubtableContent(container, data) {
         // Build subtable content
@@ -879,10 +909,10 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const bestOverBook = data["Player Best Over Odds Books"] || '-';
         const bestUnderBook = data["Player Best Under Odds Books"] || '-';
         
-        // Subtables use inline-block and fit-content to contract to data size
+        // UPDATED: flex-nowrap ensures subtables stay in a single row
         container.innerHTML = `
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+            <div style="display: flex; flex-wrap: nowrap; gap: 15px; justify-content: flex-start;">
+                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
@@ -890,14 +920,14 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         <div><strong>Total:</strong> ${total}</div>
                     </div>
                 </div>
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Minutes Data</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Median:</strong> ${medianMinutes}</div>
                         <div><strong>Average:</strong> ${avgMinutes}</div>
                     </div>
                 </div>
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Best Books</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Over:</strong> ${bestOverBook}</div>
