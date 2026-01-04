@@ -644,7 +644,7 @@ export class BasketMatchupsTable extends BaseTable {
         }
         
         // Get pace value (same for both splits)
-        const paceValue = defenseData[0]?.["Pace"] || '-';
+        const paceValue = defenseData[0]?.["Pace Rank"] || '-';
         
         // Sort by split (Full Season first, then Last 30 Days)
         const sortedData = [...defenseData].sort((a, b) => {
