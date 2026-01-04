@@ -1,6 +1,11 @@
 // tables/basketMatchups.js - Basketball Matchups Table
 // Pulls from three Supabase tables: BasketMatchupsGame, BasketMatchupsDefense, BasketMatchupsPlayers
 // Features expandable rows with 4 stacked subtables
+// UPDATED: 
+// - Column widths: Matchup 50%, Spread 25%, Total 25%
+// - FT header changed to FTM in player subtables
+// - All player stats now have forced decimal places
+// - Out/OFS players consolidated to single row, sorted at bottom (Out above OFS)
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -143,10 +148,11 @@ export class BasketMatchupsTable extends BaseTable {
                 visible: false,
                 sorter: "number"
             },
+            // UPDATED: Matchup column now 50% width
             {
                 title: "Matchup", 
                 field: "Matchup", 
-                width: "33.33%",
+                width: "50%",
                 minWidth: 200,
                 sorter: "string",
                 resizable: false,
@@ -154,19 +160,21 @@ export class BasketMatchupsTable extends BaseTable {
                 hozAlign: "left",
                 cssClass: "matchup-cell"
             },
+            // UPDATED: Spread column now 25% width
             {
                 title: "Spread", 
                 field: "Spread", 
-                width: "33.33%",
+                width: "25%",
                 minWidth: 100,
                 sorter: "string",
                 resizable: false,
                 hozAlign: "center"
             },
+            // UPDATED: Total column now 25% width
             {
                 title: "Total", 
                 field: "Total", 
-                width: "33.33%",
+                width: "25%",
                 minWidth: 100,
                 sorter: "string",
                 resizable: false,
@@ -199,46 +207,138 @@ export class BasketMatchupsTable extends BaseTable {
             if (matchupColumn) {
                 const currentWidth = matchupColumn.getWidth();
                 matchupColumn.setWidth(currentWidth + remainingSpace);
-                console.log(`Matchups table Matchup column expanded by ${remainingSpace}px to fill container`);
             }
         }
     }
-    
-    // Alias for TabManager compatibility
-    expandNameColumnToFill() {
-        this.expandMatchupColumnToFill();
+
+    // Create name formatter with expand icon
+    createNameFormatter() {
+        const self = this;
+        
+        return (cell) => {
+            const value = cell.getValue();
+            if (!value) return '-';
+            
+            const data = cell.getRow().getData();
+            const expanded = data._expanded || false;
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
+            
+            const icon = document.createElement('span');
+            icon.className = 'expand-icon';
+            icon.style.cssText = 'margin-right: 6px; font-size: 10px; transition: transform 0.2s; color: #f97316; display: inline-flex; width: 12px;';
+            icon.innerHTML = '▶';
+            
+            if (expanded) {
+                icon.style.transform = 'rotate(90deg)';
+            }
+            
+            const text = document.createElement('span');
+            text.textContent = value;
+            text.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+            
+            container.appendChild(icon);
+            container.appendChild(text);
+            
+            return container;
+        };
     }
 
-    // Parse matchup string to extract away and home team names
+    // Row formatter for expanded state
+    createRowFormatter() {
+        return (row) => {
+            const data = row.getData();
+            if (data._expanded) {
+                row.getElement().classList.add('row-expanded');
+            } else {
+                row.getElement().classList.remove('row-expanded');
+            }
+        };
+    }
+
+    // Setup row expansion click handlers
+    setupRowExpansion() {
+        const self = this;
+        
+        this.table.on("cellClick", function(e, cell) {
+            if (cell.getColumn().getField() !== "Matchup") return;
+            
+            const row = cell.getRow();
+            const data = row.getData();
+            
+            // Toggle expanded state
+            data._expanded = !data._expanded;
+            row.update(data);
+            
+            // Handle expansion/collapse
+            self.handleRowExpansion(row, data._expanded);
+        });
+    }
+
+    // Handle row expansion/collapse
+    handleRowExpansion(row, expanded) {
+        const self = this;
+        const rowElement = row.getElement();
+        const data = row.getData();
+        
+        if (expanded) {
+            // Check if subtable already exists
+            if (rowElement.querySelector('.subrow-container')) return;
+            
+            rowElement.classList.add('row-expanded');
+            
+            requestAnimationFrame(() => {
+                const holderEl = document.createElement("div");
+                holderEl.classList.add('subrow-container');
+                holderEl.style.cssText = `
+                    padding: 15px 20px;
+                    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+                    border-top: 2px solid #f97316;
+                    margin: 0;
+                    display: block;
+                    width: 100%;
+                    position: relative;
+                    z-index: 1;
+                `;
+                
+                try {
+                    self.createSubtableContent(holderEl, data);
+                } catch (error) {
+                    console.error("Error creating matchups subtable content:", error);
+                    holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
+                }
+                
+                rowElement.appendChild(holderEl);
+                
+                setTimeout(() => {
+                    row.normalizeHeight();
+                }, 50);
+            });
+        } else {
+            const existingSubrow = rowElement.querySelector('.subrow-container');
+            if (existingSubrow) {
+                existingSubrow.remove();
+                rowElement.classList.remove('row-expanded');
+                
+                setTimeout(() => {
+                    row.normalizeHeight();
+                }, 50);
+            }
+        }
+    }
+
+    // Parse matchup string to get home/away teams
     parseMatchup(matchupStr) {
         if (!matchupStr) return { away: null, home: null };
         
-        // Format: "Team Name @ Team Name (date/time)" or similar
-        // Find the @ symbol to split
-        const atIndex = matchupStr.indexOf('@');
-        if (atIndex === -1) return { away: null, home: null };
+        // Format: "Away Team @ Home Team" or "Away Team @ Home Team 1/4 7:00PM"
+        const parts = matchupStr.split('@');
+        if (parts.length !== 2) return { away: null, home: null };
         
-        const awayPart = matchupStr.substring(0, atIndex).trim();
-        let homePart = matchupStr.substring(atIndex + 1).trim();
-        
-        // Remove date/time portion if present (usually in parentheses or after the team name)
-        // Try to match team name by checking against our mapping
-        let awayTeam = awayPart;
-        let homeTeam = homePart;
-        
-        // Check if we can find a matching team name
-        for (const fullName of Object.keys(this.teamAbbrevMap)) {
-            if (awayPart.includes(fullName)) {
-                awayTeam = fullName;
-            }
-            if (homePart.includes(fullName)) {
-                homeTeam = fullName;
-            }
-        }
-        
-        // If we couldn't find exact matches, try to extract just the team part
-        // Remove anything after common separators like ( or numbers
-        homeTeam = homeTeam.replace(/\s*\(.*$/, '').replace(/\s*\d{1,2}\/\d{1,2}.*$/, '').trim();
+        const awayTeam = parts[0].trim();
+        // Remove date/time if present
+        const homeTeam = parts[1].replace(/\s+\d{1,2}:\d{2}(AM|PM)?.*$/, '').replace(/\s*\d{1,2}\/\d{1,2}.*$/, '').trim();
         
         return { away: awayTeam, home: homeTeam };
     }
@@ -316,204 +416,23 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Fetch data from a specific endpoint
     async fetchFromEndpoint(endpoint) {
-        console.log('DEBUG - fetchFromEndpoint called for:', endpoint);
-        console.log('DEBUG - this.endpoint is:', this.endpoint);
+        const url = `https://hcwolbvmffkmjcxsumwn.supabase.co/rest/v1/${endpoint}`;
+        const headers = {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjd29sYnZtZmZrbWpjeHN1bXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzNDQzMTIsImV4cCI6MjA1NTkyMDMxMn0.tM4RwXZpZM6ZHuFFMhWcKYLT3E4NA6Ig90CHw7QtJf0",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjd29sYnZtZmZrbWpjeHN1bXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzNDQzMTIsImV4cCI6MjA1NTkyMDMxMn0.tM4RwXZpZM6ZHuFFMhWcKYLT3E4NA6Ig90CHw7QtJf0",
+            "Content-Type": "application/json"
+        };
+        
         try {
-            const baseConfig = this.getBaseConfig();
-            console.log('DEBUG - baseConfig:', baseConfig);
-            console.log('DEBUG - baseConfig.ajaxURL:', baseConfig?.ajaxURL);
-            
-            if (!baseConfig || !baseConfig.ajaxURL) {
-                console.error('DEBUG - baseConfig or ajaxURL is missing!');
-                return null;
-            }
-            
-            const url = `${baseConfig.ajaxURL.replace(this.endpoint, endpoint)}`;
-            console.log('DEBUG - Fetching from URL:', url);
-            console.log('DEBUG - Using headers:', baseConfig.ajaxConfig?.headers);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: baseConfig.ajaxConfig.headers
-            });
-            
-            console.log('DEBUG - Response status:', response.status);
-            
+            const response = await fetch(url, { headers });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
-            const data = await response.json();
-            console.log('DEBUG - Data received from', endpoint, ':', data?.length, 'rows');
-            return data;
+            return await response.json();
         } catch (error) {
             console.error(`Error fetching from ${endpoint}:`, error);
             return null;
         }
-    }
-
-    // Name formatter with expand icon
-    createNameFormatter() {
-        const self = this;
-        
-        return (cell) => {
-            const value = cell.getValue();
-            if (!value) return '-';
-            
-            const data = cell.getRow().getData();
-            const expanded = data._expanded || false;
-            
-            const container = document.createElement('div');
-            container.style.cssText = 'display: flex; align-items: center; cursor: pointer;';
-            
-            const icon = document.createElement('span');
-            icon.className = 'expand-icon';
-            icon.style.cssText = 'margin-right: 6px; font-size: 10px; transition: transform 0.2s; color: #f97316; display: inline-flex; width: 12px;';
-            icon.innerHTML = '▶';
-            
-            if (expanded) {
-                icon.style.transform = 'rotate(90deg)';
-            }
-            
-            const text = document.createElement('span');
-            text.textContent = value;
-            text.style.cssText = 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-            
-            container.appendChild(icon);
-            container.appendChild(text);
-            
-            return container;
-        };
-    }
-
-    // Row expansion setup
-    setupRowExpansion() {
-        if (!this.table) return;
-        
-        const self = this;
-        let expansionTimeout;
-        
-        this.table.on("cellClick", (e, cell) => {
-            const field = cell.getField();
-            
-            if (field === "Matchup") {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (expansionTimeout) {
-                    clearTimeout(expansionTimeout);
-                }
-                
-                expansionTimeout = setTimeout(() => {
-                    const row = cell.getRow();
-                    const data = row.getData();
-                    
-                    if (data._expanded === undefined) {
-                        data._expanded = false;
-                    }
-                    
-                    data._expanded = !data._expanded;
-                    
-                    const rowId = self.generateRowId(data);
-                    if (data._expanded) {
-                        self.expandedRowsCache.add(rowId);
-                        if (window.globalExpandedState) {
-                            window.globalExpandedState.set(`${self.elementId}_${rowId}`, true);
-                        }
-                    } else {
-                        self.expandedRowsCache.delete(rowId);
-                        if (window.globalExpandedState) {
-                            window.globalExpandedState.delete(`${self.elementId}_${rowId}`);
-                        }
-                    }
-                    
-                    console.log(`Matchup row ${data._expanded ? 'expanded' : 'collapsed'}: ${data["Matchup"]}`);
-                    
-                    row.update(data);
-                    
-                    const cellElement = cell.getElement();
-                    const expanderIcon = cellElement.querySelector('.expand-icon');
-                    if (expanderIcon) {
-                        expanderIcon.style.transform = data._expanded ? 'rotate(90deg)' : '';
-                    }
-                    
-                    requestAnimationFrame(() => {
-                        row.reformat();
-                    });
-                }, 50);
-            }
-        });
-    }
-
-    // Generate unique row ID
-    generateRowId(data) {
-        return `matchup_${data["Matchup ID"] || ''}_${data["Matchup"] || ''}`;
-    }
-
-    // Row formatter with subtable creation
-    createRowFormatter() {
-        const self = this;
-        
-        return (row) => {
-            const data = row.getData();
-            const rowElement = row.getElement();
-            
-            if (data._expanded === undefined) {
-                data._expanded = false;
-            }
-            
-            if (data._expanded) {
-                rowElement.classList.add('row-expanded');
-            } else {
-                rowElement.classList.remove('row-expanded');
-            }
-            
-            if (data._expanded) {
-                let existingSubrow = rowElement.querySelector('.subrow-container');
-                
-                if (!existingSubrow) {
-                    requestAnimationFrame(() => {
-                        if (rowElement.querySelector('.subrow-container')) return;
-                        
-                        const holderEl = document.createElement("div");
-                        holderEl.classList.add('subrow-container');
-                        holderEl.style.cssText = `
-                            padding: 15px 20px;
-                            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-                            border-top: 2px solid #f97316;
-                            margin: 0;
-                            display: block;
-                            width: 100%;
-                            position: relative;
-                            z-index: 1;
-                        `;
-                        
-                        try {
-                            self.createSubtableContent(holderEl, data);
-                        } catch (error) {
-                            console.error("Error creating matchups subtable content:", error);
-                            holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
-                        }
-                        
-                        rowElement.appendChild(holderEl);
-                        
-                        setTimeout(() => {
-                            row.normalizeHeight();
-                        }, 50);
-                    });
-                }
-            } else {
-                const existingSubrow = rowElement.querySelector('.subrow-container');
-                if (existingSubrow) {
-                    existingSubrow.remove();
-                    rowElement.classList.remove('row-expanded');
-                    
-                    setTimeout(() => {
-                        row.normalizeHeight();
-                    }, 50);
-                }
-            }
-        };
     }
 
     // Create all subtable content (4 stacked tables)
@@ -742,11 +661,43 @@ export class BasketMatchupsTable extends BaseTable {
             return container;
         }
         
-        // Sort players: 
-        // 1. Starters before Bench
-        // 2. Within each group, group by player name
-        // 3. Full Season before Last 30 Days for each player
-        const sortedData = [...playerData].sort((a, b) => {
+        // UPDATED: New sorting logic for Out/OFS players
+        // 1. Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
+        // 2. Then Out players (alphabetically, single row each)
+        // 3. Then OFS players at very bottom (alphabetically, single row each)
+        
+        // First, separate players into categories
+        const activePlayers = [];
+        const outPlayers = [];
+        const ofsPlayers = [];
+        
+        // Group by player name to handle duplicates (Full Season / Last 30 Days)
+        const playersByName = new Map();
+        
+        playerData.forEach(row => {
+            const playerName = row["Player"] || '';
+            const isOut = playerName.includes('(Out)');
+            const isOFS = playerName.includes('(OFS)');
+            
+            if (isOut) {
+                // For Out players, only keep one row per player (dedupe)
+                if (!playersByName.has(playerName)) {
+                    playersByName.set(playerName, row);
+                    outPlayers.push(row);
+                }
+            } else if (isOFS) {
+                // For OFS players, only keep one row per player (dedupe)
+                if (!playersByName.has(playerName)) {
+                    playersByName.set(playerName, row);
+                    ofsPlayers.push(row);
+                }
+            } else {
+                activePlayers.push(row);
+            }
+        });
+        
+        // Sort active players: Starters before Bench, then by name, then Full Season before Last 30 Days
+        activePlayers.sort((a, b) => {
             // First: Starters vs Bench
             const aStarter = (a["Lineup"] || '').includes('Starter') ? 0 : 1;
             const bStarter = (b["Lineup"] || '').includes('Starter') ? 0 : 1;
@@ -763,11 +714,28 @@ export class BasketMatchupsTable extends BaseTable {
             return aSplit - bSplit;
         });
         
+        // Sort Out players alphabetically by name
+        outPlayers.sort((a, b) => {
+            const aName = a["Player"] || '';
+            const bName = b["Player"] || '';
+            return aName.localeCompare(bName);
+        });
+        
+        // Sort OFS players alphabetically by name
+        ofsPlayers.sort((a, b) => {
+            const aName = a["Player"] || '';
+            const bName = b["Player"] || '';
+            return aName.localeCompare(bName);
+        });
+        
+        // Combine: Active players, then Out, then OFS
+        const sortedData = [...activePlayers, ...outPlayers, ...ofsPlayers];
+        
         // Create table
         const table = document.createElement('table');
         table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
         
-        // Header
+        // Header - UPDATED: Changed "FT" to "FTM"
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
@@ -781,7 +749,7 @@ export class BasketMatchupsTable extends BaseTable {
                 <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Points</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FT</th>
+                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTM</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
@@ -808,19 +776,22 @@ export class BasketMatchupsTable extends BaseTable {
             const minutes = this.formatMinutes(row["Minutes"]);
             
             // Check if player is Out or OFS (injury status in name)
-            const isOut = playerName.includes('(Out)') || playerName.includes('(OFS)');
+            const isOut = playerName.includes('(Out)');
+            const isOFS = playerName.includes('(OFS)');
+            const isInactive = isOut || isOFS;
             
-            // Format: "Name - Starter/Bench - Split - X Games - X Mins"
-            // If out, don't show games/minutes
+            // UPDATED: Format player info differently for Out/OFS vs active players
             let playerInfo;
-            if (isOut) {
-                playerInfo = `${playerName} - ${lineup} - ${split}`;
+            if (isInactive) {
+                // For Out/OFS players: just show name (no Starter/Bench, no Split, no Games/Mins)
+                playerInfo = playerName;
             } else {
+                // For active players: "Name - Starter/Bench - Split - X Games - X Mins"
                 playerInfo = `${playerName} - ${lineup} - ${split} - ${games} Games - ${minutes} Mins`;
             }
             
             // If player is Out/OFS, show "-" for all stats
-            if (isOut) {
+            if (isInactive) {
                 tr.innerHTML = `
                     <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
                     <td style="padding: 4px 8px; text-align: center;">-</td>
@@ -837,20 +808,21 @@ export class BasketMatchupsTable extends BaseTable {
                     <td style="padding: 4px 8px; text-align: center;">-</td>
                 `;
             } else {
+                // UPDATED: Use formatStatValue for all stats to force decimal places
                 tr.innerHTML = `
                     <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["Pts"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["3P"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["FT"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["Assists"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["ORebs"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["DRebs"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["Rebs"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["Blocks"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["Steals"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["TOs"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["DD"] || '-'}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${row["TD"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
                 `;
             }
             tbody.appendChild(tr);
@@ -861,11 +833,27 @@ export class BasketMatchupsTable extends BaseTable {
         return container;
     }
 
-    // Format minutes with 1 decimal
+    // Format minutes with 1 decimal place
     formatMinutes(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '0.0';
         const num = parseFloat(value);
         if (isNaN(num)) return '0.0';
         return num.toFixed(1);
+    }
+
+    // ADDED: Format stat values with 1 decimal place (for medians)
+    formatStatValue(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '-';
+        return num.toFixed(1);
+    }
+
+    // ADDED: Format integer values (for DD/TD totals - no decimal needed)
+    formatIntegerValue(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        const num = parseInt(value, 10);
+        if (isNaN(num)) return '-';
+        return String(num);
     }
 }
