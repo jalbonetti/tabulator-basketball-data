@@ -681,9 +681,9 @@ export class BasketMatchupsTable extends BaseTable {
             flex-direction: column;
             gap: 15px;
             max-height: 450px;
-            overflow-y: auto;
+            overflow-y: scroll;
             overflow-x: hidden;
-            padding-right: 5px;
+            box-sizing: border-box;
         `;
         
         // 1. Away Defense
