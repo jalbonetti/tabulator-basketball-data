@@ -86,6 +86,12 @@ export class BasketMatchupsTable extends BaseTable {
                 console.log(`Matchups table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
+                // DEBUG: Log first row to see all column names
+                if (data.length > 0) {
+                    console.log('DEBUG - Matchups First row ALL COLUMNS:', JSON.stringify(data[0], null, 2));
+                    console.log('DEBUG - Column names:', Object.keys(data[0]));
+                }
+                
                 // Initialize expansion state for each row
                 data.forEach(row => {
                     if (row._expanded === undefined) {
@@ -209,14 +215,21 @@ export class BasketMatchupsTable extends BaseTable {
     async prefetchSubtableData(mainData) {
         const matchupIds = mainData.map(row => row["Matchup ID"]).filter(id => id != null);
         
-        if (matchupIds.length === 0) return;
+        if (matchupIds.length === 0) {
+            console.log('DEBUG - No Matchup IDs found in main data');
+            return;
+        }
         
         console.log(`Prefetching subtable data for ${matchupIds.length} matchups...`);
+        console.log('DEBUG - Matchup IDs:', matchupIds);
         
         try {
             // Fetch defense data
+            console.log('DEBUG - Fetching defense data from:', this.ENDPOINTS.DEFENSE);
             const defenseData = await this.fetchFromEndpoint(this.ENDPOINTS.DEFENSE);
-            if (defenseData) {
+            console.log('DEBUG - Defense data received:', defenseData ? defenseData.length : 'null', 'rows');
+            if (defenseData && defenseData.length > 0) {
+                console.log('DEBUG - Defense first row:', JSON.stringify(defenseData[0], null, 2));
                 defenseData.forEach(row => {
                     const matchupId = row["Matchup ID"];
                     if (!this.defenseDataCache.has(matchupId)) {
@@ -228,8 +241,11 @@ export class BasketMatchupsTable extends BaseTable {
             }
             
             // Fetch player data
+            console.log('DEBUG - Fetching player data from:', this.ENDPOINTS.PLAYERS);
             const playerData = await this.fetchFromEndpoint(this.ENDPOINTS.PLAYERS);
-            if (playerData) {
+            console.log('DEBUG - Player data received:', playerData ? playerData.length : 'null', 'rows');
+            if (playerData && playerData.length > 0) {
+                console.log('DEBUG - Player first row:', JSON.stringify(playerData[0], null, 2));
                 playerData.forEach(row => {
                     const matchupId = row["Matchup ID"];
                     if (!this.playersDataCache.has(matchupId)) {
@@ -435,6 +451,12 @@ export class BasketMatchupsTable extends BaseTable {
         const matchupId = data["Matchup ID"];
         const matchupStr = data["Matchup"];
         
+        console.log('DEBUG - Creating subtables for row:', {
+            matchupId,
+            matchupStr,
+            allData: data
+        });
+        
         // Parse home/away teams
         const { away: awayTeamFull, home: homeTeamFull } = this.parseMatchup(matchupStr);
         const awayAbbrev = this.getTeamAbbrev(awayTeamFull);
@@ -446,11 +468,25 @@ export class BasketMatchupsTable extends BaseTable {
         const defenseData = this.defenseDataCache.get(matchupId) || [];
         const playerData = this.playersDataCache.get(matchupId) || [];
         
+        console.log('DEBUG - Cached data for this matchup:', {
+            defenseDataCount: defenseData.length,
+            playerDataCount: playerData.length,
+            defenseData: defenseData,
+            playerData: playerData
+        });
+        
         // Get lineup status and B2B info from main data
         const lineupAway = data["Lineup Status Away"] || '';
         const lineupHome = data["Lineup Status Home"] || '';
         const b2bAway = data["B2B Away"] === 'Yes';
         const b2bHome = data["B2B Home"] === 'Yes';
+        
+        console.log('DEBUG - Lineup and B2B:', {
+            lineupAway,
+            lineupHome,
+            b2bAway,
+            b2bHome
+        });
         
         // Filter defense data by team
         const awayDefense = defenseData.filter(d => d["Team"] === awayAbbrev);
@@ -459,6 +495,13 @@ export class BasketMatchupsTable extends BaseTable {
         // Filter player data by team
         const awayPlayers = playerData.filter(p => p["Team"] === awayAbbrev);
         const homePlayers = playerData.filter(p => p["Team"] === homeAbbrev);
+        
+        console.log('DEBUG - Filtered data:', {
+            awayDefenseCount: awayDefense.length,
+            homeDefenseCount: homeDefense.length,
+            awayPlayersCount: awayPlayers.length,
+            homePlayersCount: homePlayers.length
+        });
         
         // Determine lineup type (Expected/Confirmed) from Games table
         const awayLineupType = this.getLineupType(lineupAway);
