@@ -8,7 +8,8 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 
 // Minimum width needed to display subtables in a single row
-const SUBTABLE_MIN_WIDTH = 750;
+// DK has more columns (DDs, TDs) than FD, so needs significantly more width
+const SUBTABLE_MIN_WIDTH = 1100;
 
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
