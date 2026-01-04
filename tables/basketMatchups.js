@@ -64,6 +64,29 @@ export class BasketMatchupsTable extends BaseTable {
         Object.entries(this.teamNameMap).forEach(([abbrev, fullName]) => {
             this.teamAbbrevMap[fullName] = abbrev;
         });
+        
+        // Flag to track when subtable data cache is ready
+        this.subtableDataReady = false;
+        
+        // Track saved expanded rows for tab switching
+        this.savedExpandedRows = new Set();
+        
+        // Watchdog and observer references
+        this.subtableWatchdog = null;
+        this.subtableObserver = null;
+    }
+
+    // Override generateRowId for stable matchup identification
+    generateRowId(data) {
+        if (data["Matchup ID"] != null) {
+            return `matchup_${data["Matchup ID"]}`;
+        }
+        // Fallback to matchup string
+        if (data["Matchup"]) {
+            return `matchup_${data["Matchup"].replace(/[^a-zA-Z0-9]/g, '_')}`;
+        }
+        // Last resort fallback
+        return super.generateRowId ? super.generateRowId(data) : `matchup_unknown_${Date.now()}`;
     }
 
     initialize() {
@@ -120,6 +143,9 @@ export class BasketMatchupsTable extends BaseTable {
         this.table.on("tableBuilt", () => {
             console.log("Matchups table built successfully");
             
+            // Setup MutationObserver for subtable preservation
+            this.setupSubtableObserver();
+            
             // Fallback: If data is already loaded (from cache), prefetch subtable data
             const data = this.table.getData();
             console.log('DEBUG - tableBuilt: table has', data.length, 'rows');
@@ -135,6 +161,33 @@ export class BasketMatchupsTable extends BaseTable {
             if (data.length > 0 && this.defenseDataCache.size === 0) {
                 console.log('DEBUG - tableBuilt: Triggering prefetch as fallback...');
                 this.prefetchSubtableData(data);
+            }
+        });
+        
+        // Handle render complete - restore any missing subtables
+        this.table.on("renderComplete", () => {
+            if (this.subtableDataReady) {
+                // Small delay to let DOM settle
+                setTimeout(() => {
+                    this.restoreExpandedSubtables();
+                }, 50);
+            }
+        });
+        
+        // Handle data filtering/sorting - these can cause row re-renders
+        this.table.on("dataFiltered", () => {
+            if (this.subtableDataReady) {
+                setTimeout(() => {
+                    this.restoreExpandedSubtables();
+                }, 100);
+            }
+        });
+        
+        this.table.on("dataSorted", () => {
+            if (this.subtableDataReady) {
+                setTimeout(() => {
+                    this.restoreExpandedSubtables();
+                }, 100);
             }
         });
     }
@@ -245,16 +298,154 @@ export class BasketMatchupsTable extends BaseTable {
         };
     }
 
-    // Row formatter for expanded state
+    // Row formatter for expanded state - CRITICAL for state preservation
+    // This is called every time Tabulator renders/re-renders a row
     createRowFormatter() {
+        const self = this;
+        
         return (row) => {
             const data = row.getData();
+            const rowElement = row.getElement();
+            
             if (data._expanded) {
-                row.getElement().classList.add('row-expanded');
+                rowElement.classList.add('row-expanded');
+                
+                // Synchronously check and recreate subtable if missing
+                const existingSubtable = rowElement.querySelector('.subrow-container');
+                if (!existingSubtable && self.subtableDataReady) {
+                    console.log(`rowFormatter: Recreating missing subtable for Matchup ID ${data["Matchup ID"]}`);
+                    self.createAndAppendSubtable(rowElement, data);
+                }
             } else {
-                row.getElement().classList.remove('row-expanded');
+                rowElement.classList.remove('row-expanded');
+                // Clean up any orphaned subtables
+                const existingSubrow = rowElement.querySelector('.subrow-container');
+                if (existingSubrow) {
+                    existingSubrow.remove();
+                }
             }
         };
+    }
+
+    // Create and append subtable directly (synchronous, no requestAnimationFrame)
+    createAndAppendSubtable(rowElement, data) {
+        // Remove existing if any
+        const existing = rowElement.querySelector('.subrow-container');
+        if (existing) {
+            existing.remove();
+        }
+        
+        const holderEl = document.createElement("div");
+        holderEl.classList.add('subrow-container');
+        holderEl.style.cssText = `
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border-top: 2px solid #f97316;
+            margin: 0;
+            display: block;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        `;
+        
+        try {
+            this.createSubtableContent(holderEl, data);
+        } catch (error) {
+            console.error("Error creating matchups subtable content:", error);
+            holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
+        }
+        
+        rowElement.appendChild(holderEl);
+    }
+
+    // Setup MutationObserver to watch for subtable removal and restore them
+    setupSubtableObserver() {
+        const self = this;
+        
+        // Create observer that watches for removed subtables
+        this.subtableObserver = new MutationObserver((mutations) => {
+            if (!self.subtableDataReady || !self.table) return;
+            
+            mutations.forEach((mutation) => {
+                // Check for removed nodes
+                mutation.removedNodes.forEach((node) => {
+                    if (node.classList && node.classList.contains('subrow-container')) {
+                        // A subtable was removed - check if it should be restored
+                        const rowElement = mutation.target;
+                        if (rowElement.classList.contains('tabulator-row')) {
+                            // Find the row and check if it should be expanded
+                            const rows = self.table.getRows();
+                            for (const row of rows) {
+                                if (row.getElement() === rowElement) {
+                                    const data = row.getData();
+                                    if (data._expanded) {
+                                        console.log(`MutationObserver: Restoring subtable for Matchup ID ${data["Matchup ID"]}`);
+                                        // Use setTimeout to avoid recursion with the observer
+                                        setTimeout(() => {
+                                            if (!rowElement.querySelector('.subrow-container') && data._expanded) {
+                                                self.createAndAppendSubtable(rowElement, data);
+                                            }
+                                        }, 10);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Observe the table holder for subtree modifications
+        const tableHolder = this.table.element.querySelector('.tabulator-tableholder');
+        if (tableHolder) {
+            this.subtableObserver.observe(tableHolder, {
+                childList: true,
+                subtree: true
+            });
+            console.log('MutationObserver setup for subtable preservation');
+        }
+    }
+
+    // Periodic check to ensure expanded rows have their subtables
+    startSubtableWatchdog() {
+        const self = this;
+        
+        // Clear any existing watchdog
+        if (this.subtableWatchdog) {
+            clearInterval(this.subtableWatchdog);
+        }
+        
+        // Check every 500ms for missing subtables
+        this.subtableWatchdog = setInterval(() => {
+            if (!self.table || !self.subtableDataReady) return;
+            
+            const rows = self.table.getRows();
+            rows.forEach(row => {
+                const data = row.getData();
+                if (data._expanded) {
+                    const rowElement = row.getElement();
+                    if (rowElement && !rowElement.querySelector('.subrow-container')) {
+                        console.log(`Watchdog: Restoring subtable for Matchup ID ${data["Matchup ID"]}`);
+                        self.createAndAppendSubtable(rowElement, data);
+                    }
+                }
+            });
+        }, 500);
+        
+        console.log('Subtable watchdog started');
+    }
+
+    // Stop the watchdog (call when table is destroyed)
+    stopSubtableWatchdog() {
+        if (this.subtableWatchdog) {
+            clearInterval(this.subtableWatchdog);
+            this.subtableWatchdog = null;
+        }
+        if (this.subtableObserver) {
+            this.subtableObserver.disconnect();
+            this.subtableObserver = null;
+        }
     }
 
     // Setup row expansion click handlers
@@ -288,42 +479,33 @@ export class BasketMatchupsTable extends BaseTable {
             
             rowElement.classList.add('row-expanded');
             
-            requestAnimationFrame(() => {
-                const holderEl = document.createElement("div");
-                holderEl.classList.add('subrow-container');
-                holderEl.style.cssText = `
+            // Check if cache is ready
+            if (!this.subtableDataReady) {
+                // Cache not ready - show loading state
+                const loadingEl = document.createElement("div");
+                loadingEl.classList.add('subrow-container', 'subrow-loading');
+                loadingEl.style.cssText = `
                     padding: 15px 20px;
                     background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
                     border-top: 2px solid #f97316;
                     margin: 0;
                     display: block;
                     width: 100%;
-                    position: relative;
-                    z-index: 1;
+                    text-align: center;
+                    color: #666;
                 `;
-                
-                try {
-                    self.createSubtableContent(holderEl, data);
-                } catch (error) {
-                    console.error("Error creating matchups subtable content:", error);
-                    holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
-                }
-                
-                rowElement.appendChild(holderEl);
-                
-                setTimeout(() => {
-                    row.normalizeHeight();
-                }, 50);
-            });
+                loadingEl.innerHTML = 'Loading matchup data...';
+                rowElement.appendChild(loadingEl);
+                return;
+            }
+            
+            // Create and append subtable
+            this.createAndAppendSubtable(rowElement, data);
         } else {
             const existingSubrow = rowElement.querySelector('.subrow-container');
             if (existingSubrow) {
                 existingSubrow.remove();
                 rowElement.classList.remove('row-expanded');
-                
-                setTimeout(() => {
-                    row.normalizeHeight();
-                }, 50);
             }
         }
     }
@@ -409,8 +591,45 @@ export class BasketMatchupsTable extends BaseTable {
                 });
                 console.log(`Cached player data for ${this.playersDataCache.size} matchups`);
             }
+            
+            // Mark cache as ready - this allows the rowFormatter to recreate subtables
+            this.subtableDataReady = true;
+            console.log('DEBUG - Subtable data cache is now ready');
+            
+            // Start the watchdog to ensure subtables stay in place
+            this.startSubtableWatchdog();
+            
+            // After cache is ready, check if any rows need their subtables restored
+            // This handles the case where rows were expanded before cache was ready
+            if (this.table) {
+                this.restoreExpandedSubtables();
+            }
+            
         } catch (error) {
             console.error("Error prefetching subtable data:", error);
+        }
+    }
+
+    // Restore subtables for any rows that are marked as expanded
+    restoreExpandedSubtables() {
+        if (!this.table || !this.subtableDataReady) return;
+        
+        const rows = this.table.getRows();
+        let restoredCount = 0;
+        
+        rows.forEach(row => {
+            const data = row.getData();
+            if (data._expanded) {
+                const rowElement = row.getElement();
+                if (rowElement && !rowElement.querySelector('.subrow-container')) {
+                    this.createAndAppendSubtable(rowElement, data);
+                    restoredCount++;
+                }
+            }
+        });
+        
+        if (restoredCount > 0) {
+            console.log(`Restored ${restoredCount} expanded subtables`);
         }
     }
 
@@ -855,5 +1074,89 @@ export class BasketMatchupsTable extends BaseTable {
         const num = parseInt(value, 10);
         if (isNaN(num)) return '-';
         return String(num);
+    }
+
+    // Override saveState to properly save expanded rows
+    saveState() {
+        if (!this.table) return;
+        
+        // Call parent saveState if it exists
+        if (super.saveState) {
+            super.saveState();
+        }
+        
+        // Save our own filter/sort state
+        this.filterState = this.table.getHeaderFilters();
+        this.sortState = this.table.getSorters();
+        
+        // Save expanded row IDs
+        this.savedExpandedRows = new Set();
+        const rows = this.table.getRows();
+        rows.forEach(row => {
+            const data = row.getData();
+            if (data._expanded) {
+                const rowId = this.generateRowId(data);
+                this.savedExpandedRows.add(rowId);
+            }
+        });
+        
+        console.log(`Matchups saveState: saved ${this.savedExpandedRows.size} expanded rows`);
+    }
+
+    // Override restoreState to properly restore expanded rows
+    restoreState() {
+        if (!this.table) return;
+        
+        // Call parent restoreState if it exists
+        if (super.restoreState) {
+            super.restoreState();
+        }
+        
+        // Restore filters
+        if (this.filterState && this.filterState.length > 0) {
+            this.filterState.forEach(filter => {
+                try {
+                    this.table.setHeaderFilterValue(filter.field, filter.value);
+                } catch (e) {
+                    console.warn("Could not restore filter:", filter.field);
+                }
+            });
+        }
+        
+        // Restore sort
+        if (this.sortState && this.sortState.length > 0) {
+            try {
+                this.table.setSort(this.sortState);
+            } catch (e) {
+                console.warn("Could not restore sort");
+            }
+        }
+        
+        // Restore expanded rows
+        if (this.savedExpandedRows && this.savedExpandedRows.size > 0) {
+            console.log(`Matchups restoreState: restoring ${this.savedExpandedRows.size} expanded rows`);
+            
+            setTimeout(() => {
+                const rows = this.table.getRows();
+                rows.forEach(row => {
+                    const data = row.getData();
+                    const rowId = this.generateRowId(data);
+                    
+                    if (this.savedExpandedRows.has(rowId)) {
+                        // Mark as expanded
+                        data._expanded = true;
+                        row.update(data);
+                        
+                        // Recreate subtable if cache is ready
+                        if (this.subtableDataReady) {
+                            const rowElement = row.getElement();
+                            if (rowElement && !rowElement.querySelector('.subrow-container')) {
+                                this.createAndAppendSubtable(rowElement, data);
+                            }
+                        }
+                    }
+                });
+            }, 100);
+        }
     }
 }
