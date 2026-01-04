@@ -110,8 +110,12 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.log(`Table has ${rowCount} rows loaded`);
                 
                 if (rowCount > 0) {
+                    // First scan all data for max widths
+                    const data = this.table.getData();
+                    this.scanDataForMaxWidths(data);
+                    // Then equalize clusters
                     this.equalizeClusteredColumns();
-                    // Calculate and apply dynamic widths based on content and subtable needs
+                    // Finally calculate total width
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -130,8 +134,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // Also run width calculation after data loads
         this.table.on("dataLoaded", () => {
             setTimeout(() => {
-                console.log("Data loaded, recalculating widths...");
+                console.log("Data loaded event, recalculating widths...");
+                const data = this.table.getData();
+                // Scan all data for max widths first
+                this.scanDataForMaxWidths(data);
+                // Then equalize clusters
                 this.equalizeClusteredColumns();
+                // Finally calculate total width
                 this.calculateAndApplyWidths();
             }, 100);
         });
@@ -237,10 +246,14 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.log(`Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
             }
             
+            // Add scrollbar width to prevent horizontal scrollbar (scrollbar is typically 16-17px)
+            const SCROLLBAR_WIDTH = 17;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            
             // Constrain the table element width to prevent full-page stretch
-            tableElement.style.width = totalColumnWidth + 'px';
-            tableElement.style.minWidth = totalColumnWidth + 'px';
-            tableElement.style.maxWidth = totalColumnWidth + 'px';
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
             // Also constrain the table container
             const tableContainer = tableElement.closest('.table-container');
@@ -250,11 +263,82 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 tableContainer.style.maxWidth = 'none';
             }
             
-            console.log(`Set table width to ${totalColumnWidth}px (left-justified)`);
+            console.log(`Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
         }
+    }
+
+    // Scan ALL data to find max widths needed for text columns
+    // This ensures columns are properly sized even with virtual scrolling
+    scanDataForMaxWidths(data) {
+        if (!data || data.length === 0 || !this.table) return;
+        
+        console.log(`Scanning ${data.length} rows for max column widths...`);
+        
+        // Create a hidden canvas for text measurement
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Match table font
+        
+        // Track max widths for text columns
+        const maxWidths = {
+            "Player Name": 0,
+            "Lineup Status": 0,
+            "Player Prop": 0,
+            "Player Team": 0
+        };
+        
+        // Scan all data to find longest values
+        data.forEach(row => {
+            Object.keys(maxWidths).forEach(field => {
+                let value = row[field];
+                if (value !== null && value !== undefined && value !== '') {
+                    // Apply formatters where needed
+                    if (field === "Lineup Status") {
+                        value = String(value).replace('(Expected)', '(Exp)').replace('(Confirmed)', '(Conf)');
+                    } else if (field === "Player Prop") {
+                        if (value === '3-Pointers') value = '3-Pt';
+                    }
+                    
+                    const textWidth = ctx.measureText(String(value)).width;
+                    if (textWidth > maxWidths[field]) {
+                        maxWidths[field] = textWidth;
+                    }
+                }
+            });
+        });
+        
+        // Add padding for cell padding, expand icon (for Name), and some buffer
+        const CELL_PADDING = 16; // 8px on each side
+        const EXPAND_ICON_WIDTH = 18; // For the ▶ icon and margin
+        const BUFFER = 10; // Extra safety buffer
+        
+        // Apply minimum widths to columns
+        Object.keys(maxWidths).forEach(field => {
+            if (maxWidths[field] > 0) {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    let requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
+                    
+                    // Add expand icon width for Name column
+                    if (field === "Player Name") {
+                        requiredWidth += EXPAND_ICON_WIDTH;
+                    }
+                    
+                    const currentWidth = column.getWidth();
+                    
+                    // Only expand, never shrink
+                    if (requiredWidth > currentWidth) {
+                        column.setWidth(Math.ceil(requiredWidth));
+                        console.log(`Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
+                    }
+                }
+            }
+        });
+        
+        console.log('Max width scan complete');
     }
 
     // Custom sorter for Games format "X/Y" - sorts by first number
