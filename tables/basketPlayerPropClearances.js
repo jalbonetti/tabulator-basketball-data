@@ -30,11 +30,17 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // Build config - match working Matchups table pattern
+        // Get base config but we need to override some settings
+        const baseConfig = this.tableConfig;
+        
+        // Build config - use fitData for content-based sizing
         const config = {
-            ...this.tableConfig,
-            // Disable virtual DOM to avoid renderer issues
-            virtualDom: false,
+            ...baseConfig,
+            // Override virtual rendering to avoid compatibility issues
+            virtualDom: true,
+            virtualDomBuffer: 500,
+            renderVertical: "virtual",
+            renderHorizontal: "basic",  // Use basic instead of virtual - compatible with fitData
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -43,8 +49,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
             
-            // fitColumns layout like Matchups table
-            layout: "fitColumns",
+            // fitData: columns size to content only, table width = sum of column widths
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -202,9 +208,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         }
         
         try {
-            // Get all columns and calculate total width of non-Name columns
+            // Get all columns and calculate total width
             const columns = this.table.getColumns();
-            let otherColumnsWidth = 0;
+            let totalColumnWidth = 0;
             let nameColumn = null;
             let nameColumnWidth = 0;
             
@@ -215,32 +221,36 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 if (field === "Player Name") {
                     nameColumn = col;
                     nameColumnWidth = width;
-                } else {
-                    otherColumnsWidth += width;
                 }
+                totalColumnWidth += width;
             });
             
-            // Calculate current primary row width
-            const primaryRowWidth = nameColumnWidth + otherColumnsWidth;
+            console.log(`Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
             
-            console.log(`Width calculation: Name=${nameColumnWidth}px, Others=${otherColumnsWidth}px, Primary Row=${primaryRowWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
-            
-            // If subtables need more width than primary row provides, expand Name column
-            if (SUBTABLE_MIN_WIDTH > primaryRowWidth && nameColumn) {
-                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - primaryRowWidth;
+            // If subtables need more width than current total, expand Name column
+            if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
                 nameColumn.setWidth(newNameWidth);
+                totalColumnWidth = SUBTABLE_MIN_WIDTH;
                 console.log(`Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
             }
             
-            // Calculate final total width
-            const finalNameWidth = nameColumn ? nameColumn.getWidth() : nameColumnWidth;
-            const finalTotalWidth = finalNameWidth + otherColumnsWidth;
+            // Constrain the table element width to prevent full-page stretch
+            tableElement.style.width = totalColumnWidth + 'px';
+            tableElement.style.minWidth = totalColumnWidth + 'px';
+            tableElement.style.maxWidth = totalColumnWidth + 'px';
             
-            // With fitData layout, the table should naturally size to content
-            // Just log the calculated width for debugging
-            console.log(`Table calculated width: ${finalTotalWidth}px (left-justified via fitData layout)`);
+            // Also constrain the table container
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Set table width to ${totalColumnWidth}px (left-justified)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
@@ -372,7 +382,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
         return [
             // =====================================================
-            // NAME COLUMN - No widthGrow, sizes to content
+            // NAME COLUMN - widthGrow:0 sizes to content
             // Will be expanded by calculateAndApplyWidths() if subtables need more space
             // Frozen on mobile/tablet for horizontal scrolling
             // Standalone header (no parent group)
@@ -381,7 +391,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 title: "Name", 
                 field: "Player Name", 
                 frozen: isSmallScreen,
-                // widthGrow removed - column sizes to content, expanded dynamically if needed
+                widthGrow: 0,  // Size to content only - expanded dynamically if needed for subtables
                 minWidth: 120,
                 sorter: "string", 
                 headerFilter: true,
