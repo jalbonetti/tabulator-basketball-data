@@ -121,9 +121,9 @@ export class BasketPlayerDKTable extends BaseTable {
         });
     }
     
-    // Backward compatibility alias for main.js resize handler
+    // Backward compatibility alias for main.js resize handler and TabManager
     expandNameColumnToFill() {
-        this.calculateAndApplyWidths();
+        this.forceRecalculateWidths();
     }
     
     // Simple debounce helper
@@ -203,6 +203,7 @@ export class BasketPlayerDKTable extends BaseTable {
             
             console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
             
+            // ALWAYS ensure minimum width for subtables - critical for tab switching
             if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
                 const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
@@ -213,7 +214,10 @@ export class BasketPlayerDKTable extends BaseTable {
             }
             
             const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
+            
+            // Store the calculated width for persistence across tab switches
+            this._calculatedTableWidth = totalWidthWithScrollbar;
             
             tableElement.style.width = totalWidthWithScrollbar + 'px';
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
@@ -230,6 +234,17 @@ export class BasketPlayerDKTable extends BaseTable {
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
+        }
+    }
+    
+    // Force width recalculation - called by TabManager on tab switch
+    forceRecalculateWidths() {
+        console.log('DK DFS forceRecalculateWidths called');
+        const data = this.table ? this.table.getData() : [];
+        if (data.length > 0) {
+            this.scanDataForMaxWidths(data);
+            this.equalizeClusteredColumns();
+            this.calculateAndApplyWidths();
         }
     }
 
