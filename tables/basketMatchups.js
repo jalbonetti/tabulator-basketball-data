@@ -151,7 +151,14 @@ export class BasketMatchupsTable extends BaseTable {
                 minWidth: isSmallScreen ? 80 : undefined,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: (cell) => {
+                    const value = cell.getValue();
+                    const rowData = cell.getRow().getData();
+                    console.log('DEBUG - Spread cell value:', value);
+                    console.log('DEBUG - Spread row data keys:', Object.keys(rowData));
+                    return value || '-';
+                }
             },
             {
                 title: "Total", 
@@ -160,7 +167,14 @@ export class BasketMatchupsTable extends BaseTable {
                 minWidth: isSmallScreen ? 80 : undefined,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: (cell) => {
+                    const value = cell.getValue();
+                    const rowData = cell.getRow().getData();
+                    console.log('DEBUG - Total cell value:', value);
+                    console.log('DEBUG - Total row data:', rowData);
+                    return value || '-';
+                }
             }
         ];
     }
