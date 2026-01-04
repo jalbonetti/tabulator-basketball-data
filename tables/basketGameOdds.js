@@ -1,5 +1,6 @@
 // tables/basketGameOdds.js - Basketball Game Odds Table
 // Simple flat table with no expandable rows or grouped headers
+// UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -16,12 +17,15 @@ export class BasketGameOddsTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // Get base config and override specific settings
+        const baseConfig = this.getBaseConfig();
+        
         const config = {
-            ...this.tableConfig,
+            ...baseConfig,
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "virtual",
+            renderHorizontal: "basic", // Use "basic" for compatibility with fitData layout
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -29,7 +33,9 @@ export class BasketGameOddsTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading game odds...",
-            layout: "fitDataFill",
+            
+            // fitData: columns size to content only (not full width)
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -65,21 +71,44 @@ export class BasketGameOddsTable extends BaseTable {
         this.table.on("tableBuilt", () => {
             console.log("Game Odds table built successfully");
             setTimeout(() => {
-                this.equalizeClusteredColumns();
-                if (!isSmallScreen) {
-                    this.expandNameColumnToFill();
+                const rowCount = this.table.getDataCount();
+                console.log(`Game Odds Table has ${rowCount} rows loaded`);
+                
+                if (rowCount > 0) {
+                    const data = this.table.getData();
+                    this.scanDataForMaxWidths(data);
+                    this.equalizeClusteredColumns();
+                    this.calculateAndApplyWidths();
+                } else {
+                    console.log('No data yet, width calculation deferred');
                 }
             }, 200);
             
-            if (!isSmallScreen) {
-                window.addEventListener('resize', this.debounce(() => {
+            window.addEventListener('resize', this.debounce(() => {
+                if (this.table && this.table.getDataCount() > 0) {
                     this.equalizeClusteredColumns();
-                    this.expandNameColumnToFill();
-                }, 250));
-            }
+                    this.calculateAndApplyWidths();
+                }
+            }, 250));
+        });
+        
+        this.table.on("dataLoaded", () => {
+            setTimeout(() => {
+                console.log("Game Odds Data loaded event, recalculating widths...");
+                const data = this.table.getData();
+                this.scanDataForMaxWidths(data);
+                this.equalizeClusteredColumns();
+                this.calculateAndApplyWidths();
+            }, 100);
         });
     }
     
+    // Backward compatibility alias for main.js resize handler and TabManager
+    expandNameColumnToFill() {
+        this.forceRecalculateWidths();
+    }
+    
+    // Simple debounce helper
     debounce(func, wait) {
         let timeout;
         return (...args) => {
@@ -88,6 +117,7 @@ export class BasketGameOddsTable extends BaseTable {
         };
     }
     
+    // Equalize column widths within each cluster
     equalizeClusteredColumns() {
         if (!this.table) return;
         
@@ -122,28 +152,114 @@ export class BasketGameOddsTable extends BaseTable {
         });
     }
     
-    expandNameColumnToFill() {
-        if (!this.table) return;
+    // Calculate and apply widths based on content
+    calculateAndApplyWidths() {
+        if (!this.table) {
+            console.log('calculateAndApplyWidths: table not ready');
+            return;
+        }
         
         const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
+        if (!tableElement) {
+            console.log('calculateAndApplyWidths: tableElement not ready');
+            return;
+        }
         
-        let totalColumnWidth = 0;
-        const columns = this.table.getColumns();
-        columns.forEach(col => {
-            totalColumnWidth += col.getWidth();
+        try {
+            const columns = this.table.getColumns();
+            let totalColumnWidth = 0;
+            
+            columns.forEach(col => {
+                const width = col.getWidth();
+                totalColumnWidth += width;
+            });
+            
+            console.log(`Game Odds Width calculation: Total columns=${totalColumnWidth}px`);
+            
+            const SCROLLBAR_WIDTH = 17;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            
+            // Store the calculated width for persistence across tab switches
+            this._calculatedTableWidth = totalWidthWithScrollbar;
+            
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Game Odds Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            
+        } catch (error) {
+            console.error('Error in calculateAndApplyWidths:', error);
+        }
+    }
+    
+    // Force width recalculation - called by TabManager on tab switch
+    forceRecalculateWidths() {
+        console.log('Game Odds forceRecalculateWidths called');
+        const data = this.table ? this.table.getData() : [];
+        if (data.length > 0) {
+            this.scanDataForMaxWidths(data);
+            this.equalizeClusteredColumns();
+            this.calculateAndApplyWidths();
+        }
+    }
+
+    // Scan ALL data to find max widths needed for text columns
+    scanDataForMaxWidths(data) {
+        if (!data || data.length === 0 || !this.table) return;
+        
+        console.log(`Game Odds Scanning ${data.length} rows for max column widths...`);
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+        
+        const maxWidths = {
+            "Game Matchup": 0,
+            "Game Prop Type": 0,
+            "Game Label": 0,
+            "Game Book": 0,
+            "Game Best Odds Books": 0
+        };
+        
+        data.forEach(row => {
+            Object.keys(maxWidths).forEach(field => {
+                const value = row[field];
+                if (value !== null && value !== undefined && value !== '') {
+                    const textWidth = ctx.measureText(String(value)).width;
+                    if (textWidth > maxWidths[field]) {
+                        maxWidths[field] = textWidth;
+                    }
+                }
+            });
         });
         
-        const remainingSpace = containerWidth - totalColumnWidth - 20;
+        const CELL_PADDING = 16;
+        const BUFFER = 10;
         
-        if (remainingSpace > 0) {
-            const matchupColumn = this.table.getColumn("Game Matchup");
-            if (matchupColumn) {
-                const currentWidth = matchupColumn.getWidth();
-                matchupColumn.setWidth(currentWidth + remainingSpace);
-                console.log(`Game Odds Matchup column expanded by ${remainingSpace}px to fill container`);
+        Object.keys(maxWidths).forEach(field => {
+            if (maxWidths[field] > 0) {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
+                    const currentWidth = column.getWidth();
+                    
+                    if (requiredWidth > currentWidth) {
+                        column.setWidth(Math.ceil(requiredWidth));
+                        console.log(`Game Odds Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
+                    }
+                }
             }
-        }
+        });
+        
+        console.log('Game Odds Max width scan complete');
     }
 
     // Custom sorter for odds with +/- prefix
@@ -196,7 +312,7 @@ export class BasketGameOddsTable extends BaseTable {
                 title: "Matchup", 
                 field: "Game Matchup", 
                 frozen: isSmallScreen,
-                widthGrow: 1,
+                widthGrow: 0,
                 minWidth: 120,
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
