@@ -118,6 +118,15 @@ export class BasketMatchupsTable extends BaseTable {
             // Fallback: If data is already loaded (from cache), prefetch subtable data
             const data = this.table.getData();
             console.log('DEBUG - tableBuilt: table has', data.length, 'rows');
+            
+            // Log actual row data to see all fields
+            if (data.length > 0) {
+                console.log('DEBUG - tableBuilt: First row ALL DATA:', JSON.stringify(data[0], null, 2));
+                console.log('DEBUG - tableBuilt: First row keys:', Object.keys(data[0]));
+                console.log('DEBUG - tableBuilt: Spread value:', data[0]["Spread"]);
+                console.log('DEBUG - tableBuilt: Total value:', data[0]["Total"]);
+            }
+            
             if (data.length > 0 && this.defenseDataCache.size === 0) {
                 console.log('DEBUG - tableBuilt: Triggering prefetch as fallback...');
                 this.prefetchSubtableData(data);
