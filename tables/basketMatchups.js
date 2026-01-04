@@ -644,7 +644,7 @@ export class BasketMatchupsTable extends BaseTable {
         }
         
         // Get pace value (same for both splits)
-        const paceValue = defenseData[0]?.["Pace Rank"] || '-';
+        const paceValue = defenseData[0]?.["Pace"] || '-';
         
         // Sort by split (Full Season first, then Last 30 Days)
         const sortedData = [...defenseData].sort((a, b) => {
@@ -661,7 +661,7 @@ export class BasketMatchupsTable extends BaseTable {
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Pace</th>
+                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
                 <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Ranks (Avg)</th>
                 <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
