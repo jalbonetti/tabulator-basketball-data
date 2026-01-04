@@ -30,13 +30,11 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // Build config - need to remove renderHorizontal which is incompatible with fitData layout
+        // Build config - match working Matchups table pattern
         const config = {
             ...this.tableConfig,
-            // Optimize for large datasets
-            virtualDom: true,
-            virtualDomBuffer: 500,
-            renderVertical: "virtual",
+            // Disable virtual DOM to avoid renderer issues
+            virtualDom: false,
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -45,8 +43,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             height: "600px",
             placeholder: "Loading basketball player prop clearances...",
             
-            // fitData: columns size to content only, no fill
-            layout: "fitData",
+            // fitColumns layout like Matchups table
+            layout: "fitColumns",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -93,9 +91,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 console.error("Error loading basketball data:", error);
             }
         };
-
-        // Remove renderHorizontal - it's incompatible with fitData layout
-        delete config.renderHorizontal;
 
         this.table = new Tabulator(this.elementId, config);
         this.setupRowExpansion();
