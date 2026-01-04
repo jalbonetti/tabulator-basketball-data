@@ -75,7 +75,7 @@ export class BasketMatchupsTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading matchups...",
-            layout: isSmallScreen ? "fitDataFill" : "fitColumns",
+            layout: "fitDataFill",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -115,6 +115,13 @@ export class BasketMatchupsTable extends BaseTable {
         this.table.on("tableBuilt", () => {
             console.log("Matchups table built successfully");
             
+            // Expand Matchup column to fill remaining space on desktop
+            if (!isMobile() && !isTablet()) {
+                setTimeout(() => {
+                    this.expandMatchupColumnToFill();
+                }, 200);
+            }
+            
             // Fallback: If data is already loaded (from cache), prefetch subtable data
             const data = this.table.getData();
             console.log('DEBUG - tableBuilt: table has', data.length, 'rows');
@@ -146,46 +153,67 @@ export class BasketMatchupsTable extends BaseTable {
             {
                 title: "Matchup", 
                 field: "Matchup", 
-                widthGrow: 1,
-                minWidth: isSmallScreen ? 150 : undefined,
+                widthGrow: 2,
+                minWidth: 200,
                 sorter: "string",
                 resizable: false,
                 formatter: this.createNameFormatter(),
-                hozAlign: "left"
+                hozAlign: "left",
+                cssClass: "matchup-cell"
             },
             {
                 title: "Spread", 
                 field: "Spread", 
                 widthGrow: 1,
-                minWidth: isSmallScreen ? 80 : undefined,
+                minWidth: 100,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center",
-                formatter: (cell) => {
-                    const value = cell.getValue();
-                    const rowData = cell.getRow().getData();
-                    console.log('DEBUG - Spread cell value:', value);
-                    console.log('DEBUG - Spread row data keys:', Object.keys(rowData));
-                    return value || '-';
-                }
+                hozAlign: "center"
             },
             {
                 title: "Total", 
                 field: "Total", 
                 widthGrow: 1,
-                minWidth: isSmallScreen ? 80 : undefined,
+                minWidth: 100,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center",
-                formatter: (cell) => {
-                    const value = cell.getValue();
-                    const rowData = cell.getRow().getData();
-                    console.log('DEBUG - Total cell value:', value);
-                    console.log('DEBUG - Total row data:', rowData);
-                    return value || '-';
-                }
+                hozAlign: "center"
             }
         ];
+    }
+
+    // Expand Matchup column to fill remaining container width (desktop only)
+    expandMatchupColumnToFill() {
+        if (!this.table) return;
+        
+        const tableElement = this.table.element;
+        const containerWidth = tableElement.offsetWidth;
+        
+        // Get current total width of all columns
+        let totalColumnWidth = 0;
+        const columns = this.table.getColumns();
+        columns.forEach(col => {
+            if (col.isVisible()) {
+                totalColumnWidth += col.getWidth();
+            }
+        });
+        
+        // Calculate remaining space
+        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
+        
+        if (remainingSpace > 0) {
+            const matchupColumn = this.table.getColumn("Matchup");
+            if (matchupColumn) {
+                const currentWidth = matchupColumn.getWidth();
+                matchupColumn.setWidth(currentWidth + remainingSpace);
+                console.log(`Matchups table Matchup column expanded by ${remainingSpace}px to fill container`);
+            }
+        }
+    }
+    
+    // Alias for TabManager compatibility
+    expandNameColumnToFill() {
+        this.expandMatchupColumnToFill();
     }
 
     // Parse matchup string to extract away and home team names
