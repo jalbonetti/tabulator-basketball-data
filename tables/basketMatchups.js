@@ -468,10 +468,16 @@ export class BasketMatchupsTable extends BaseTable {
             
             // Toggle expanded state
             data._expanded = !data._expanded;
-            row.update(data);
+            const isExpanded = data._expanded;
             
             // Handle expansion/collapse
-            self.handleRowExpansion(row, data._expanded);
+            self.handleRowExpansion(row, isExpanded);
+            
+            // Reformat the row to update the icon via the cell formatter
+            // Use setTimeout to ensure DOM operations from handleRowExpansion complete first
+            setTimeout(() => {
+                row.reformat();
+            }, 0);
         });
     }
 
@@ -676,6 +682,7 @@ export class BasketMatchupsTable extends BaseTable {
         // Max-height allows viewing all content by scrolling within the subtable
         // This prevents the main table from needing to scroll (which causes row recycling issues)
         const wrapper = document.createElement('div');
+        wrapper.className = 'subtable-scroll-wrapper';
         wrapper.style.cssText = `
             display: flex;
             flex-direction: column;
@@ -685,6 +692,34 @@ export class BasketMatchupsTable extends BaseTable {
             overflow-x: hidden;
             box-sizing: border-box;
         `;
+        
+        // Inject scrollbar styles if not already done
+        if (!document.getElementById('subtable-scrollbar-styles')) {
+            const style = document.createElement('style');
+            style.id = 'subtable-scrollbar-styles';
+            style.textContent = `
+                .subtable-scroll-wrapper::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .subtable-scroll-wrapper::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 4px;
+                }
+                .subtable-scroll-wrapper::-webkit-scrollbar-thumb {
+                    background: #c1c1c1;
+                    border-radius: 4px;
+                }
+                .subtable-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+                    background: #a1a1a1;
+                }
+                /* Firefox */
+                .subtable-scroll-wrapper {
+                    scrollbar-width: thin;
+                    scrollbar-color: #c1c1c1 #f1f1f1;
+                }
+            `;
+            document.head.appendChild(style);
+        }
         
         // 1. Away Defense
         const awayDefenseTable = this.createDefenseSubtable(
