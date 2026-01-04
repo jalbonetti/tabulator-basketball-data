@@ -36,7 +36,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            // NOTE: renderHorizontal: "virtual" removed - incompatible with fitData layout
+            renderHorizontal: false,  // Explicitly disable - incompatible with fitData layout
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
