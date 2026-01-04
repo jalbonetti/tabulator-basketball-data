@@ -100,7 +100,9 @@ export class BasketMatchupsTable extends BaseTable {
                 });
                 
                 // Pre-fetch defense and player data for all matchups
+                console.log('DEBUG - About to call prefetchSubtableData...');
                 this.prefetchSubtableData(data);
+                console.log('DEBUG - prefetchSubtableData called (async)');
             },
             ajaxError: (error) => {
                 console.error("Error loading matchups data:", error);
@@ -112,6 +114,14 @@ export class BasketMatchupsTable extends BaseTable {
         
         this.table.on("tableBuilt", () => {
             console.log("Matchups table built successfully");
+            
+            // Fallback: If data is already loaded (from cache), prefetch subtable data
+            const data = this.table.getData();
+            console.log('DEBUG - tableBuilt: table has', data.length, 'rows');
+            if (data.length > 0 && this.defenseDataCache.size === 0) {
+                console.log('DEBUG - tableBuilt: Triggering prefetch as fallback...');
+                this.prefetchSubtableData(data);
+            }
         });
     }
 
@@ -262,20 +272,36 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Fetch data from a specific endpoint
     async fetchFromEndpoint(endpoint) {
+        console.log('DEBUG - fetchFromEndpoint called for:', endpoint);
+        console.log('DEBUG - this.endpoint is:', this.endpoint);
         try {
             const baseConfig = this.getBaseConfig();
+            console.log('DEBUG - baseConfig:', baseConfig);
+            console.log('DEBUG - baseConfig.ajaxURL:', baseConfig?.ajaxURL);
+            
+            if (!baseConfig || !baseConfig.ajaxURL) {
+                console.error('DEBUG - baseConfig or ajaxURL is missing!');
+                return null;
+            }
+            
             const url = `${baseConfig.ajaxURL.replace(this.endpoint, endpoint)}`;
+            console.log('DEBUG - Fetching from URL:', url);
+            console.log('DEBUG - Using headers:', baseConfig.ajaxConfig?.headers);
             
             const response = await fetch(url, {
                 method: 'GET',
                 headers: baseConfig.ajaxConfig.headers
             });
             
+            console.log('DEBUG - Response status:', response.status);
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            console.log('DEBUG - Data received from', endpoint, ':', data?.length, 'rows');
+            return data;
         } catch (error) {
             console.error(`Error fetching from ${endpoint}:`, error);
             return null;
