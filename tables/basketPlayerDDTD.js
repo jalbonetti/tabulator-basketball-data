@@ -1,11 +1,15 @@
 // tables/basketPlayerDDTD.js - Basketball Player DD-TD Clearances Table
 // Double-Double and Triple-Double clearance data
 // Based on basketPlayerPropClearances.js with column modifications
+// UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+
+// Minimum width needed to display subtables in a single row
+const SUBTABLE_MIN_WIDTH = 550;
 
 export class BasketPlayerDDTDTable extends BaseTable {
     constructor(elementId) {
@@ -17,13 +21,16 @@ export class BasketPlayerDDTDTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // Get base config and override specific settings
+        const baseConfig = this.getBaseConfig();
+        
         const config = {
-            ...this.tableConfig,
+            ...baseConfig,
             // Optimize for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "virtual",
+            renderHorizontal: "basic", // Use "basic" for compatibility with fitData layout
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -32,8 +39,8 @@ export class BasketPlayerDDTDTable extends BaseTable {
             height: "600px",
             placeholder: "Loading DD-TD clearances...",
             
-            // fitDataFill: columns size to content, extra space distributed by widthGrow
-            layout: "fitDataFill",
+            // fitData: columns size to content only (not full width)
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -76,6 +83,9 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 console.error("Error loading DD-TD data:", error);
             }
         };
+        
+        // Remove renderHorizontal if it was set to "virtual" in baseConfig
+        // (we set it to "basic" above which is compatible with fitData)
 
         this.table = new Tabulator(this.elementId, config);
         this.setupRowExpansion();
@@ -84,21 +94,50 @@ export class BasketPlayerDDTDTable extends BaseTable {
             console.log("DD-TD Clearances table built successfully");
             // Wait for table to be fully rendered before adjusting column widths
             setTimeout(() => {
-                this.equalizeClusteredColumns();
-                // After equalizing clusters, expand Name column to fill remaining space (desktop only)
-                if (!isSmallScreen) {
-                    this.expandNameColumnToFill();
+                // Only proceed if we have data loaded
+                const rowCount = this.table.getDataCount();
+                console.log(`DD-TD Table has ${rowCount} rows loaded`);
+                
+                if (rowCount > 0) {
+                    // First scan all data for max widths
+                    const data = this.table.getData();
+                    this.scanDataForMaxWidths(data);
+                    // Then equalize clusters
+                    this.equalizeClusteredColumns();
+                    // Finally calculate total width
+                    this.calculateAndApplyWidths();
+                } else {
+                    console.log('No data yet, width calculation deferred');
                 }
             }, 200);
             
-            // Re-adjust on window resize (desktop only)
-            if (!isSmallScreen) {
-                window.addEventListener('resize', this.debounce(() => {
+            // Re-adjust on window resize
+            window.addEventListener('resize', this.debounce(() => {
+                if (this.table && this.table.getDataCount() > 0) {
                     this.equalizeClusteredColumns();
-                    this.expandNameColumnToFill();
-                }, 250));
-            }
+                    this.calculateAndApplyWidths();
+                }
+            }, 250));
         });
+        
+        // Also run width calculation after data loads
+        this.table.on("dataLoaded", () => {
+            setTimeout(() => {
+                console.log("DD-TD Data loaded event, recalculating widths...");
+                const data = this.table.getData();
+                // Scan all data for max widths first
+                this.scanDataForMaxWidths(data);
+                // Then equalize clusters
+                this.equalizeClusteredColumns();
+                // Finally calculate total width
+                this.calculateAndApplyWidths();
+            }, 100);
+        });
+    }
+    
+    // Backward compatibility alias for main.js resize handler
+    expandNameColumnToFill() {
+        this.calculateAndApplyWidths();
     }
     
     // Simple debounce helper
@@ -151,31 +190,140 @@ export class BasketPlayerDDTDTable extends BaseTable {
         });
     }
     
-    // Expand Name column to fill remaining container width (desktop only)
-    expandNameColumnToFill() {
-        if (!this.table) return;
+    // Calculate and apply widths based on content and subtable requirements
+    calculateAndApplyWidths() {
+        if (!this.table) {
+            console.log('calculateAndApplyWidths: table not ready');
+            return;
+        }
         
         const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
+        if (!tableElement) {
+            console.log('calculateAndApplyWidths: tableElement not ready');
+            return;
+        }
         
-        // Get current total width of all columns
-        let totalColumnWidth = 0;
-        const columns = this.table.getColumns();
-        columns.forEach(col => {
-            totalColumnWidth += col.getWidth();
+        try {
+            // Get all columns and calculate total width
+            const columns = this.table.getColumns();
+            let totalColumnWidth = 0;
+            let nameColumn = null;
+            let nameColumnWidth = 0;
+            
+            columns.forEach(col => {
+                const field = col.getField();
+                const width = col.getWidth();
+                
+                if (field === "Player Name") {
+                    nameColumn = col;
+                    nameColumnWidth = width;
+                }
+                totalColumnWidth += width;
+            });
+            
+            console.log(`DD-TD Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            
+            // If subtables need more width than current total, expand Name column
+            if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
+                const newNameWidth = nameColumnWidth + additionalWidthNeeded;
+                
+                nameColumn.setWidth(newNameWidth);
+                totalColumnWidth = SUBTABLE_MIN_WIDTH;
+                console.log(`DD-TD Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+            }
+            
+            // Add scrollbar width to prevent horizontal scrollbar (scrollbar is typically 16-17px)
+            const SCROLLBAR_WIDTH = 17;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            
+            // Constrain the table element width to prevent full-page stretch
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            // Also constrain the table container
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`DD-TD Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            
+        } catch (error) {
+            console.error('Error in calculateAndApplyWidths:', error);
+        }
+    }
+
+    // Scan ALL data to find max widths needed for text columns
+    // This ensures columns are properly sized even with virtual scrolling
+    scanDataForMaxWidths(data) {
+        if (!data || data.length === 0 || !this.table) return;
+        
+        console.log(`DD-TD Scanning ${data.length} rows for max column widths...`);
+        
+        // Create a hidden canvas for text measurement
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Match table font
+        
+        // Track max widths for text columns
+        const maxWidths = {
+            "Player Name": 0,
+            "Lineup Status": 0,
+            "Player Prop": 0,
+            "Player Team": 0
+        };
+        
+        // Scan all data to find longest values
+        data.forEach(row => {
+            Object.keys(maxWidths).forEach(field => {
+                let value = row[field];
+                if (value !== null && value !== undefined && value !== '') {
+                    // Apply formatters where needed
+                    if (field === "Lineup Status") {
+                        value = String(value).replace('(Expected)', '(Exp)').replace('(Confirmed)', '(Conf)');
+                    }
+                    
+                    const textWidth = ctx.measureText(String(value)).width;
+                    if (textWidth > maxWidths[field]) {
+                        maxWidths[field] = textWidth;
+                    }
+                }
+            });
         });
         
-        // Calculate remaining space
-        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
+        // Add padding for cell padding, expand icon (for Name), and some buffer
+        const CELL_PADDING = 16; // 8px on each side
+        const EXPAND_ICON_WIDTH = 18; // For the ▶ icon and margin
+        const BUFFER = 10; // Extra safety buffer
         
-        if (remainingSpace > 0) {
-            const nameColumn = this.table.getColumn("Player Name");
-            if (nameColumn) {
-                const currentWidth = nameColumn.getWidth();
-                nameColumn.setWidth(currentWidth + remainingSpace);
-                console.log(`DD-TD Name column expanded by ${remainingSpace}px to fill container`);
+        // Apply minimum widths to columns
+        Object.keys(maxWidths).forEach(field => {
+            if (maxWidths[field] > 0) {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    let requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
+                    
+                    // Add expand icon width for Name column
+                    if (field === "Player Name") {
+                        requiredWidth += EXPAND_ICON_WIDTH;
+                    }
+                    
+                    const currentWidth = column.getWidth();
+                    
+                    // Only expand, never shrink
+                    if (requiredWidth > currentWidth) {
+                        column.setWidth(Math.ceil(requiredWidth));
+                        console.log(`DD-TD Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
+                    }
+                }
             }
-        }
+        });
+        
+        console.log('DD-TD Max width scan complete');
     }
 
     // Custom sorter for Games format "X/Y" - sorts by first number
@@ -289,7 +437,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
 
         return [
             // =====================================================
-            // NAME COLUMN - widthGrow:1 means it absorbs ALL extra space
+            // NAME COLUMN - widthGrow:0 means size to content only
             // Frozen on mobile/tablet for horizontal scrolling
             // Standalone header (no parent group)
             // =====================================================
@@ -297,7 +445,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 title: "Name", 
                 field: "Player Name", 
                 frozen: isSmallScreen,
-                widthGrow: 1,
+                widthGrow: 0,
                 minWidth: 120,
                 sorter: "string", 
                 headerFilter: true,
