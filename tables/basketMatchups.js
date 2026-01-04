@@ -75,7 +75,7 @@ export class BasketMatchupsTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading matchups...",
-            layout: "fitDataFill",
+            layout: "fitColumns",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -115,13 +115,6 @@ export class BasketMatchupsTable extends BaseTable {
         this.table.on("tableBuilt", () => {
             console.log("Matchups table built successfully");
             
-            // Expand Matchup column to fill remaining space on desktop
-            if (!isMobile() && !isTablet()) {
-                setTimeout(() => {
-                    this.expandMatchupColumnToFill();
-                }, 200);
-            }
-            
             // Fallback: If data is already loaded (from cache), prefetch subtable data
             const data = this.table.getData();
             console.log('DEBUG - tableBuilt: table has', data.length, 'rows');
@@ -153,7 +146,7 @@ export class BasketMatchupsTable extends BaseTable {
             {
                 title: "Matchup", 
                 field: "Matchup", 
-                widthGrow: 2,
+                width: "33.33%",
                 minWidth: 200,
                 sorter: "string",
                 resizable: false,
@@ -164,7 +157,7 @@ export class BasketMatchupsTable extends BaseTable {
             {
                 title: "Spread", 
                 field: "Spread", 
-                widthGrow: 1,
+                width: "33.33%",
                 minWidth: 100,
                 sorter: "string",
                 resizable: false,
@@ -173,7 +166,7 @@ export class BasketMatchupsTable extends BaseTable {
             {
                 title: "Total", 
                 field: "Total", 
-                widthGrow: 1,
+                width: "33.33%",
                 minWidth: 100,
                 sorter: "string",
                 resizable: false,
@@ -598,7 +591,8 @@ export class BasketMatchupsTable extends BaseTable {
         // 2. Home Players
         const homePlayersTable = this.createPlayersSubtable(
             homePlayers,
-            `${homeTeamFull || homeAbbrev} ${homeLineupType} Lineup${b2bHome ? ' - B2B Game' : ''}`
+            `${homeTeamFull || homeAbbrev} (Home) ${homeLineupType} Lineup${b2bHome ? ' - B2B Game' : ''}`,
+            'Home'
         );
         wrapper.appendChild(homePlayersTable);
         
@@ -612,7 +606,8 @@ export class BasketMatchupsTable extends BaseTable {
         // 4. Away Players
         const awayPlayersTable = this.createPlayersSubtable(
             awayPlayers,
-            `${awayTeamFull || awayAbbrev} ${awayLineupType} Lineup${b2bAway ? ' - B2B Game' : ''}`
+            `${awayTeamFull || awayAbbrev} (Away) ${awayLineupType} Lineup${b2bAway ? ' - B2B Game' : ''}`,
+            'Away'
         );
         wrapper.appendChild(awayPlayersTable);
         
@@ -668,9 +663,9 @@ export class BasketMatchupsTable extends BaseTable {
             <tr style="background: #f8f9fa;">
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Pace</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
-                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Medians</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
+                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Ranks (Avg)</th>
+                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
+                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
                 <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
             </tr>
             <tr style="background: #fafafa;">
@@ -729,7 +724,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create players subtable
-    createPlayersSubtable(playerData, title) {
+    createPlayersSubtable(playerData, title, homeAway) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
         
@@ -747,16 +742,25 @@ export class BasketMatchupsTable extends BaseTable {
             return container;
         }
         
-        // Sort players: Starters first, then by some order (could be minutes or games)
+        // Sort players: 
+        // 1. Starters before Bench
+        // 2. Within each group, group by player name
+        // 3. Full Season before Last 30 Days for each player
         const sortedData = [...playerData].sort((a, b) => {
+            // First: Starters vs Bench
             const aStarter = (a["Lineup"] || '').includes('Starter') ? 0 : 1;
             const bStarter = (b["Lineup"] || '').includes('Starter') ? 0 : 1;
             if (aStarter !== bStarter) return aStarter - bStarter;
             
-            // Secondary sort by minutes descending
-            const aMins = parseFloat(a["Minutes"]) || 0;
-            const bMins = parseFloat(b["Minutes"]) || 0;
-            return bMins - aMins;
+            // Second: Group by player name
+            const aName = a["Player"] || '';
+            const bName = b["Player"] || '';
+            if (aName !== bName) return aName.localeCompare(bName);
+            
+            // Third: Full Season before Last 30 Days
+            const aSplit = (a["Split"] || '').includes('Full Season') ? 0 : 1;
+            const bSplit = (b["Split"] || '').includes('Full Season') ? 0 : 1;
+            return aSplit - bSplit;
         });
         
         // Create table
@@ -768,10 +772,10 @@ export class BasketMatchupsTable extends BaseTable {
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
                 <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd; min-width: 200px;">Player</th>
-                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defense</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos</th>
+                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Medians</th>
+                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
+                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
+                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
             </tr>
             <tr style="background: #fafafa;">
                 <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
@@ -797,28 +801,58 @@ export class BasketMatchupsTable extends BaseTable {
             const tr = document.createElement('tr');
             tr.style.cssText = index % 2 === 1 ? 'background: #fafafa;' : '';
             
-            // Format player cell: "Name - Split - X Games - X Mins"
             const playerName = row["Player"] || '-';
+            const lineup = row["Lineup"] || '';
             const split = row["Split"] || '';
             const games = row["Games"] || '0';
             const minutes = this.formatMinutes(row["Minutes"]);
-            const playerInfo = `${playerName} - ${split} - ${games} Games - ${minutes} Mins`;
             
-            tr.innerHTML = `
-                <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Pts"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["3P"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["FT"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Assists"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["ORebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["DRebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Rebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Blocks"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Steals"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["TOs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["DD"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["TD"] || '-'}</td>
-            `;
+            // Check if player is Out or OFS (injury status in name)
+            const isOut = playerName.includes('(Out)') || playerName.includes('(OFS)');
+            
+            // Format: "Name - Starter/Bench - Split - X Games - X Mins"
+            // If out, don't show games/minutes
+            let playerInfo;
+            if (isOut) {
+                playerInfo = `${playerName} - ${lineup} - ${split}`;
+            } else {
+                playerInfo = `${playerName} - ${lineup} - ${split} - ${games} Games - ${minutes} Mins`;
+            }
+            
+            // If player is Out/OFS, show "-" for all stats
+            if (isOut) {
+                tr.innerHTML = `
+                    <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                    <td style="padding: 4px 8px; text-align: center;">-</td>
+                `;
+            } else {
+                tr.innerHTML = `
+                    <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["Pts"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["3P"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["FT"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["Assists"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["ORebs"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["DRebs"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["Rebs"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["Blocks"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["Steals"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["TOs"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["DD"] || '-'}</td>
+                    <td style="padding: 4px 8px; text-align: center;">${row["TD"] || '-'}</td>
+                `;
+            }
             tbody.appendChild(tr);
         });
         table.appendChild(tbody);
