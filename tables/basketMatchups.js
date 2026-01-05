@@ -112,7 +112,7 @@ export class BasketMatchupsTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading matchups...",
-            layout: "fitColumns",
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -859,7 +859,9 @@ export class BasketMatchupsTable extends BaseTable {
         const fontSize = mobile ? '10px' : (tablet ? '10px' : '11px');
         const titleFontSize = mobile ? '11px' : (tablet ? '12px' : '13px');
         const cellPadding = mobile ? '2px 4px' : (tablet ? '3px 6px' : '4px 8px');
-        const minCellWidth = mobile ? '40px' : (tablet ? '45px' : '50px');
+        // Remove min-width on mobile to allow table to shrink
+        const minCellWidth = mobile ? '' : (tablet ? 'min-width: 45px;' : 'min-width: 50px;');
+        const minCellWidthStyle = minCellWidth ? ` ${minCellWidth}` : '';
         
         const container = document.createElement('div');
         container.style.cssText = `background: white; padding: ${containerPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
@@ -896,8 +898,8 @@ export class BasketMatchupsTable extends BaseTable {
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;">Season Pace Rank</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;">Split</th>
                 <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
                 <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
                 <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
@@ -906,18 +908,18 @@ export class BasketMatchupsTable extends BaseTable {
             <tr style="background: #fafafa;">
                 <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
                 <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Points</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">3PM</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">FTA</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Assists</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TOs</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Off</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Def</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Total</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Blocks</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Steals</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">DD</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">FTA</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -971,8 +973,11 @@ export class BasketMatchupsTable extends BaseTable {
         const fontSize = mobile ? '10px' : (tablet ? '10px' : '11px');
         const titleFontSize = mobile ? '11px' : (tablet ? '12px' : '13px');
         const cellPadding = mobile ? '2px 4px' : (tablet ? '3px 6px' : '4px 8px');
-        const minCellWidth = mobile ? '40px' : (tablet ? '45px' : '50px');
-        const playerCellMinWidth = mobile ? '150px' : (tablet ? '180px' : '200px');
+        // Remove min-width on mobile to allow table to shrink
+        const minCellWidth = mobile ? '' : (tablet ? 'min-width: 45px;' : 'min-width: 50px;');
+        const minCellWidthStyle = minCellWidth ? ` ${minCellWidth}` : '';
+        const playerCellMinWidth = mobile ? '' : (tablet ? 'min-width: 180px;' : 'min-width: 200px;');
+        const playerCellMinWidthStyle = playerCellMinWidth ? ` ${playerCellMinWidth}` : '';
         
         const container = document.createElement('div');
         container.style.cssText = `background: white; padding: ${containerPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
@@ -1038,7 +1043,7 @@ export class BasketMatchupsTable extends BaseTable {
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd; min-width: ${playerCellMinWidth};">Player</th>
+                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd;${playerCellMinWidthStyle}">Player</th>
                 <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
                 <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
                 <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
@@ -1046,18 +1051,18 @@ export class BasketMatchupsTable extends BaseTable {
             </tr>
             <tr style="background: #fafafa;">
                 <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Points</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">3PM</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">FTM</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Assists</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TOs</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Off</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Def</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Total</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Blocks</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Steals</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">DD</th>
-                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">FTM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;${minCellWidthStyle}">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -1073,9 +1078,9 @@ export class BasketMatchupsTable extends BaseTable {
             
             tr.innerHTML = `
                 <td style="padding: ${cellPadding}; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Points"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["3PM"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["FTM"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["3P"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["FT"])}</td>
                 <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
                 <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
                 <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
@@ -1094,18 +1099,18 @@ export class BasketMatchupsTable extends BaseTable {
         return container;
     }
 
-    // Format player info cell
+    // Format player info cell - uses correct field names from BasketMatchupsPlayers
     formatPlayerInfo(row) {
         const name = row["Player"] || '-';
         const lineup = row["Lineup"] || '';
         const split = row["Split"] || '';
         const games = row["Games"] || '-';
-        const mins = this.formatMinutes(row["Mins"]);
+        const mins = this.formatMinutes(row["Minutes"]);
         
         // Check if injured/out
         const isInjured = lineup.toLowerCase().includes('out') || 
                          lineup.toLowerCase().includes('ofs') || 
-                         lineup.toLowerCase().includes('injury');
+                         lineup === 'Injury';
         
         if (isInjured) {
             // For injured: Show all info in one line
