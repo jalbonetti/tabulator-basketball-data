@@ -11,6 +11,7 @@
 // - UPDATED: Matchup Total now displays with 1 forced decimal place
 // - UPDATED: Dynamic width calculation - container contracts to content, expands for subtables
 // - UPDATED: Rank columns now display with "#" prefix (e.g., "#5 (12.3)")
+// - FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -205,7 +206,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
     
     // Calculate and apply widths based on content and subtable requirements
-// Calculate and apply widths based on content and subtable requirements
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('calculateAndApplyWidths: table not ready');
@@ -230,6 +230,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = 'auto';
+                tableHolder.style.maxWidth = 'none';
             }
             
             const tabulatorHeader = tableElement.querySelector('.tabulator-header');
@@ -241,6 +242,9 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             if (tabulatorTable) {
                 tabulatorTable.style.width = 'auto';
             }
+            
+            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
+            void tableElement.offsetWidth;
         }
         
         try {
@@ -281,6 +285,18 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             tableElement.style.width = totalWidthWithScrollbar + 'px';
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+            }
             
             // Also constrain the table container
             const tableContainer = tableElement.closest('.table-container');
