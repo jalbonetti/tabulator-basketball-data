@@ -15,6 +15,10 @@
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
 
+// Minimum width needed for subtables (defense + players tables)
+// This ensures the main table columns expand to accommodate subtable content
+const SUBTABLE_MIN_WIDTH = 1200;
+
 export class BasketMatchupsTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketMatchupsGame');
@@ -131,6 +135,11 @@ export class BasketMatchupsTable extends BaseTable {
                 
                 // Pre-fetch defense and player data for all matchups
                 this.prefetchSubtableData(data);
+                
+                // Calculate and apply column widths after data loads
+                setTimeout(() => {
+                    this.calculateAndApplyWidths();
+                }, 200);
             },
             ajaxError: (error) => {
                 console.error("Error loading matchups data:", error);
@@ -150,6 +159,18 @@ export class BasketMatchupsTable extends BaseTable {
             if (data.length > 0 && this.defenseDataCache.size === 0) {
                 this.prefetchSubtableData(data);
             }
+            
+            // Calculate and apply column widths for proper proportions
+            setTimeout(() => {
+                this.calculateAndApplyWidths();
+            }, 100);
+            
+            // Re-calculate on window resize
+            window.addEventListener('resize', this.debounce(() => {
+                if (this.table && this.table.getDataCount() > 0) {
+                    this.calculateAndApplyWidths();
+                }
+            }, 250));
         });
         
         // Handle render complete - restore any missing subtables
@@ -260,32 +281,92 @@ export class BasketMatchupsTable extends BaseTable {
         ];
     }
 
-    // Expand Matchup column to fill remaining container width (desktop only)
-    expandMatchupColumnToFill() {
-        if (!this.table) return;
+    // Calculate and apply widths based on subtable requirements
+    // Matchup = 50%, Spread = 25%, Total = 25% of SUBTABLE_MIN_WIDTH
+    calculateAndApplyWidths() {
+        if (!this.table) {
+            console.log('calculateAndApplyWidths: table not ready');
+            return;
+        }
         
         const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
-        
-        // Get current total width of all columns
-        let totalColumnWidth = 0;
-        const columns = this.table.getColumns();
-        columns.forEach(col => {
-            if (col.isVisible()) {
-                totalColumnWidth += col.getWidth();
-            }
-        });
-        
-        // Calculate remaining space
-        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
-        
-        if (remainingSpace > 0) {
-            const matchupColumn = this.table.getColumn("Matchup");
-            if (matchupColumn) {
-                const currentWidth = matchupColumn.getWidth();
-                matchupColumn.setWidth(currentWidth + remainingSpace);
-            }
+        if (!tableElement) {
+            console.log('calculateAndApplyWidths: tableElement not ready');
+            return;
         }
+        
+        try {
+            const mobile = isMobile();
+            const tablet = isTablet();
+            
+            // On mobile/tablet, let columns size naturally (fitData behavior)
+            if (mobile || tablet) {
+                console.log('Matchups: Mobile/tablet - using natural column sizing');
+                return;
+            }
+            
+            // Desktop: Set columns to fill SUBTABLE_MIN_WIDTH with proper proportions
+            const SCROLLBAR_WIDTH = 17;
+            const targetWidth = SUBTABLE_MIN_WIDTH;
+            
+            // Get columns
+            const matchupColumn = this.table.getColumn("Matchup");
+            const spreadColumn = this.table.getColumn("Matchup Spread");
+            const totalColumn = this.table.getColumn("Matchup Total");
+            
+            if (matchupColumn && spreadColumn && totalColumn) {
+                // Set widths proportionally: 50%, 25%, 25%
+                const matchupWidth = Math.floor(targetWidth * 0.5);
+                const spreadWidth = Math.floor(targetWidth * 0.25);
+                const totalWidth = Math.floor(targetWidth * 0.25);
+                
+                matchupColumn.setWidth(matchupWidth);
+                spreadColumn.setWidth(spreadWidth);
+                totalColumn.setWidth(totalWidth);
+                
+                console.log(`Matchups: Set column widths - Matchup: ${matchupWidth}px, Spread: ${spreadWidth}px, Total: ${totalWidth}px`);
+            }
+            
+            // Set table element width
+            const totalWidthWithScrollbar = targetWidth + SCROLLBAR_WIDTH;
+            
+            // Store the calculated width for persistence across tab switches
+            this._calculatedTableWidth = totalWidthWithScrollbar;
+            
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            // Set container width
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Matchups: Set table width to ${totalWidthWithScrollbar}px`);
+            
+        } catch (error) {
+            console.error('Error in calculateAndApplyWidths:', error);
+        }
+    }
+    
+    // Force width recalculation - called by TabManager on tab switch
+    forceRecalculateWidths() {
+        console.log('Matchups forceRecalculateWidths called');
+        if (this.table && this.table.getDataCount() > 0) {
+            this.calculateAndApplyWidths();
+        }
+    }
+    
+    // Simple debounce helper
+    debounce(func, wait) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
     }
 
     // Create name formatter with expand icon
