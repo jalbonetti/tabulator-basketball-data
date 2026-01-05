@@ -2,6 +2,7 @@
 // FanDuel Daily Fantasy Sports data
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 // UPDATED: Added min/max filter to Price column
+// FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -184,6 +185,35 @@ export class BasketPlayerFDTable extends BaseTable {
             return;
         }
         
+        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
+        // This fixes the grey/blue space issue when switching tabs
+        if (!isMobile() && !isTablet()) {
+            // Reset outer element widths to allow recalculation
+            tableElement.style.width = 'auto';
+            tableElement.style.minWidth = 'auto';
+            tableElement.style.maxWidth = 'none';
+            
+            // Reset internal Tabulator elements that may have cached widths
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = 'auto';
+                tableHolder.style.maxWidth = 'none';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = 'auto';
+            }
+            
+            const tabulatorTable = tableElement.querySelector('.tabulator-table');
+            if (tabulatorTable) {
+                tabulatorTable.style.width = 'auto';
+            }
+            
+            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
+            void tableElement.offsetWidth;
+        }
+        
         try {
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
@@ -222,6 +252,21 @@ export class BasketPlayerFDTable extends BaseTable {
             tableElement.style.width = totalWidthWithScrollbar + 'px';
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
+            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
+            if (!isMobile() && !isTablet()) {
+                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+                if (tableHolder) {
+                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+                }
+                
+                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+                if (tabulatorHeader) {
+                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+                }
+            }
             
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
