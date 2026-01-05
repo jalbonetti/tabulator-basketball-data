@@ -413,7 +413,7 @@ export class BasketPlayerDKTable extends BaseTable {
             {
                 title: "Name", 
                 field: "Player Name", 
-                frozen: isSmallScreen,
+                frozen: true,
                 widthGrow: 0,
                 minWidth: 120,
                 sorter: "string", 
