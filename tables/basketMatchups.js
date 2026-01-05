@@ -836,9 +836,9 @@ export class BasketMatchupsTable extends BaseTable {
             <tr style="background: #f8f9fa;">
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
-                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Ranks (Avg)</th>
+                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
                 <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
+                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
                 <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Ranks (Tot)</th>
             </tr>
             <tr style="background: #fafafa;">
@@ -848,12 +848,12 @@ export class BasketMatchupsTable extends BaseTable {
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTA</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
+                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
             </tr>
@@ -881,12 +881,12 @@ export class BasketMatchupsTable extends BaseTable {
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
             `;
@@ -970,14 +970,14 @@ export class BasketMatchupsTable extends BaseTable {
         const table = document.createElement('table');
         table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
         
-        // Header - UPDATED: Changed "FT" to "FTM"
+        // Header - UPDATED: Changed "FT" to "FTM", renamed Scoring to Offensive, moved TOs
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
                 <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd; min-width: 200px;">Player</th>
-                <th colspan="4" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Scoring Medians</th>
+                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
                 <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
+                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
                 <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
             </tr>
             <tr style="background: #fafafa;">
@@ -986,12 +986,12 @@ export class BasketMatchupsTable extends BaseTable {
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTM</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
+                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
             </tr>
@@ -1024,18 +1024,19 @@ export class BasketMatchupsTable extends BaseTable {
             }
             
             // UPDATED: Show stats for all players (including injured), unless values are null
+            // TOs moved to after Assists in Offensive section
             tr.innerHTML = `
                 <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
                 <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
             `;
