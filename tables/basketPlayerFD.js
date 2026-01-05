@@ -1,6 +1,7 @@
 // tables/basketPlayerFD.js - Basketball Player FanDuel DFS Table
 // FanDuel Daily Fantasy Sports data
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
+// UPDATED: Added min/max filter to Price column
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -460,10 +461,13 @@ export class BasketPlayerFDTable extends BaseTable {
                 title: "Price", 
                 field: "Player FD Price", 
                 widthGrow: 0,
-                minWidth: 60,
+                minWidth: 70,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     return self.priceSorter(a, b, aRow, bRow, column, dir, sorterParams);
                 },
+                headerFilter: createMinMaxFilter,
+                headerFilterFunc: minMaxFilterFunction,
+                headerFilterLiveFilter: false,
                 resizable: false,
                 hozAlign: "center",
                 formatter: priceFormatter,
