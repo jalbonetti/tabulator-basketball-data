@@ -5,7 +5,10 @@
 // - Column widths: Matchup 50%, Spread 25%, Total 25%
 // - FT header changed to FTM in player subtables
 // - All player stats now have forced decimal places
-// - Out/OFS players consolidated to single row, sorted at bottom (Out above OFS)
+// - Out/OFS players now have single row with Lineup="Injury", Split="Full Season"
+// - Out/OFS players show stats and format: "Name - All - Full Season - Games - Mins"
+// - Total column formatted with 1 decimal place
+// - Defense prop ranks prefixed with #
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -175,6 +178,35 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     getColumns(isSmallScreen = false) {
+        const self = this;
+        
+        // Total formatter - force 1 decimal place
+        const totalFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            const str = String(value);
+            
+            // Check if it has "O/U" prefix
+            if (str.includes('O/U')) {
+                const match = str.match(/O\/U\s*([\d.]+)/);
+                if (match && match[1]) {
+                    const num = parseFloat(match[1]);
+                    if (!isNaN(num)) {
+                        return 'O/U ' + num.toFixed(1);
+                    }
+                }
+                return str;
+            }
+            
+            // Try to parse as number
+            const num = parseFloat(str);
+            if (!isNaN(num)) {
+                return num.toFixed(1);
+            }
+            
+            return str;
+        };
+        
         return [
             // Hidden Matchup ID for sorting
             {
@@ -205,7 +237,7 @@ export class BasketMatchupsTable extends BaseTable {
                 resizable: false,
                 hozAlign: "center"
             },
-            // UPDATED: Total column now 25% width
+            // UPDATED: Total column now 25% width with formatter for 1 decimal place
             {
                 title: "Total", 
                 field: "Total", 
@@ -213,7 +245,8 @@ export class BasketMatchupsTable extends BaseTable {
                 minWidth: 100,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: totalFormatter
             }
         ];
     }
@@ -764,7 +797,7 @@ export class BasketMatchupsTable extends BaseTable {
         return 'Expected';
     }
 
-    // Create defense subtable
+    // Create defense subtable - UPDATED with # prefix on prop ranks
     createDefenseSubtable(defenseData, title) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -833,27 +866,29 @@ export class BasketMatchupsTable extends BaseTable {
             const tr = document.createElement('tr');
             tr.style.cssText = index % 2 === 1 ? 'background: #fafafa;' : '';
             
-            // Pace cell (merged for first row)
+            // Pace cell (merged for first row) - add # prefix
             if (index === 0) {
+                const paceDisplay = this.formatRankWithHash(paceValue);
                 tr.innerHTML = `
-                    <td rowspan="${sortedData.length}" style="padding: 4px 8px; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceValue}</td>
+                    <td rowspan="${sortedData.length}" style="padding: 4px 8px; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
                 `;
             }
             
+            // Format all rank values with # prefix
             tr.innerHTML += `
                 <td style="padding: 4px 8px; text-align: center;">${row["Split"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Pts"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["3P"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["FTA"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Assists"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["ORebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["DRebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Rebs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Blocks"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["Steals"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["TOs"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["DD"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${row["TD"] || '-'}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -863,7 +898,7 @@ export class BasketMatchupsTable extends BaseTable {
         return container;
     }
 
-    // Create players subtable
+    // Create players subtable - UPDATED for new injured player handling
     createPlayersSubtable(playerData, title, homeAway) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -882,37 +917,23 @@ export class BasketMatchupsTable extends BaseTable {
             return container;
         }
         
-        // UPDATED: New sorting logic for Out/OFS players
-        // 1. Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
-        // 2. Then Out players (alphabetically, single row each)
-        // 3. Then OFS players at very bottom (alphabetically, single row each)
+        // UPDATED: New sorting logic
+        // Injured players (Lineup="Injury") now have single rows with Split="Full Season"
+        // Sort: Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
+        // Then injured players at bottom (alphabetically)
         
-        // First, separate players into categories
+        // Separate players into categories based on Lineup field
         const activePlayers = [];
-        const outPlayers = [];
-        const ofsPlayers = [];
-        
-        // Group by player name to handle duplicates (Full Season / Last 30 Days)
-        const playersByName = new Map();
+        const injuredPlayers = [];
         
         playerData.forEach(row => {
-            const playerName = row["Player"] || '';
-            const isOut = playerName.includes('(Out)');
-            const isOFS = playerName.includes('(OFS)');
+            const lineup = row["Lineup"] || '';
             
-            if (isOut) {
-                // For Out players, only keep one row per player (dedupe)
-                if (!playersByName.has(playerName)) {
-                    playersByName.set(playerName, row);
-                    outPlayers.push(row);
-                }
-            } else if (isOFS) {
-                // For OFS players, only keep one row per player (dedupe)
-                if (!playersByName.has(playerName)) {
-                    playersByName.set(playerName, row);
-                    ofsPlayers.push(row);
-                }
+            if (lineup === 'Injury') {
+                // Injured player - single row
+                injuredPlayers.push(row);
             } else {
+                // Active player
                 activePlayers.push(row);
             }
         });
@@ -935,22 +956,15 @@ export class BasketMatchupsTable extends BaseTable {
             return aSplit - bSplit;
         });
         
-        // Sort Out players alphabetically by name
-        outPlayers.sort((a, b) => {
+        // Sort injured players alphabetically by name
+        injuredPlayers.sort((a, b) => {
             const aName = a["Player"] || '';
             const bName = b["Player"] || '';
             return aName.localeCompare(bName);
         });
         
-        // Sort OFS players alphabetically by name
-        ofsPlayers.sort((a, b) => {
-            const aName = a["Player"] || '';
-            const bName = b["Player"] || '';
-            return aName.localeCompare(bName);
-        });
-        
-        // Combine: Active players, then Out, then OFS
-        const sortedData = [...activePlayers, ...outPlayers, ...ofsPlayers];
+        // Combine: Active players, then injured
+        const sortedData = [...activePlayers, ...injuredPlayers];
         
         // Create table
         const table = document.createElement('table');
@@ -996,56 +1010,35 @@ export class BasketMatchupsTable extends BaseTable {
             const games = row["Games"] || '0';
             const minutes = this.formatMinutes(row["Minutes"]);
             
-            // Check if player is Out or OFS (injury status in name)
-            const isOut = playerName.includes('(Out)');
-            const isOFS = playerName.includes('(OFS)');
-            const isInactive = isOut || isOFS;
+            // Check if player is injured (Lineup = "Injury")
+            const isInjured = lineup === 'Injury';
             
-            // UPDATED: Format player info differently for Out/OFS vs active players
+            // UPDATED: Format player info differently for injured vs active players
             let playerInfo;
-            if (isInactive) {
-                // For Out/OFS players: just show name (no Starter/Bench, no Split, no Games/Mins)
-                playerInfo = playerName;
+            if (isInjured) {
+                // For injured players: "Name - All - Full Season - X Games - X.X Mins"
+                playerInfo = `${playerName} - All - Full Season - ${games} Games - ${minutes} Mins`;
             } else {
-                // For active players: "Name - Starter/Bench - Split - X Games - X Mins"
+                // For active players: "Name - Starter/Bench - Split - X Games - X.X Mins"
                 playerInfo = `${playerName} - ${lineup} - ${split} - ${games} Games - ${minutes} Mins`;
             }
             
-            // If player is Out/OFS, show "-" for all stats
-            if (isInactive) {
-                tr.innerHTML = `
-                    <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                    <td style="padding: 4px 8px; text-align: center;">-</td>
-                `;
-            } else {
-                // UPDATED: Use formatStatValue for all stats to force decimal places
-                tr.innerHTML = `
-                    <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
-                    <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
-                `;
-            }
+            // UPDATED: Show stats for all players (including injured), unless values are null
+            tr.innerHTML = `
+                <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
+                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
+            `;
             tbody.appendChild(tr);
         });
         table.appendChild(tbody);
@@ -1062,7 +1055,7 @@ export class BasketMatchupsTable extends BaseTable {
         return num.toFixed(1);
     }
 
-    // ADDED: Format stat values with 1 decimal place (for medians)
+    // Format stat values with 1 decimal place (for medians)
     formatStatValue(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
         const num = parseFloat(value);
@@ -1070,12 +1063,36 @@ export class BasketMatchupsTable extends BaseTable {
         return num.toFixed(1);
     }
 
-    // ADDED: Format integer values (for DD/TD totals - no decimal needed)
+    // Format integer values (for DD/TD totals - no decimal needed)
     formatIntegerValue(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
         const num = parseInt(value, 10);
         if (isNaN(num)) return '-';
         return String(num);
+    }
+
+    // NEW: Format rank values with # prefix
+    formatRankWithHash(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        const str = String(value).trim();
+        
+        // If it already has a #, return as-is
+        if (str.startsWith('#')) return str;
+        
+        // Check if it's a rank with average format like "21 (25.2)"
+        const match = str.match(/^(\d+)\s*\(([^)]+)\)$/);
+        if (match) {
+            return `#${match[1]} (${match[2]})`;
+        }
+        
+        // Check if it's just a number
+        const num = parseInt(str, 10);
+        if (!isNaN(num)) {
+            return `#${num}`;
+        }
+        
+        // Return original if can't parse
+        return str;
     }
 
     // Override saveState to properly save expanded rows
