@@ -9,6 +9,7 @@
 // - Out/OFS players show stats and format: "Name - All - Full Season - Games - Mins"
 // - Total column formatted with 1 decimal place
 // - Defense prop ranks prefixed with #
+// - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -601,16 +602,25 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Parse matchup string to get home/away teams
+    // FIXED: Now handles text month date formats (e.g., "Jan 5")
     parseMatchup(matchupStr) {
         if (!matchupStr) return { away: null, home: null };
         
-        // Format: "Away Team @ Home Team" or "Away Team @ Home Team 1/4 7:00PM"
+        // Format: "Away Team @ Home Team" or "Away Team @ Home Team 1/4 7:00PM" or "Away Team @ Home Team Jan 5 7:00PM"
         const parts = matchupStr.split('@');
         if (parts.length !== 2) return { away: null, home: null };
         
         const awayTeam = parts[0].trim();
-        // Remove date/time if present
-        const homeTeam = parts[1].replace(/\s+\d{1,2}:\d{2}(AM|PM)?.*$/, '').replace(/\s*\d{1,2}\/\d{1,2}.*$/, '').trim();
+        
+        // Remove date/time if present - handles multiple formats:
+        // - "Jan 5 7:00PM" or ", Jan 5" (text month format)
+        // - "1/4 7:00PM" (numeric date format)
+        // - "7:00PM" (time only)
+        const homeTeam = parts[1]
+            .replace(/,?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}.*$/i, '') // Text month format
+            .replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)?.*$/i, '') // Time format
+            .replace(/\s*\d{1,2}\/\d{1,2}.*$/, '') // Numeric date format
+            .trim();
         
         return { away: awayTeam, home: homeTeam };
     }
