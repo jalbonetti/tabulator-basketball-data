@@ -311,7 +311,7 @@ export class BasketGameOddsTable extends BaseTable {
             {
                 title: "Matchup", 
                 field: "Game Matchup", 
-                frozen: isSmallScreen,
+                frozen: true,
                 widthGrow: 0,
                 minWidth: 120,
                 sorter: "string",
