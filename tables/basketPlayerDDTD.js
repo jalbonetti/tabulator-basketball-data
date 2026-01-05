@@ -435,6 +435,13 @@ export class BasketPlayerDDTDTable extends BaseTable {
             return num > 0 ? `+${num}` : `${num}`;
         };
 
+        // Rank formatter - prepends "#" to rank values
+        const rankFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            return '#' + String(value);
+        };
+
         return [
             // =====================================================
             // NAME COLUMN - widthGrow:0 means size to content only
@@ -564,7 +571,8 @@ export class BasketPlayerDDTDTable extends BaseTable {
                         cssClass: "cluster-b",
                         titleFormatter: function() {
                             return "Prop<br>Rank<br>(Tot)";
-                        }
+                        },
+                        formatter: rankFormatter
                     },
                     {
                         title: "Season Pace Rank", 
@@ -577,7 +585,8 @@ export class BasketPlayerDDTDTable extends BaseTable {
                         cssClass: "cluster-b",
                         titleFormatter: function() {
                             return "Season<br>Pace<br>Rank";
-                        }
+                        },
+                        formatter: rankFormatter
                     }
                 ]
             },
