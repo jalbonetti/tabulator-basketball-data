@@ -227,23 +227,66 @@ export class BasketMatchupsTable extends BaseTable {
                 hozAlign: "left",
                 cssClass: "matchup-cell"
             },
-            // UPDATED: Spread column now 25% width
+            // UPDATED: Spread column now 25% width with custom numeric sorter
+            // Extracts numeric value from "TEAM -X.X" or "TEAM +X.X" format
             {
                 title: "Spread", 
                 field: "Spread", 
                 width: "25%",
                 minWidth: 100,
-                sorter: "string",
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    // Extract numeric value from spread format (e.g., "MIL -6.0" or "PHX +6.0")
+                    const getNum = (val) => {
+                        if (val === null || val === undefined || val === '' || val === '-') return -9999;
+                        const str = String(val);
+                        // Try to extract signed number (handles -X.X or +X.X)
+                        const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
+                        if (match && match[1]) {
+                            return parseFloat(match[1]);
+                        }
+                        // Fallback: try to find any number with optional sign
+                        const numMatch = str.match(/([+-]?\d+\.?\d*)/);
+                        if (numMatch && numMatch[1]) {
+                            return parseFloat(numMatch[1]);
+                        }
+                        return -9999;
+                    };
+                    
+                    const aNum = getNum(a);
+                    const bNum = getNum(b);
+                    
+                    return aNum - bNum;
+                },
                 resizable: false,
                 hozAlign: "center"
             },
             // UPDATED: Total column now 25% width with formatter for 1 decimal place
+            // Custom sorter extracts numeric value from "O/U XXX.X" format
             {
                 title: "Total", 
                 field: "Total", 
                 width: "25%",
                 minWidth: 100,
-                sorter: "string",
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    // Extract numeric value from O/U format
+                    const getNum = (val) => {
+                        if (val === null || val === undefined || val === '' || val === '-') return -1;
+                        const str = String(val);
+                        // Try to extract number after "O/U"
+                        const match = str.match(/O\/U\s*([\d.]+)/);
+                        if (match && match[1]) {
+                            return parseFloat(match[1]);
+                        }
+                        // Fallback: try to parse as number directly
+                        const num = parseFloat(str);
+                        return isNaN(num) ? -1 : num;
+                    };
+                    
+                    const aNum = getNum(a);
+                    const bNum = getNum(b);
+                    
+                    return aNum - bNum;
+                },
                 resizable: false,
                 hozAlign: "center",
                 formatter: totalFormatter
