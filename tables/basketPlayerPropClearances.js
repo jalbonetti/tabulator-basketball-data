@@ -205,6 +205,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
     }
     
     // Calculate and apply widths based on content and subtable requirements
+// Calculate and apply widths based on content and subtable requirements
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('calculateAndApplyWidths: table not ready');
@@ -215,6 +216,31 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         if (!tableElement) {
             console.log('calculateAndApplyWidths: tableElement not ready');
             return;
+        }
+        
+        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
+        // This fixes the grey/blue space issue when switching tabs
+        if (!isMobile() && !isTablet()) {
+            // Reset outer element widths to allow recalculation
+            tableElement.style.width = 'auto';
+            tableElement.style.minWidth = 'auto';
+            tableElement.style.maxWidth = 'none';
+            
+            // Reset internal Tabulator elements that may have cached widths
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = 'auto';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = 'auto';
+            }
+            
+            const tabulatorTable = tableElement.querySelector('.tabulator-table');
+            if (tabulatorTable) {
+                tabulatorTable.style.width = 'auto';
+            }
         }
         
         try {
