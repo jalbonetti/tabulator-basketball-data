@@ -1,5 +1,7 @@
 // components/tabManager.js - Tab Manager for Basketball Tables
 // Based exactly on working baseball repository pattern
+// UPDATED: Width recalculation now runs on ALL devices (not just desktop)
+//          to fix container not contracting properly on mobile/tablet tab switches
 
 export const TAB_STYLES = `
     /* Table wrapper */
@@ -179,6 +181,20 @@ export class TabManager {
                         currentContainer.style.display = 'none';
                         currentContainer.classList.remove('active-table');
                         currentContainer.classList.add('inactive-table');
+                        
+                        // MOBILE FIX: Reset width styles to prevent stale dimensions carrying over
+                        currentContainer.style.width = '';
+                        currentContainer.style.minWidth = '';
+                        currentContainer.style.maxWidth = '';
+                        
+                        // Also reset the tabulator element inside
+                        const currentTableElement = currentContainer.querySelector('.tabulator');
+                        if (currentTableElement) {
+                            currentTableElement.style.width = '';
+                            currentTableElement.style.minWidth = '';
+                            currentTableElement.style.maxWidth = '';
+                        }
+                        
                         console.log(`TabManager: Hidden container #${currentContainerId}`);
                     } else {
                         console.error(`TabManager: Could not find current container #${currentContainerId}`);
@@ -218,17 +234,40 @@ export class TabManager {
                         targetTableWrapper.table.redraw(true);
                         self.restoreTabState(targetTab);
                         
-                        // Re-equalize columns after tab switch (desktop only)
-                        if (window.innerWidth > 1024) {
-                            setTimeout(() => {
+                        // Re-equalize columns and recalculate widths after tab switch
+                        setTimeout(() => {
+                            // Desktop-specific column equalization
+                            if (window.innerWidth > 1024) {
                                 if (targetTableWrapper.equalizeClusteredColumns) {
                                     targetTableWrapper.equalizeClusteredColumns();
                                 }
                                 if (targetTableWrapper.expandNameColumnToFill) {
                                     targetTableWrapper.expandNameColumnToFill();
                                 }
-                            }, 100);
-                        }
+                            }
+                            
+                            // ALL DEVICES: Force width recalculation to eliminate dead space
+                            // This is critical for mobile/tablet where width wasn't being recalculated
+                            if (targetTableWrapper.forceRecalculateWidths) {
+                                targetTableWrapper.forceRecalculateWidths();
+                            } else if (targetTableWrapper.calculateAndApplyWidths) {
+                                targetTableWrapper.calculateAndApplyWidths();
+                            }
+                            
+                            // Reset and re-apply container width for clean recalculation
+                            const tableContainer = targetTableWrapper.table?.element?.closest('.table-container');
+                            if (tableContainer) {
+                                // Clear any stale width values
+                                tableContainer.style.width = '';
+                                tableContainer.style.minWidth = '';
+                                tableContainer.style.maxWidth = '';
+                                
+                                // Re-apply fit-content after layout settles
+                                requestAnimationFrame(() => {
+                                    tableContainer.style.width = 'fit-content';
+                                });
+                            }
+                        }, 100);
                     }
                     
                     console.log(`TabManager: Successfully switched to ${targetTab}`);
@@ -303,8 +342,7 @@ export class TabManager {
             rows.forEach(row => {
                 const data = row.getData();
                 if (data._expanded) {
-                    expandedRows.push(tableWrapper.generateRowId ? 
-                        tableWrapper.generateRowId(data) : JSON.stringify(data));
+                    expandedRows.push(tableWrapper.generateRowId ? tableWrapper.generateRowId(data) : JSON.stringify(data));
                 }
             });
             
@@ -335,8 +373,7 @@ export class TabManager {
                     const rows = tableWrapper.table.getRows();
                     rows.forEach(row => {
                         const data = row.getData();
-                        const rowId = tableWrapper.generateRowId ? 
-                            tableWrapper.generateRowId(data) : JSON.stringify(data);
+                        const rowId = tableWrapper.generateRowId ? tableWrapper.generateRowId(data) : JSON.stringify(data);
                         
                         if (expandedRowIds.includes(rowId)) {
                             if (!data._expanded) {
