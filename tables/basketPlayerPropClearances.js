@@ -10,6 +10,7 @@
 // - UPDATED: Clearance now converts from decimal to percentage (multiply by 100)
 // - UPDATED: Matchup Total now displays with 1 forced decimal place
 // - UPDATED: Dynamic width calculation - container contracts to content, expands for subtables
+// - UPDATED: Rank columns now display with "#" prefix (e.g., "#5 (12.3)")
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -464,6 +465,13 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num > 0 ? `+${num}` : `${num}`;
         };
 
+        // Rank formatter - prepends "#" to rank values (e.g., "5 (12.3)" -> "#5 (12.3)")
+        const rankFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            return '#' + value;
+        };
+
         return [
             // =====================================================
             // NAME COLUMN - widthGrow:0 sizes to content
@@ -594,6 +602,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
             // =====================================================
             // OPPONENT GROUP - renamed headers
+            // UPDATED: Added rankFormatter to display "#" prefix
             // =====================================================
             {
                 title: "Opponent", 
@@ -611,7 +620,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         cssClass: "cluster-b",
                         titleFormatter: function() {
                             return "Prop<br>Rank<br>(Avg)";
-                        }
+                        },
+                        formatter: rankFormatter
                     },
                     {
                         title: "Season Pace Rank", 
@@ -624,7 +634,8 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         cssClass: "cluster-b",
                         titleFormatter: function() {
                             return "Season<br>Pace<br>Rank";
-                        }
+                        },
+                        formatter: rankFormatter
                     }
                 ]
             },
