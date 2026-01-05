@@ -2,7 +2,8 @@
 // Based exactly on working baseball repository pattern
 // UPDATED: Width recalculation now runs on ALL devices (not just desktop)
 //          to fix container not contracting properly on mobile/tablet tab switches
-// UPDATED: Mobile uses width:100% instead of fit-content to enable frozen columns
+// UPDATED: Mobile uses constrained widths to enable frozen columns
+//          Key fix: tabulator needs min-width:0 and max-width:100% on mobile
 
 export const TAB_STYLES = `
     /* Table wrapper */
@@ -147,24 +148,44 @@ export class TabManager {
     }
 
     /**
-     * Apply appropriate container width based on screen size
-     * - Mobile/tablet: width:100% to keep scroll at tableholder level (enables frozen columns)
+     * Apply appropriate container and tabulator width based on screen size
+     * - Mobile/tablet: Constrain both container AND tabulator to enable frozen columns
+     *   Key: tabulator needs min-width:0 to prevent flexbox expansion
      * - Desktop: fit-content for proper dynamic sizing
      */
     applyContainerWidth(tableContainer) {
         if (!tableContainer) return;
+        
+        const tabulator = tableContainer.querySelector('.tabulator');
         
         if (window.innerWidth <= 1024) {
             // Mobile/tablet: constrain to viewport for frozen column support
             tableContainer.style.width = '100%';
             tableContainer.style.maxWidth = '100vw';
             tableContainer.style.overflowX = 'hidden';
-            console.log('TabManager: Applied mobile container width (100%)');
+            
+            // CRITICAL: Also constrain the tabulator element
+            // Without this, tabulator expands to fit content and tableholder doesn't scroll
+            if (tabulator) {
+                tabulator.style.width = '100%';
+                tabulator.style.minWidth = '0';
+                tabulator.style.maxWidth = '100%';
+            }
+            
+            console.log('TabManager: Applied mobile container constraints (100%, min-width:0)');
         } else {
             // Desktop: use fit-content for dynamic sizing
             tableContainer.style.width = 'fit-content';
             tableContainer.style.maxWidth = 'none';
             tableContainer.style.overflowX = '';
+            
+            // Reset tabulator constraints on desktop
+            if (tabulator) {
+                tabulator.style.width = '';
+                tabulator.style.minWidth = '';
+                tabulator.style.maxWidth = '';
+            }
+            
             console.log('TabManager: Applied desktop container width (fit-content)');
         }
     }
@@ -269,29 +290,20 @@ export class TabManager {
                                 if (targetTableWrapper.expandNameColumnToFill) {
                                     targetTableWrapper.expandNameColumnToFill();
                                 }
-                            }
-                            
-                            // ALL DEVICES: Force width recalculation to eliminate dead space
-                            // This is critical for mobile/tablet where width wasn't being recalculated
-                            if (targetTableWrapper.forceRecalculateWidths) {
-                                targetTableWrapper.forceRecalculateWidths();
-                            } else if (targetTableWrapper.calculateAndApplyWidths) {
-                                targetTableWrapper.calculateAndApplyWidths();
-                            }
-                            
-                            // Reset and re-apply container width for clean recalculation
-                            const tableContainer = targetTableWrapper.table?.element?.closest('.table-container');
-                            if (tableContainer) {
-                                // Clear any stale width values
-                                tableContainer.style.width = '';
-                                tableContainer.style.minWidth = '';
-                                tableContainer.style.maxWidth = '';
                                 
-                                // Re-apply appropriate width based on screen size
-                                requestAnimationFrame(() => {
-                                    self.applyContainerWidth(tableContainer);
-                                });
+                                // Desktop: run width recalculation
+                                if (targetTableWrapper.forceRecalculateWidths) {
+                                    targetTableWrapper.forceRecalculateWidths();
+                                } else if (targetTableWrapper.calculateAndApplyWidths) {
+                                    targetTableWrapper.calculateAndApplyWidths();
+                                }
                             }
+                            
+                            // Apply appropriate container width based on screen size
+                            const tableContainer = targetTableWrapper.table?.element?.closest('.table-container');
+                            requestAnimationFrame(() => {
+                                self.applyContainerWidth(tableContainer);
+                            });
                         }, 100);
                     }
                     
