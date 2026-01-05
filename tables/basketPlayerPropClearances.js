@@ -287,15 +287,18 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
             // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
-            }
-            
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
+            if (!isMobile() && !isTablet()) {
+                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+                if (tableHolder) {
+                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+                }
+                
+                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+                if (tabulatorHeader) {
+                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+                }
             }
             
             // Also constrain the table container
