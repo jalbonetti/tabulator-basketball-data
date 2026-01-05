@@ -9,6 +9,8 @@
 // - Out/OFS players show stats and format: "Name - All - Full Season - Games - Mins"
 // - Total column formatted with 1 decimal place
 // - Defense prop ranks prefixed with #
+// - FIXED: parseMatchup now handles various date formats (Jan 4, 1/4, etc.)
+// - FIXED: Mobile/tablet responsive sizing for subtables
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -198,82 +200,46 @@ export class BasketMatchupsTable extends BaseTable {
                 return str;
             }
             
-            // Try to parse as number
             const num = parseFloat(str);
-            if (!isNaN(num)) {
-                return num.toFixed(1);
-            }
-            
-            return str;
+            if (isNaN(num)) return str;
+            return num.toFixed(1);
         };
-        
+
         return [
-            // Hidden Matchup ID for sorting
             {
                 title: "Matchup ID",
                 field: "Matchup ID",
-                visible: false,
-                sorter: "number"
+                visible: false
             },
-            // UPDATED: Matchup column now 50% width
             {
-                title: "Matchup", 
-                field: "Matchup", 
-                width: "50%",
+                title: "Matchup",
+                field: "Matchup",
+                widthGrow: 2,
                 minWidth: 200,
                 sorter: "string",
                 resizable: false,
                 formatter: this.createNameFormatter(),
-                hozAlign: "left",
-                cssClass: "matchup-cell"
+                hozAlign: "left"
             },
-            // UPDATED: Spread column now 25% width with custom numeric sorter
-            // Extracts numeric value from "TEAM -X.X" or "TEAM +X.X" format
             {
-                title: "Spread", 
-                field: "Spread", 
-                width: "25%",
+                title: "Spread",
+                field: "Matchup Spread",
+                widthGrow: 1,
                 minWidth: 100,
-                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                    // Extract numeric value from spread format (e.g., "MIL -6.0" or "PHX +6.0")
-                    const getNum = (val) => {
-                        if (val === null || val === undefined || val === '' || val === '-') return -9999;
-                        const str = String(val);
-                        // Try to extract signed number (handles -X.X or +X.X)
-                        const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
-                        if (match && match[1]) {
-                            return parseFloat(match[1]);
-                        }
-                        // Fallback: try to find any number with optional sign
-                        const numMatch = str.match(/([+-]?\d+\.?\d*)/);
-                        if (numMatch && numMatch[1]) {
-                            return parseFloat(numMatch[1]);
-                        }
-                        return -9999;
-                    };
-                    
-                    const aNum = getNum(a);
-                    const bNum = getNum(b);
-                    
-                    return aNum - bNum;
-                },
+                sorter: "string",
                 resizable: false,
                 hozAlign: "center"
             },
-            // UPDATED: Total column now 25% width with formatter for 1 decimal place
-            // Custom sorter extracts numeric value from "O/U XXX.X" format
             {
-                title: "Total", 
-                field: "Total", 
-                width: "25%",
+                title: "Total",
+                field: "Matchup Total",
+                widthGrow: 1,
                 minWidth: 100,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                    // Extract numeric value from O/U format
                     const getNum = (val) => {
-                        if (val === null || val === undefined || val === '' || val === '-') return -1;
+                        if (!val || val === '-') return -1;
                         const str = String(val);
-                        // Try to extract number after "O/U"
-                        const match = str.match(/O\/U\s*([\d.]+)/);
+                        const match = str.match(/([\d.]+)/);
                         if (match && match[1]) {
                             return parseFloat(match[1]);
                         }
@@ -397,11 +363,19 @@ export class BasketMatchupsTable extends BaseTable {
         const tableHolder = this.table?.element?.querySelector('.tabulator-tableholder');
         const scrollTopBefore = preserveScroll && tableHolder ? tableHolder.scrollTop : null;
         
+        // Detect screen size for responsive styling
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        // Responsive padding values
+        const containerPadding = mobile ? '8px 10px' : (tablet ? '10px 15px' : '15px 20px');
+        
         const holderEl = document.createElement("div");
         holderEl.classList.add('subrow-container');
         // Note: max-height/overflow is on the inner wrapper, not here
         holderEl.style.cssText = `
-            padding: 15px 20px;
+            padding: ${containerPadding};
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
             border-top: 2px solid #f97316;
             margin: 0;
@@ -449,10 +423,10 @@ export class BasketMatchupsTable extends BaseTable {
                                     const data = row.getData();
                                     if (data._expanded) {
                                         setTimeout(() => {
-                                            if (!rowElement.querySelector('.subrow-container') && data._expanded) {
+                                            if (!rowElement.querySelector('.subrow-container')) {
                                                 self.createAndAppendSubtable(rowElement, data, true);
                                             }
-                                        }, 10);
+                                        }, 50);
                                     }
                                     break;
                                 }
@@ -463,18 +437,15 @@ export class BasketMatchupsTable extends BaseTable {
             });
         });
         
-        // Observe the table holder for subtree modifications
-        const tableHolder = this.table.element.querySelector('.tabulator-tableholder');
+        // Start observing
+        const tableHolder = this.table?.element?.querySelector('.tabulator-tableholder');
         if (tableHolder) {
             this.subtableObserver.observe(tableHolder, {
                 childList: true,
                 subtree: true
             });
             
-            // Setup scroll state tracking
-            this.isScrolling = false;
-            this.scrollEndTimeout = null;
-            
+            // Track scroll state
             tableHolder.addEventListener('scroll', () => {
                 self.isScrolling = true;
                 
@@ -484,21 +455,19 @@ export class BasketMatchupsTable extends BaseTable {
                 
                 self.scrollEndTimeout = setTimeout(() => {
                     self.isScrolling = false;
+                    // After scroll ends, restore any missing subtables
                     self.restoreExpandedSubtables();
-                }, 200);
-            }, { passive: true });
+                }, 150);
+            });
         }
     }
 
-    // Periodic check to ensure expanded rows have their subtables
+    // Start watchdog timer to periodically check for missing subtables
     startSubtableWatchdog() {
+        if (this.subtableWatchdog) return; // Already running
+        
         const self = this;
         
-        if (this.subtableWatchdog) {
-            clearInterval(this.subtableWatchdog);
-        }
-        
-        // Check every 500ms for missing subtables (but not during scrolling)
         this.subtableWatchdog = setInterval(() => {
             if (!self.table || !self.subtableDataReady || self.isScrolling) return;
             
@@ -574,8 +543,14 @@ export class BasketMatchupsTable extends BaseTable {
                 // Cache not ready - show loading state
                 const loadingEl = document.createElement("div");
                 loadingEl.classList.add('subrow-container', 'subrow-loading');
+                
+                // Responsive padding
+                const mobile = isMobile();
+                const tablet = isTablet();
+                const containerPadding = mobile ? '8px 10px' : (tablet ? '10px 15px' : '15px 20px');
+                
                 loadingEl.style.cssText = `
-                    padding: 15px 20px;
+                    padding: ${containerPadding};
                     background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
                     border-top: 2px solid #f97316;
                     margin: 0;
@@ -601,16 +576,40 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Parse matchup string to get home/away teams
+    // FIXED: Now handles various date/time formats including:
+    // - "Team A @ Team B, Jan 4, 9:40 PM EST"
+    // - "Team A @ Team B 1/4 7:00PM"
+    // - "Team A @ Team B"
     parseMatchup(matchupStr) {
         if (!matchupStr) return { away: null, home: null };
         
-        // Format: "Away Team @ Home Team" or "Away Team @ Home Team 1/4 7:00PM"
+        // Format: "Away Team @ Home Team" potentially followed by date/time
         const parts = matchupStr.split('@');
         if (parts.length !== 2) return { away: null, home: null };
         
         const awayTeam = parts[0].trim();
-        // Remove date/time if present
-        const homeTeam = parts[1].replace(/\s+\d{1,2}:\d{2}(AM|PM)?.*$/, '').replace(/\s*\d{1,2}\/\d{1,2}.*$/, '').trim();
+        
+        // Remove date/time from home team - handle multiple formats
+        let homeTeam = parts[1].trim();
+        
+        // Pattern 1: Remove comma followed by month name and everything after
+        // Handles: "Los Angeles Lakers, Jan 4, 9:40 PM EST" -> "Los Angeles Lakers"
+        homeTeam = homeTeam.replace(/,\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec).*$/i, '');
+        
+        // Pattern 2: Remove numeric date format (1/4 or 01/04)
+        // Handles: "Los Angeles Lakers 1/4 7:00PM" -> "Los Angeles Lakers"
+        homeTeam = homeTeam.replace(/\s+\d{1,2}\/\d{1,2}.*$/, '');
+        
+        // Pattern 3: Remove standalone time format
+        // Handles: "Los Angeles Lakers 7:00 PM" -> "Los Angeles Lakers"
+        homeTeam = homeTeam.replace(/\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm)?.*$/i, '');
+        
+        // Pattern 4: Remove any remaining comma and everything after
+        // Catch-all for other date formats
+        homeTeam = homeTeam.replace(/,.*$/, '');
+        
+        // Final cleanup
+        homeTeam = homeTeam.trim();
         
         return { away: awayTeam, home: homeTeam };
     }
@@ -723,6 +722,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create all subtable content (4 stacked tables) - INSIDE A SCROLLABLE CONTAINER
+    // UPDATED: Now uses responsive padding/gap values based on screen size
     createSubtableContent(container, data) {
         const matchupId = data["Matchup ID"];
         const matchupStr = data["Matchup"];
@@ -754,6 +754,14 @@ export class BasketMatchupsTable extends BaseTable {
         const awayLineupType = this.getLineupType(lineupAway);
         const homeLineupType = this.getLineupType(lineupHome);
         
+        // Detect screen size for responsive styling
+        const mobile = isMobile();
+        const tablet = isTablet();
+        
+        // Responsive gap and max-height values
+        const wrapperGap = mobile ? '8px' : (tablet ? '10px' : '15px');
+        const wrapperMaxHeight = mobile ? '350px' : (tablet ? '400px' : '450px');
+        
         // Create wrapper - THIS IS NOW THE SCROLLABLE CONTAINER
         // Max-height allows viewing all content by scrolling within the subtable
         // This prevents the main table from needing to scroll (which causes row recycling issues)
@@ -762,8 +770,8 @@ export class BasketMatchupsTable extends BaseTable {
         wrapper.style.cssText = `
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            max-height: 450px;
+            gap: ${wrapperGap};
+            max-height: ${wrapperMaxHeight};
             overflow-y: scroll;
             overflow-x: hidden;
             box-sizing: border-box;
@@ -840,21 +848,32 @@ export class BasketMatchupsTable extends BaseTable {
         return 'Expected';
     }
 
-    // Create defense subtable - UPDATED with # prefix on prop ranks
+    // Create defense subtable - UPDATED with # prefix on prop ranks and responsive styling
     createDefenseSubtable(defenseData, title) {
+        // Detect screen size for responsive styling
+        const mobile = isMobile();
+        const tablet = isTablet();
+        
+        // Responsive padding
+        const containerPadding = mobile ? '8px' : (tablet ? '10px' : '12px');
+        const fontSize = mobile ? '10px' : (tablet ? '10px' : '11px');
+        const titleFontSize = mobile ? '11px' : (tablet ? '12px' : '13px');
+        const cellPadding = mobile ? '2px 4px' : (tablet ? '3px 6px' : '4px 8px');
+        const minCellWidth = mobile ? '40px' : (tablet ? '45px' : '50px');
+        
         const container = document.createElement('div');
-        container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+        container.style.cssText = `background: white; padding: ${containerPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
         
         // Title
         const titleEl = document.createElement('h4');
         titleEl.textContent = title;
-        titleEl.style.cssText = 'margin: 0 0 10px 0; color: #f97316; font-size: 13px; font-weight: 600;';
+        titleEl.style.cssText = `margin: 0 0 ${mobile ? '6px' : '10px'} 0; color: #f97316; font-size: ${titleFontSize}; font-weight: 600;`;
         container.appendChild(titleEl);
         
         if (!defenseData || defenseData.length === 0) {
             const noData = document.createElement('div');
             noData.textContent = 'No defense data available';
-            noData.style.cssText = 'color: #666; font-size: 12px; padding: 10px;';
+            noData.style.cssText = `color: #666; font-size: ${fontSize}; padding: 10px;`;
             container.appendChild(noData);
             return container;
         }
@@ -871,34 +890,34 @@ export class BasketMatchupsTable extends BaseTable {
         
         // Create table
         const table = document.createElement('table');
-        table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
+        table.style.cssText = `font-size: ${fontSize}; border-collapse: collapse; width: 100%;`;
         
         // Header
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
-                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Ranks (Tot)</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
+                <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
+                <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Ranks (Tot)</th>
             </tr>
             <tr style="background: #fafafa;">
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Points</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTA</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">FTA</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -913,25 +932,25 @@ export class BasketMatchupsTable extends BaseTable {
             if (index === 0) {
                 const paceDisplay = this.formatRankWithHash(paceValue);
                 tr.innerHTML = `
-                    <td rowspan="${sortedData.length}" style="padding: 4px 8px; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
+                    <td rowspan="${sortedData.length}" style="padding: ${cellPadding}; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
                 `;
             }
             
             // Format all rank values with # prefix
             tr.innerHTML += `
-                <td style="padding: 4px 8px; text-align: center;">${row["Split"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${row["Split"] || '-'}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -941,49 +960,51 @@ export class BasketMatchupsTable extends BaseTable {
         return container;
     }
 
-    // Create players subtable - UPDATED for new injured player handling
-    createPlayersSubtable(playerData, title, homeAway) {
+    // Create players subtable with responsive styling
+    createPlayersSubtable(playerData, title, location) {
+        // Detect screen size for responsive styling
+        const mobile = isMobile();
+        const tablet = isTablet();
+        
+        // Responsive values
+        const containerPadding = mobile ? '8px' : (tablet ? '10px' : '12px');
+        const fontSize = mobile ? '10px' : (tablet ? '10px' : '11px');
+        const titleFontSize = mobile ? '11px' : (tablet ? '12px' : '13px');
+        const cellPadding = mobile ? '2px 4px' : (tablet ? '3px 6px' : '4px 8px');
+        const minCellWidth = mobile ? '40px' : (tablet ? '45px' : '50px');
+        const playerCellMinWidth = mobile ? '150px' : (tablet ? '180px' : '200px');
+        
         const container = document.createElement('div');
-        container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+        container.style.cssText = `background: white; padding: ${containerPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
         
         // Title
         const titleEl = document.createElement('h4');
         titleEl.textContent = title;
-        titleEl.style.cssText = 'margin: 0 0 10px 0; color: #f97316; font-size: 13px; font-weight: 600;';
+        titleEl.style.cssText = `margin: 0 0 ${mobile ? '6px' : '10px'} 0; color: #f97316; font-size: ${titleFontSize}; font-weight: 600;`;
         container.appendChild(titleEl);
         
         if (!playerData || playerData.length === 0) {
             const noData = document.createElement('div');
             noData.textContent = 'No player data available';
-            noData.style.cssText = 'color: #666; font-size: 12px; padding: 10px;';
+            noData.style.cssText = `color: #666; font-size: ${fontSize}; padding: 10px;`;
             container.appendChild(noData);
             return container;
         }
         
-        // UPDATED: New sorting logic
-        // Injured players (Lineup="Injury") now have single rows with Split="Full Season"
-        // Sort: Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
-        // Then injured players at bottom (alphabetically)
-        
-        // Separate players into categories based on Lineup field
-        const activePlayers = [];
-        const injuredPlayers = [];
-        
-        playerData.forEach(row => {
-            const lineup = row["Lineup"] || '';
-            
-            if (lineup === 'Injury') {
-                // Injured player - single row
-                injuredPlayers.push(row);
-            } else {
-                // Active player
-                activePlayers.push(row);
-            }
+        // Separate active from injured/out players
+        const activePlayers = playerData.filter(p => {
+            const lineup = (p["Lineup"] || '').toLowerCase();
+            return !lineup.includes('out') && !lineup.includes('ofs') && !lineup.includes('injury');
         });
         
-        // Sort active players: Starters before Bench, then by name, then Full Season before Last 30 Days
+        const injuredPlayers = playerData.filter(p => {
+            const lineup = (p["Lineup"] || '').toLowerCase();
+            return lineup.includes('out') || lineup.includes('ofs') || lineup.includes('injury');
+        });
+        
+        // Sort active players: Starters first, grouped by player, Full Season before L30
         activePlayers.sort((a, b) => {
-            // First: Starters vs Bench
+            // First: Starters before Bench
             const aStarter = (a["Lineup"] || '').includes('Starter') ? 0 : 1;
             const bStarter = (b["Lineup"] || '').includes('Starter') ? 0 : 1;
             if (aStarter !== bStarter) return aStarter - bStarter;
@@ -1011,32 +1032,32 @@ export class BasketMatchupsTable extends BaseTable {
         
         // Create table
         const table = document.createElement('table');
-        table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
+        table.style.cssText = `font-size: ${fontSize}; border-collapse: collapse; width: 100%;`;
         
         // Header - UPDATED: Changed "FT" to "FTM", renamed Scoring to Offensive, moved TOs
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd; min-width: 200px;">Player</th>
-                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
+                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd; min-width: ${playerCellMinWidth};">Player</th>
+                <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
+                <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
             </tr>
             <tr style="background: #fafafa;">
-                <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Points</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
+                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">FTM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${minCellWidth};">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -1047,41 +1068,23 @@ export class BasketMatchupsTable extends BaseTable {
             const tr = document.createElement('tr');
             tr.style.cssText = index % 2 === 1 ? 'background: #fafafa;' : '';
             
-            const playerName = row["Player"] || '-';
-            const lineup = row["Lineup"] || '';
-            const split = row["Split"] || '';
-            const games = row["Games"] || '0';
-            const minutes = this.formatMinutes(row["Minutes"]);
+            // Format player info: "Name - Lineup - Split - Games - Mins"
+            const playerInfo = this.formatPlayerInfo(row);
             
-            // Check if player is injured (Lineup = "Injury")
-            const isInjured = lineup === 'Injury';
-            
-            // UPDATED: Format player info differently for injured vs active players
-            let playerInfo;
-            if (isInjured) {
-                // For injured players: "Name - All - Full Season - X Games - X.X Mins"
-                playerInfo = `${playerName} - All - Full Season - ${games} Games - ${minutes} Mins`;
-            } else {
-                // For active players: "Name - Starter/Bench - Split - X Games - X.X Mins"
-                playerInfo = `${playerName} - ${lineup} - ${split} - ${games} Games - ${minutes} Mins`;
-            }
-            
-            // UPDATED: Show stats for all players (including injured), unless values are null
-            // TOs moved to after Assists in Offensive section
             tr.innerHTML = `
-                <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: left; white-space: nowrap;">${playerInfo}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Points"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["3PM"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["FTM"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1089,6 +1092,33 @@ export class BasketMatchupsTable extends BaseTable {
         
         container.appendChild(table);
         return container;
+    }
+
+    // Format player info cell
+    formatPlayerInfo(row) {
+        const name = row["Player"] || '-';
+        const lineup = row["Lineup"] || '';
+        const split = row["Split"] || '';
+        const games = row["Games"] || '-';
+        const mins = this.formatMinutes(row["Mins"]);
+        
+        // Check if injured/out
+        const isInjured = lineup.toLowerCase().includes('out') || 
+                         lineup.toLowerCase().includes('ofs') || 
+                         lineup.toLowerCase().includes('injury');
+        
+        if (isInjured) {
+            // For injured: Show all info in one line
+            return `${name} - ${lineup} - ${split} - ${games} Games - ${mins} Mins`;
+        }
+        
+        // For active: "Name - Lineup - Split - Games - Mins"
+        const lineupShort = lineup.includes('Starter') ? 'Starter' : 
+                           lineup.includes('Bench') ? 'Bench' : lineup;
+        const splitShort = split.includes('Full Season') ? 'Full Season' : 
+                          split.includes('Last 30') ? 'Last 30 Days' : split;
+        
+        return `${name} - ${lineupShort} - ${splitShort} - ${games} Games - ${mins} Mins`;
     }
 
     // Format minutes with 1 decimal place
@@ -1116,44 +1146,27 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // NEW: Format rank values with # prefix
+    // Handles formats like "14 (116.9)" -> "#14 (116.9)"
     formatRankWithHash(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
         const str = String(value).trim();
         
-        // If it already has a #, return as-is
+        // If already has #, return as-is
         if (str.startsWith('#')) return str;
         
-        // Check if it's a rank with average format like "21 (25.2)"
-        const match = str.match(/^(\d+)\s*\(([^)]+)\)$/);
-        if (match) {
-            return `#${match[1]} (${match[2]})`;
-        }
-        
-        // Check if it's just a number
-        const num = parseInt(str, 10);
-        if (!isNaN(num)) {
-            return `#${num}`;
-        }
-        
-        // Return original if can't parse
-        return str;
+        // Add # prefix
+        return '#' + str;
     }
 
-    // Override saveState to properly save expanded rows
+    // Save state for tab switching
     saveState() {
         if (!this.table) return;
         
-        // Call parent saveState if it exists
-        if (super.saveState) {
-            super.saveState();
-        }
-        
-        // Save our own filter/sort state
         this.filterState = this.table.getHeaderFilters();
         this.sortState = this.table.getSorters();
         
-        // Save expanded row IDs
-        this.savedExpandedRows = new Set();
+        // Save expanded rows
+        this.savedExpandedRows.clear();
         const rows = this.table.getRows();
         rows.forEach(row => {
             const data = row.getData();
@@ -1166,14 +1179,9 @@ export class BasketMatchupsTable extends BaseTable {
         console.log(`Matchups saveState: saved ${this.savedExpandedRows.size} expanded rows`);
     }
 
-    // Override restoreState to properly restore expanded rows
+    // Restore state after tab switching
     restoreState() {
         if (!this.table) return;
-        
-        // Call parent restoreState if it exists
-        if (super.restoreState) {
-            super.restoreState();
-        }
         
         // Restore filters
         if (this.filterState && this.filterState.length > 0) {
