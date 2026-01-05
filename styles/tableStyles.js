@@ -11,6 +11,7 @@
 //   to prevent other headers from showing above frozen columns when scrolling
 // - FIXED: Desktop scrollbar - counters Webflow's aggressive *::-webkit-scrollbar { display: none }
 // - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
+// - FIXED: Mobile frozen columns - constrain container width so scroll happens at tableholder level
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -349,9 +350,67 @@ function injectMinimalStyles() {
             flex-wrap: nowrap !important;
             overflow-x: auto !important;
         }
+        
+        /* =====================================================
+           MOBILE FROZEN COLUMN FIX
+           The scroll must happen at tableholder level for position:sticky to work.
+           On mobile, we constrain the container width so tableholder scrolls,
+           not the outer container or page.
+           ===================================================== */
+        
+        @media screen and (max-width: 1024px) {
+            /* Constrain container to viewport width on mobile/tablet */
+            .table-container {
+                width: 100% !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
+            }
+            
+            /* Let the tabulator element be wider than container */
+            .table-container .tabulator {
+                width: 100% !important;
+                max-width: none !important;
+            }
+            
+            /* Ensure tableholder is the scroll container */
+            .table-container .tabulator .tabulator-tableholder {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Frozen cells in data rows need proper background */
+            .tabulator-row .tabulator-cell.tabulator-frozen {
+                background: inherit !important;
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 10 !important;
+            }
+            
+            /* Ensure frozen cells on even rows have correct background */
+            .tabulator-row.tabulator-row-even .tabulator-cell.tabulator-frozen {
+                background: #fafafa !important;
+            }
+            
+            /* Ensure frozen cells on odd rows have correct background */
+            .tabulator-row.tabulator-row-odd .tabulator-cell.tabulator-frozen {
+                background: #ffffff !important;
+            }
+            
+            /* Ensure frozen cells on hover have correct background */
+            .tabulator-row:hover .tabulator-cell.tabulator-frozen {
+                background: #fff7ed !important;
+            }
+            
+            /* Frozen header needs highest z-index */
+            .tabulator-header .tabulator-col.tabulator-frozen {
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 101 !important;
+            }
+        }
     `;
     document.head.appendChild(style);
-    console.log('Basketball minimal styles injected with standalone header fix, scrollbar, and mobile subtable fixes');
+    console.log('Basketball minimal styles injected with standalone header fix, scrollbar, mobile subtable fixes, and frozen column fix');
 }
 
 function injectFullStyles() {
@@ -376,6 +435,7 @@ function injectFullStyles() {
            Compact min/max filters
            Standalone headers top-aligned on mobile
            Mobile subtable compact layout
+           Mobile frozen column support
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -830,7 +890,65 @@ function injectFullStyles() {
             flex-wrap: nowrap !important;
             overflow-x: auto !important;
         }
+        
+        /* =====================================================
+           MOBILE FROZEN COLUMN FIX
+           The scroll must happen at tableholder level for position:sticky to work.
+           On mobile, we constrain the container width so tableholder scrolls,
+           not the outer container or page.
+           ===================================================== */
+        
+        @media screen and (max-width: 1024px) {
+            /* Constrain container to viewport width on mobile/tablet */
+            .table-container {
+                width: 100% !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
+            }
+            
+            /* Let the tabulator element size to its content but be contained */
+            .table-container .tabulator {
+                width: 100% !important;
+                max-width: none !important;
+            }
+            
+            /* Ensure tableholder is the scroll container */
+            .table-container .tabulator .tabulator-tableholder {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Frozen cells in data rows need proper background and positioning */
+            .tabulator-row .tabulator-cell.tabulator-frozen {
+                background: inherit !important;
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 10 !important;
+            }
+            
+            /* Ensure frozen cells on even rows have correct background */
+            .tabulator-row.tabulator-row-even .tabulator-cell.tabulator-frozen {
+                background: #fafafa !important;
+            }
+            
+            /* Ensure frozen cells on odd rows have correct background */
+            .tabulator-row.tabulator-row-odd .tabulator-cell.tabulator-frozen {
+                background: #ffffff !important;
+            }
+            
+            /* Ensure frozen cells on hover have correct background */
+            .tabulator-row:hover .tabulator-cell.tabulator-frozen {
+                background: #fff7ed !important;
+            }
+            
+            /* Frozen header needs highest z-index */
+            .tabulator-header .tabulator-col.tabulator-frozen {
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 101 !important;
+            }
+        }
     `;
     document.head.appendChild(style);
-    console.log('Basketball full styles injected with mobile subtable fixes');
+    console.log('Basketball full styles injected with mobile frozen column fix');
 }
