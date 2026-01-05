@@ -10,6 +10,7 @@
 // - FIXED: Standalone headers (Name, Team, Lineup) now top-aligned on mobile/tablet
 //   to prevent other headers from showing above frozen columns when scrolling
 // - FIXED: Desktop scrollbar - counters Webflow's aggressive *::-webkit-scrollbar { display: none }
+// - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -273,9 +274,84 @@ function injectMinimalStyles() {
             overflow-y: auto !important;
             overflow-x: auto !important;
         }
+        
+        /* =====================================================
+           MOBILE SUBTABLE FIXES
+           Reduces gap and padding on mobile/tablet for single-line layout
+           ===================================================== */
+        
+        /* Mobile: Compact subtable layout */
+        @media screen and (max-width: 768px) {
+            /* Reduce container padding */
+            .subrow-container {
+                padding: 8px 10px !important;
+            }
+            
+            /* Target the flex container inside subtables - reduce gap */
+            .subrow-container > div {
+                gap: 6px !important;
+            }
+            
+            /* Target individual info boxes - reduce padding */
+            .subrow-container > div > div {
+                padding: 8px !important;
+                min-width: unset !important;
+            }
+            
+            /* Smaller headers in subtables */
+            .subrow-container h4 {
+                font-size: 11px !important;
+                margin: 0 0 4px 0 !important;
+            }
+            
+            /* Smaller content text in subtables */
+            .subrow-container div > div > div {
+                font-size: 10px !important;
+                margin-bottom: 2px !important;
+            }
+            
+            /* Scrollable wrapper adjustments */
+            .subtable-scroll-wrapper {
+                gap: 8px !important;
+                max-height: 350px !important;
+            }
+        }
+        
+        /* Tablet: Moderately reduced spacing */
+        @media screen and (min-width: 769px) and (max-width: 1024px) {
+            .subrow-container {
+                padding: 10px 15px !important;
+            }
+            
+            .subrow-container > div {
+                gap: 10px !important;
+            }
+            
+            .subrow-container > div > div {
+                padding: 10px !important;
+            }
+            
+            .subrow-container h4 {
+                font-size: 12px !important;
+            }
+            
+            .subrow-container div > div > div {
+                font-size: 11px !important;
+            }
+            
+            .subtable-scroll-wrapper {
+                gap: 10px !important;
+            }
+        }
+        
+        /* Ensure flex-nowrap is always respected */
+        .subrow-container > div[style*="flex"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+        }
     `;
     document.head.appendChild(style);
-    console.log('Basketball minimal styles injected with standalone header fix and scrollbar');
+    console.log('Basketball minimal styles injected with standalone header fix, scrollbar, and mobile subtable fixes');
 }
 
 function injectFullStyles() {
@@ -299,6 +375,7 @@ function injectFullStyles() {
            Subtle frozen columns
            Compact min/max filters
            Standalone headers top-aligned on mobile
+           Mobile subtable compact layout
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -344,58 +421,39 @@ function injectFullStyles() {
         /* Note: Dropdowns use position:fixed, so they don't need overflow:visible here.
            The scrollbar rules below will handle the tableholder overflow. */
         
-        /* Header styling - Basketball Orange/Blue theme */
+        /* Header styles */
         .tabulator-header {
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
             color: white;
-            font-weight: bold;
-            border-bottom: 2px solid #c2410c;
+            font-weight: 600;
         }
         
         .tabulator-col {
-            background: transparent !important;
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            border-right: 1px solid rgba(255,255,255,0.2);
         }
         
-        .tabulator-col:last-child {
-            border-right: none;
-        }
-        
-        /* HEADERS: Allow word wrapping, center-justified */
+        /* Header title - wrap at word boundaries, CENTER-JUSTIFIED */
         .tabulator-col-title {
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: break-word !important;
             text-align: center !important;
-            color: white !important;
-            font-weight: 600 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            padding: 4px 2px !important;
         }
         
-        /* Column group headers */
+        /* Column group headers (parent headers like "Prop Info", "Clearance", etc.) */
         .tabulator-col-group-cols {
-            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            border-top: 1px solid rgba(255,255,255,0.3);
         }
         
-        /* DATA CELLS: Single-line with ellipsis */
-        .tabulator-cell {
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            padding: 8px 6px !important;
-            border-right: 1px solid #f0f0f0;
-        }
-        
-        .tabulator-cell:last-child {
-            border-right: none;
-        }
-        
-        /* Row styling with alternating colors */
+        /* Row styles */
         .tabulator-row {
-            border-bottom: 1px solid #f0f0f0;
-            transition: background-color 0.15s ease;
+            border-bottom: 1px solid #e8e8e8;
+            min-height: 32px;
         }
         
         .tabulator-row:nth-child(even) {
@@ -403,17 +461,52 @@ function injectFullStyles() {
         }
         
         .tabulator-row:hover {
-            background-color: #fff7ed !important;
+            background-color: #fff7ed;
         }
         
-        /* Expanded row styling */
         .tabulator-row.row-expanded {
             background-color: #fff7ed !important;
         }
         
-        /* =====================================================
-           DROPDOWN FILTERS - Position ABOVE table
-           ===================================================== */
+        /* Cell styles - SINGLE LINE with ellipsis */
+        .tabulator-cell {
+            padding: 6px 4px;
+            border-right: 1px solid #f0f0f0;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* Scrollbar styles - Desktop only */
+        @media screen and (min-width: 1025px) {
+            .tabulator .tabulator-tableholder::-webkit-scrollbar {
+                width: 16px !important;
+                height: 16px !important;
+            }
+            
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 8px;
+            }
+            
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+                background: #f97316;
+                border-radius: 8px;
+                min-height: 50px;
+            }
+            
+            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+                background: #ea580c;
+            }
+            
+            /* Firefox */
+            .tabulator .tabulator-tableholder {
+                scrollbar-width: auto;
+                scrollbar-color: #f97316 #f1f1f1;
+            }
+        }
+        
+        /* Dropdown filter styles - ABOVE the table */
         .custom-multiselect-dropdown,
         [id^="dropdown_"] {
             z-index: 2147483647 !important;
@@ -663,72 +756,81 @@ function injectFullStyles() {
             box-sizing: border-box !important;
         }
         
-        .tabulator-header-filter input[type="search"]:focus,
-        .tabulator-header-filter input[type="text"]:focus {
-            outline: none !important;
-            border-color: #f97316 !important;
-            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
-        }
-        
-        /* Loading indicator */
-        .loading-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .loading-indicator::before {
-            content: '';
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f97316;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
         /* =====================================================
-           SCROLLBAR - Desktop only
+           MOBILE SUBTABLE FIXES
+           Reduces gap and padding on mobile/tablet for single-line layout
            ===================================================== */
         
-        /* Base overflow */
-        .tabulator .tabulator-tableholder {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
+        /* Mobile: Compact subtable layout */
+        @media screen and (max-width: 768px) {
+            /* Reduce container padding */
+            .subrow-container {
+                padding: 8px 10px !important;
+            }
+            
+            /* Target the flex container inside subtables - reduce gap */
+            .subrow-container > div {
+                gap: 6px !important;
+            }
+            
+            /* Target individual info boxes - reduce padding */
+            .subrow-container > div > div {
+                padding: 8px !important;
+                min-width: unset !important;
+            }
+            
+            /* Smaller headers in subtables */
+            .subrow-container h4 {
+                font-size: 11px !important;
+                margin: 0 0 4px 0 !important;
+            }
+            
+            /* Smaller content text in subtables */
+            .subrow-container div > div > div {
+                font-size: 10px !important;
+                margin-bottom: 2px !important;
+            }
+            
+            /* Scrollable wrapper adjustments */
+            .subtable-scroll-wrapper {
+                gap: 8px !important;
+                max-height: 350px !important;
+            }
         }
         
-        /* Desktop scrollbar styling */
-        @media screen and (min-width: 1025px) {
-            .tabulator .tabulator-tableholder::-webkit-scrollbar {
-                width: 8px !important;
-                height: 8px !important;
-                display: block !important;
+        /* Tablet: Moderately reduced spacing */
+        @media screen and (min-width: 769px) and (max-width: 1024px) {
+            .subrow-container {
+                padding: 10px 15px !important;
             }
             
-            .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 4px !important;
+            .subrow-container > div {
+                gap: 10px !important;
             }
             
-            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
-                background: #f97316 !important;
-                border-radius: 4px !important;
-                min-height: 30px !important;
+            .subrow-container > div > div {
+                padding: 10px !important;
             }
             
-            .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-                background: #ea580c !important;
+            .subrow-container h4 {
+                font-size: 12px !important;
             }
+            
+            .subrow-container div > div > div {
+                font-size: 11px !important;
+            }
+            
+            .subtable-scroll-wrapper {
+                gap: 10px !important;
+            }
+        }
+        
+        /* Ensure flex-nowrap is always respected */
+        .subrow-container > div[style*="flex"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
         }
     `;
     document.head.appendChild(style);
-    console.log('Basketball full styles injected with standalone header fix');
+    console.log('Basketball full styles injected with mobile subtable fixes');
 }
