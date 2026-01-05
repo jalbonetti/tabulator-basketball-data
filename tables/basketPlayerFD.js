@@ -401,6 +401,13 @@ export class BasketPlayerFDTable extends BaseTable {
             return str;
         };
 
+        // Rank formatter - prepends # to rank values
+        const rankFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            return '#' + value;
+        };
+
         return [
             {
                 title: "Name", 
@@ -534,6 +541,7 @@ export class BasketPlayerFDTable extends BaseTable {
                         },
                         resizable: false,
                         hozAlign: "center",
+                        formatter: rankFormatter,
                         cssClass: "cluster-opponent",
                         titleFormatter: function() {
                             return "FD Pts<br>Rank";
@@ -547,6 +555,7 @@ export class BasketPlayerFDTable extends BaseTable {
                         sorter: "number",
                         resizable: false,
                         hozAlign: "center",
+                        formatter: rankFormatter,
                         cssClass: "cluster-opponent",
                         titleFormatter: function() {
                             return "Season<br>Pace<br>Rank";
