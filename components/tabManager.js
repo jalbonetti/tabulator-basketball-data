@@ -2,6 +2,7 @@
 // Based exactly on working baseball repository pattern
 // UPDATED: Width recalculation now runs on ALL devices (not just desktop)
 //          to fix container not contracting properly on mobile/tablet tab switches
+// UPDATED: Mobile uses width:100% instead of fit-content to enable frozen columns
 
 export const TAB_STYLES = `
     /* Table wrapper */
@@ -145,6 +146,29 @@ export class TabManager {
         return containerMap[tabId] || `${tabId}-container`;
     }
 
+    /**
+     * Apply appropriate container width based on screen size
+     * - Mobile/tablet: width:100% to keep scroll at tableholder level (enables frozen columns)
+     * - Desktop: fit-content for proper dynamic sizing
+     */
+    applyContainerWidth(tableContainer) {
+        if (!tableContainer) return;
+        
+        if (window.innerWidth <= 1024) {
+            // Mobile/tablet: constrain to viewport for frozen column support
+            tableContainer.style.width = '100%';
+            tableContainer.style.maxWidth = '100vw';
+            tableContainer.style.overflowX = 'hidden';
+            console.log('TabManager: Applied mobile container width (100%)');
+        } else {
+            // Desktop: use fit-content for dynamic sizing
+            tableContainer.style.width = 'fit-content';
+            tableContainer.style.maxWidth = 'none';
+            tableContainer.style.overflowX = '';
+            console.log('TabManager: Applied desktop container width (fit-content)');
+        }
+    }
+
     setupTabSwitching() {
         const self = this;
         
@@ -182,10 +206,11 @@ export class TabManager {
                         currentContainer.classList.remove('active-table');
                         currentContainer.classList.add('inactive-table');
                         
-                        // MOBILE FIX: Reset width styles to prevent stale dimensions carrying over
+                        // Reset width styles to prevent stale dimensions carrying over
                         currentContainer.style.width = '';
                         currentContainer.style.minWidth = '';
                         currentContainer.style.maxWidth = '';
+                        currentContainer.style.overflowX = '';
                         
                         // Also reset the tabulator element inside
                         const currentTableElement = currentContainer.querySelector('.tabulator');
@@ -262,9 +287,9 @@ export class TabManager {
                                 tableContainer.style.minWidth = '';
                                 tableContainer.style.maxWidth = '';
                                 
-                                // Re-apply fit-content after layout settles
+                                // Re-apply appropriate width based on screen size
                                 requestAnimationFrame(() => {
-                                    tableContainer.style.width = 'fit-content';
+                                    self.applyContainerWidth(tableContainer);
                                 });
                             }
                         }, 100);
@@ -291,6 +316,8 @@ export class TabManager {
         
         console.log(`TabManager: Lazy initializing tab: ${tabId}`);
         
+        const self = this;
+        
         return new Promise((resolve) => {
             requestAnimationFrame(() => {
                 const tableWrapper = this.tables[tabId];
@@ -301,6 +328,13 @@ export class TabManager {
                         tableWrapper.initialize();
                         this.tabInitialized[tabId] = true;
                         console.log(`TabManager: Tab ${tabId} initialized successfully`);
+                        
+                        // Apply appropriate container width after initialization
+                        setTimeout(() => {
+                            const tableContainer = tableWrapper.table?.element?.closest('.table-container');
+                            self.applyContainerWidth(tableContainer);
+                        }, 200);
+                        
                     } catch (error) {
                         console.error(`TabManager: Error initializing tab ${tabId}:`, error);
                     }
