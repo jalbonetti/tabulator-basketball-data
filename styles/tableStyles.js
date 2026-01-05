@@ -11,7 +11,7 @@
 //   to prevent other headers from showing above frozen columns when scrolling
 // - FIXED: Desktop scrollbar - counters Webflow's aggressive *::-webkit-scrollbar { display: none }
 // - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
-// - FIXED: Mobile frozen columns - constrain container width so scroll happens at tableholder level
+// - FIXED: Mobile frozen columns - constrain tabulator width so scroll happens at tableholder level
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -354,8 +354,13 @@ function injectMinimalStyles() {
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
            The scroll must happen at tableholder level for position:sticky to work.
-           On mobile, we constrain the container width so tableholder scrolls,
-           not the outer container or page.
+           On mobile, we constrain BOTH container AND tabulator width so 
+           tableholder becomes the scroll container.
+           
+           KEY INSIGHT: The tabulator element was expanding to fit content,
+           which meant tableholder also expanded and had nothing to scroll.
+           By setting min-width:0 and max-width:100% on tabulator, we force
+           it to stay within container bounds.
            ===================================================== */
         
         @media screen and (max-width: 1024px) {
@@ -366,10 +371,13 @@ function injectMinimalStyles() {
                 overflow-x: hidden !important;
             }
             
-            /* Let the tabulator element be wider than container */
+            /* CRITICAL: Constrain tabulator to container width */
+            /* min-width:0 prevents flexbox from expanding it */
+            /* max-width:100% keeps it within container bounds */
             .table-container .tabulator {
                 width: 100% !important;
-                max-width: none !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
             }
             
             /* Ensure tableholder is the scroll container */
@@ -894,8 +902,13 @@ function injectFullStyles() {
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
            The scroll must happen at tableholder level for position:sticky to work.
-           On mobile, we constrain the container width so tableholder scrolls,
-           not the outer container or page.
+           On mobile, we constrain BOTH container AND tabulator width so 
+           tableholder becomes the scroll container.
+           
+           KEY INSIGHT: The tabulator element was expanding to fit content,
+           which meant tableholder also expanded and had nothing to scroll.
+           By setting min-width:0 and max-width:100% on tabulator, we force
+           it to stay within container bounds.
            ===================================================== */
         
         @media screen and (max-width: 1024px) {
@@ -906,10 +919,13 @@ function injectFullStyles() {
                 overflow-x: hidden !important;
             }
             
-            /* Let the tabulator element size to its content but be contained */
+            /* CRITICAL: Constrain tabulator to container width */
+            /* min-width:0 prevents flexbox from expanding it */
+            /* max-width:100% keeps it within container bounds */
             .table-container .tabulator {
                 width: 100% !important;
-                max-width: none !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
             }
             
             /* Ensure tableholder is the scroll container */
