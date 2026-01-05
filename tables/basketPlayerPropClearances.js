@@ -482,7 +482,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             {
                 title: "Name", 
                 field: "Player Name", 
-                frozen: true,
+                frozen: isSmallScreen,
                 widthGrow: 0,  // Size to content only - expanded dynamically if needed for subtables
                 minWidth: 120,
                 sorter: "string", 
