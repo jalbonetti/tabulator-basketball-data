@@ -10,6 +10,7 @@
 // - Total column formatted with 1 decimal place
 // - Defense prop ranks prefixed with #
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
+// FIXED: Desktop scrollbar width always accounted for, grey background space, mobile subtable padding
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -149,6 +150,18 @@ export class BasketMatchupsTable extends BaseTable {
             if (data.length > 0 && this.defenseDataCache.size === 0) {
                 this.prefetchSubtableData(data);
             }
+            
+            // Apply width calculations after table is built
+            setTimeout(() => {
+                this.calculateAndApplyWidths();
+            }, 100);
+            
+            // Handle window resize
+            window.addEventListener('resize', this.debounce(() => {
+                if (this.table) {
+                    this.calculateAndApplyWidths();
+                }
+            }, 250));
         });
         
         // Handle render complete - restore any missing subtables
@@ -176,6 +189,123 @@ export class BasketMatchupsTable extends BaseTable {
                 }, 100);
             }
         });
+    }
+    
+    // Simple debounce helper
+    debounce(func, wait) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+    
+    // Backward compatibility alias for main.js resize handler and TabManager
+    expandNameColumnToFill() {
+        this.forceRecalculateWidths();
+    }
+    
+    // Force width recalculation - called by TabManager on tab switch
+    forceRecalculateWidths() {
+        console.log('Matchups forceRecalculateWidths called');
+        this.calculateAndApplyWidths();
+    }
+    
+    // Calculate and apply widths - ensures scrollbar space and grey background
+    calculateAndApplyWidths() {
+        if (!this.table) {
+            console.log('calculateAndApplyWidths: table not ready');
+            return;
+        }
+        
+        const tableElement = this.table.element;
+        if (!tableElement) {
+            console.log('calculateAndApplyWidths: tableElement not ready');
+            return;
+        }
+        
+        // DESKTOP FIX: Reset explicit widths before recalculating
+        if (!isMobile() && !isTablet()) {
+            tableElement.style.width = 'auto';
+            tableElement.style.minWidth = 'auto';
+            tableElement.style.maxWidth = 'none';
+            
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = 'auto';
+                tableHolder.style.maxWidth = 'none';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = 'auto';
+            }
+            
+            const tabulatorTable = tableElement.querySelector('.tabulator-table');
+            if (tabulatorTable) {
+                tabulatorTable.style.width = 'auto';
+            }
+            
+            // Force browser reflow
+            void tableElement.offsetWidth;
+        }
+        
+        try {
+            // Get the table container to determine available width
+            const tableContainer = tableElement.closest('.table-container');
+            const containerWidth = tableContainer ? tableContainer.offsetWidth : tableElement.offsetWidth;
+            
+            // Always account for scrollbar width (17px) even when not visible
+            // This prevents horizontal scroll when vertical scrollbar appears
+            const SCROLLBAR_WIDTH = 17;
+            
+            // For fitColumns layout, we want the table to use available space minus scrollbar
+            // The columns will automatically distribute based on their percentage widths
+            const totalWidth = containerWidth;
+            
+            // Store calculated width
+            this._calculatedTableWidth = totalWidth;
+            
+            // Set explicit widths on the table element
+            tableElement.style.width = totalWidth + 'px';
+            tableElement.style.minWidth = totalWidth + 'px';
+            tableElement.style.maxWidth = totalWidth + 'px';
+            
+            // CRITICAL: Set internal element widths on desktop to show grey background
+            // and prevent horizontal scrolling
+            if (!isMobile() && !isTablet()) {
+                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+                if (tableHolder) {
+                    tableHolder.style.width = totalWidth + 'px';
+                    tableHolder.style.maxWidth = totalWidth + 'px';
+                    // Ensure the tableholder background shows
+                    tableHolder.style.background = '#e5e7eb'; // Grey background
+                }
+                
+                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+                if (tabulatorHeader) {
+                    tabulatorHeader.style.width = totalWidth + 'px';
+                }
+                
+                // The tabulator-table inside should be slightly narrower to leave room for scrollbar
+                const tabulatorTable = tableElement.querySelector('.tabulator-table');
+                if (tabulatorTable) {
+                    tabulatorTable.style.width = (totalWidth - SCROLLBAR_WIDTH) + 'px';
+                }
+            }
+            
+            // Set table container styling
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Matchups Set table width to ${totalWidth}px`);
+            
+        } catch (error) {
+            console.error('Error in calculateAndApplyWidths:', error);
+        }
     }
 
     getColumns(isSmallScreen = false) {
@@ -295,34 +425,6 @@ export class BasketMatchupsTable extends BaseTable {
         ];
     }
 
-    // Expand Matchup column to fill remaining container width (desktop only)
-    expandMatchupColumnToFill() {
-        if (!this.table) return;
-        
-        const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
-        
-        // Get current total width of all columns
-        let totalColumnWidth = 0;
-        const columns = this.table.getColumns();
-        columns.forEach(col => {
-            if (col.isVisible()) {
-                totalColumnWidth += col.getWidth();
-            }
-        });
-        
-        // Calculate remaining space
-        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
-        
-        if (remainingSpace > 0) {
-            const matchupColumn = this.table.getColumn("Matchup");
-            if (matchupColumn) {
-                const currentWidth = matchupColumn.getWidth();
-                matchupColumn.setWidth(currentWidth + remainingSpace);
-            }
-        }
-    }
-
     // Create name formatter with expand icon
     createNameFormatter() {
         const self = this;
@@ -400,9 +502,15 @@ export class BasketMatchupsTable extends BaseTable {
         
         const holderEl = document.createElement("div");
         holderEl.classList.add('subrow-container');
-        // Note: max-height/overflow is on the inner wrapper, not here
+        
+        // UPDATED: Responsive padding - less on mobile
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        const padding = isSmallScreen ? '10px 8px' : '15px 20px';
+        
         holderEl.style.cssText = `
-            padding: 15px 20px;
+            padding: ${padding};
             background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
             border-top: 2px solid #f97316;
             margin: 0;
@@ -764,15 +872,19 @@ export class BasketMatchupsTable extends BaseTable {
         const awayLineupType = this.getLineupType(lineupAway);
         const homeLineupType = this.getLineupType(lineupHome);
         
+        // UPDATED: Responsive gap and padding for mobile
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        const gap = isSmallScreen ? '10px' : '15px';
+        
         // Create wrapper - THIS IS NOW THE SCROLLABLE CONTAINER
-        // Max-height allows viewing all content by scrolling within the subtable
-        // This prevents the main table from needing to scroll (which causes row recycling issues)
         const wrapper = document.createElement('div');
         wrapper.className = 'subtable-scroll-wrapper';
         wrapper.style.cssText = `
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: ${gap};
             max-height: 450px;
             overflow-y: scroll;
             overflow-x: hidden;
@@ -850,10 +962,15 @@ export class BasketMatchupsTable extends BaseTable {
         return 'Expected';
     }
 
-    // Create defense subtable - UPDATED with # prefix on prop ranks
+    // Create defense subtable - UPDATED with # prefix on prop ranks and responsive padding
     createDefenseSubtable(defenseData, title) {
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        const padding = isSmallScreen ? '8px' : '12px';
+        
         const container = document.createElement('div');
-        container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+        container.style.cssText = `background: white; padding: ${padding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
         
         // Title
         const titleEl = document.createElement('h4');
@@ -951,10 +1068,15 @@ export class BasketMatchupsTable extends BaseTable {
         return container;
     }
 
-    // Create players subtable - UPDATED for new injured player handling
+    // Create players subtable - UPDATED for responsive padding
     createPlayersSubtable(playerData, title, homeAway) {
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        const padding = isSmallScreen ? '8px' : '12px';
+        
         const container = document.createElement('div');
-        container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+        container.style.cssText = `background: white; padding: ${padding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
         
         // Title
         const titleEl = document.createElement('h4');
