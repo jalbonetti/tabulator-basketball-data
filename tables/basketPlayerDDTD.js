@@ -944,10 +944,21 @@ export class BasketPlayerDDTDTable extends BaseTable {
 
     // =====================================================
     // Helper to format rank values with # prefix for subtables
+    // Handles formats like "5", "5 (23.4)", etc.
     // =====================================================
     formatRankValue(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
-        return '#' + String(value);
+        const str = String(value).trim();
+        if (str === '' || str === '-') return '-';
+        // Don't double-add # if already present
+        if (str.startsWith('#')) return str;
+        // Check if starts with a number (rank) - prepend # to the rank portion
+        const match = str.match(/^(\d+)(.*)/);
+        if (match) {
+            return '#' + match[1] + match[2];
+        }
+        // Fallback: just prepend #
+        return '#' + str;
     }
 
     // =====================================================
@@ -975,11 +986,20 @@ export class BasketPlayerDDTDTable extends BaseTable {
         const playerSteals = this.formatStatValue(data["Player Steals"]);
         
         // Opponent stats (ranks with averages - format with # prefix)
+        // Debug: log raw values to see what format they're in
+        console.log('DEBUG Opponent Stats raw values:', {
+            'Opponent Points': data["Opponent Points"],
+            'Opponent Rebounds': data["Opponent Rebounds"],
+            'Opponent Assists': data["Opponent Assists"],
+            'Opponent Blocks': data["Opponent Blocks"],
+            'Opponent Steals': data["Opponent Steals"]
+        });
         const oppPoints = this.formatRankValue(data["Opponent Points"]);
         const oppRebounds = this.formatRankValue(data["Opponent Rebounds"]);
         const oppAssists = this.formatRankValue(data["Opponent Assists"]);
         const oppBlocks = this.formatRankValue(data["Opponent Blocks"]);
         const oppSteals = this.formatRankValue(data["Opponent Steals"]);
+        console.log('DEBUG Opponent Stats after formatRankValue:', { oppPoints, oppRebounds, oppAssists, oppBlocks, oppSteals });
         
         container.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
