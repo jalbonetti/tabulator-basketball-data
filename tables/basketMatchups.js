@@ -1274,6 +1274,11 @@ export class BasketMatchupsTable extends BaseTable {
             super.restoreState();
         }
         
+        // Recalculate widths to reserve scrollbar space (desktop only)
+        setTimeout(() => {
+            this.calculateAndApplyWidths();
+        }, 100);
+        
         // Restore filters
         if (this.filterState && this.filterState.length > 0) {
             this.filterState.forEach(filter => {
