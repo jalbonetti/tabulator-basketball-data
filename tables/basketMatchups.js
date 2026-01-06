@@ -157,13 +157,18 @@ export class BasketMatchupsTable extends BaseTable {
             }, 200);
         });
         
-        // Handle render complete - restore any missing subtables
+        // Handle render complete - restore any missing subtables and recalculate widths
         this.table.on("renderComplete", () => {
             if (this.subtableDataReady && !this.isScrolling) {
                 setTimeout(() => {
                     this.restoreExpandedSubtables();
                 }, 50);
             }
+            
+            // Recalculate widths after render (handles tab switching)
+            setTimeout(() => {
+                this.calculateAndApplyWidths();
+            }, 100);
         });
         
         // Handle data filtering/sorting - these can cause row re-renders
@@ -337,6 +342,13 @@ export class BasketMatchupsTable extends BaseTable {
         }
         
         try {
+            // CRITICAL: Force tableholder to always show scrollbar track
+            // This reserves space for the scrollbar even when not needed
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.overflowY = 'scroll';
+            }
+            
             // Get all columns and calculate total width
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
@@ -358,7 +370,6 @@ export class BasketMatchupsTable extends BaseTable {
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
             // Also constrain internal elements
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = totalWidthWithScrollbar + 'px';
                 tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
@@ -385,8 +396,12 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Expand Matchup column to fill remaining container width (desktop only)
+    // Also called by TabManager/main.js when switching tabs or resizing
     expandMatchupColumnToFill() {
         if (!this.table) return;
+        
+        // First, recalculate widths to ensure scrollbar space is reserved
+        this.calculateAndApplyWidths();
         
         const tableElement = this.table.element;
         const containerWidth = tableElement.offsetWidth;
@@ -410,6 +425,16 @@ export class BasketMatchupsTable extends BaseTable {
                 matchupColumn.setWidth(currentWidth + remainingSpace);
             }
         }
+    }
+
+    // Alias for main.js compatibility - main.js calls expandNameColumnToFill on all tables
+    expandNameColumnToFill() {
+        this.expandMatchupColumnToFill();
+    }
+
+    // Force recalculate widths - called by TabManager when switching tabs
+    forceRecalculateWidths() {
+        this.calculateAndApplyWidths();
     }
 
     // Create name formatter with expand icon
@@ -1275,9 +1300,12 @@ export class BasketMatchupsTable extends BaseTable {
         }
         
         // Recalculate widths to reserve scrollbar space (desktop only)
-        setTimeout(() => {
-            this.calculateAndApplyWidths();
-        }, 100);
+        // Use requestAnimationFrame to ensure the table is visible first
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                this.calculateAndApplyWidths();
+            }, 50);
+        });
         
         // Restore filters
         if (this.filterState && this.filterState.length > 0) {
