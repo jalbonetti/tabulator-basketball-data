@@ -12,7 +12,6 @@
 // - FIXED: Desktop scrollbar - counters Webflow's aggressive *::-webkit-scrollbar { display: none }
 // - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
 // - FIXED: Mobile frozen columns - constrain tabulator width so scroll happens at tableholder level
-// - FIXED: Matchups table scrollbar - always reserve space for vertical scrollbar on desktop
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -96,15 +95,6 @@ function injectScrollbarFix() {
                 scrollbar-width: thin !important;
                 scrollbar-color: #f97316 #f1f1f1 !important;
             }
-            
-            /* =====================================================
-               MATCHUPS TABLE FIX - Always reserve space for vertical scrollbar
-               This prevents horizontal scrollbar from appearing when subtables
-               expand and cause the vertical scrollbar to appear
-               ===================================================== */
-            #matchups-table .tabulator-tableholder {
-                overflow-y: scroll !important;
-            }
         }
         
         /* Mobile/tablet - keep thin scrollbar */
@@ -143,30 +133,147 @@ function injectMinimalStyles() {
     const style = document.createElement('style');
     style.setAttribute('data-source', 'github-basketball-minimal');
     style.textContent = `
-        /* Minimal styles for Webflow environment */
-        /* These supplement rather than override Webflow styles */
+        /* GitHub basketball table-specific settings only */
+        
+        /* CRITICAL FIX: Force visibility */
+        .table-wrapper {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+        }
+        
+        .table-container {
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        /* HEADERS: Allow word wrapping at word boundaries, center-justified */
+        .tabulator-col-title {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* DATA CELLS: Single-line with ellipsis */
+        .tabulator-cell {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* DROPDOWNS: Position ABOVE the table */
+        .custom-multiselect-dropdown,
+        [id^="dropdown_"] {
+            z-index: 2147483647 !important;
+            position: fixed !important;
+            background: white !important;
+            border: 1px solid #333 !important;
+            border-radius: 4px !important;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
+        }
         
         /* =====================================================
-           STANDALONE HEADER FIX for mobile/tablet
-           When Name/Team columns are frozen, their headers need
-           to be top-aligned so other headers don't show above them
-           when horizontally scrolling.
+           CRITICAL FIX: Standalone header vertical alignment
+           On mobile/tablet, columns without parent groups (Name, Team, Lineup)
+           need to be top-aligned and fill full header height
            ===================================================== */
+        
+        /* Mobile and Tablet: Fix standalone header alignment */
         @media screen and (max-width: 1024px) {
-            /* All header cells should be top-aligned by default */
-            .tabulator-header .tabulator-col {
-                vertical-align: top !important;
+            /* Ensure header uses flexbox for proper alignment */
+            .tabulator-header {
+                display: flex !important;
+                align-items: stretch !important;
             }
             
-            /* Specifically target frozen header columns */
+            /* All top-level columns should stretch to fill header height */
+            .tabulator-header > .tabulator-headers > .tabulator-col {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            
+            /* Standalone columns (not column groups) - align content to TOP */
+            .tabulator-col.standalone-header,
+            .tabulator-col:not(.tabulator-col-group) {
+                justify-content: flex-start !important;
+                align-items: stretch !important;
+            }
+            
+            /* The col-content inside standalone headers should be at top */
+            .tabulator-col.standalone-header > .tabulator-col-content,
+            .tabulator-col:not(.tabulator-col-group) > .tabulator-col-content {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                height: 100% !important;
+                padding-top: 8px !important;
+            }
+            
+            /* Ensure the title wrapper fills available space */
+            .tabulator-col.standalone-header .tabulator-col-title-holder,
+            .tabulator-col:not(.tabulator-col-group) .tabulator-col-title-holder {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                height: auto !important;
+            }
+            
+            /* Title text alignment */
+            .tabulator-col.standalone-header .tabulator-col-title,
+            .tabulator-col:not(.tabulator-col-group) .tabulator-col-title {
+                text-align: center !important;
+                padding-top: 4px !important;
+            }
+            
+            /* Frozen columns should have solid background to hide content scrolling behind */
+            .tabulator-header .tabulator-frozen {
+                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+                z-index: 100 !important;
+            }
+            
+            /* Ensure frozen header cells have no transparency */
             .tabulator-header .tabulator-col.tabulator-frozen {
-                vertical-align: top !important;
+                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
             }
-            
-            /* Ensure the column content wrapper is also top-aligned */
-            .tabulator-col-content {
-                vertical-align: top !important;
-            }
+        }
+        
+        /* Expandable row styling */
+        .subrow-container {
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
+            border-top: 2px solid #f97316 !important;
+        }
+        
+        /* Min/Max filter - MUST stack vertically */
+        .min-max-filter-container,
+        .tabulator .min-max-filter-container,
+        .tabulator-header-filter .min-max-filter-container {
+            display: flex !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
+            max-width: 45px !important;
+            margin: 0 auto !important;
+        }
+        
+        .min-max-input,
+        .min-max-filter-container > input {
+            width: 100% !important;
+            flex-shrink: 0 !important;
+            font-size: 9px !important;
+            padding: 2px 3px !important;
+        }
+        
+        /* Base overflow for tableholder */
+        .tabulator .tabulator-tableholder {
+            overflow-y: auto !important;
+            overflow-x: auto !important;
         }
         
         /* =====================================================
@@ -183,30 +290,70 @@ function injectMinimalStyles() {
             
             /* Target the flex container inside subtables - reduce gap */
             .subrow-container > div {
-                gap: 4px !important;
+                gap: 6px !important;
             }
             
-            /* Reduce gap in subtable cells */
-            .subrow-container .subtable-cell,
-            .subrow-container [class*="subtable"] {
-                padding: 2px 4px !important;
-                gap: 2px !important;
+            /* Target individual info boxes - reduce padding */
+            .subrow-container > div > div {
+                padding: 8px !important;
+                min-width: unset !important;
+            }
+            
+            /* Smaller headers in subtables */
+            .subrow-container h4 {
+                font-size: 11px !important;
+                margin: 0 0 4px 0 !important;
+            }
+            
+            /* Smaller content text in subtables */
+            .subrow-container div > div > div {
+                font-size: 10px !important;
+                margin-bottom: 2px !important;
+            }
+            
+            /* Scrollable wrapper adjustments */
+            .subtable-scroll-wrapper {
+                gap: 8px !important;
+                max-height: 350px !important;
             }
         }
         
-        /* Tablet: Slightly less compact */
+        /* Tablet: Moderately reduced spacing */
         @media screen and (min-width: 769px) and (max-width: 1024px) {
             .subrow-container {
                 padding: 10px 15px !important;
             }
             
             .subrow-container > div {
-                gap: 6px !important;
+                gap: 10px !important;
             }
+            
+            .subrow-container > div > div {
+                padding: 10px !important;
+            }
+            
+            .subrow-container h4 {
+                font-size: 12px !important;
+            }
+            
+            .subrow-container div > div > div {
+                font-size: 11px !important;
+            }
+            
+            .subtable-scroll-wrapper {
+                gap: 10px !important;
+            }
+        }
+        
+        /* Ensure flex-nowrap is always respected */
+        .subrow-container > div[style*="flex"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
         }
         
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
+           The scroll must happen at tableholder level for position:sticky to work.
            On mobile, we constrain BOTH container AND tabulator width so 
            tableholder becomes the scroll container.
            
@@ -342,32 +489,31 @@ function injectFullStyles() {
         /* Note: Dropdowns use position:fixed, so they don't need overflow:visible here.
            The scrollbar rules below will handle the tableholder overflow. */
         
-        /* Header styles - center-justified, wrapping text */
+        /* Header styles */
         .tabulator-header {
-            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
-            border-bottom: 2px solid #c2410c;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
             font-weight: 600;
         }
         
         .tabulator-col {
-            background: transparent !important;
-            border-right: 1px solid rgba(255,255,255,0.3);
-            padding: 4px 4px;
+            background: transparent;
+            border-right: 1px solid rgba(255,255,255,0.2);
         }
         
+        /* Header title - wrap at word boundaries, CENTER-JUSTIFIED */
         .tabulator-col-title {
-            color: white !important;
-            font-weight: 600 !important;
-            text-align: center !important;
             white-space: normal !important;
-            word-wrap: break-word !important;
+            word-break: break-word !important;
             overflow-wrap: break-word !important;
-            hyphens: none !important;
-            line-height: 1.2 !important;
-            padding: 2px 2px !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 4px 2px !important;
         }
         
-        /* Column group header styling */
+        /* Column group headers (parent headers like "Prop Info", "Clearance", etc.) */
         .tabulator-col-group-cols {
             border-top: 1px solid rgba(255,255,255,0.3);
         }
@@ -425,11 +571,6 @@ function injectFullStyles() {
             .tabulator .tabulator-tableholder {
                 scrollbar-width: auto;
                 scrollbar-color: #f97316 #f1f1f1;
-            }
-            
-            /* MATCHUPS TABLE FIX - Always reserve space for vertical scrollbar */
-            #matchups-table .tabulator-tableholder {
-                overflow-y: scroll !important;
             }
         }
         
@@ -509,61 +650,120 @@ function injectFullStyles() {
            ===================================================== */
         .min-max-filter-container,
         .tabulator .min-max-filter-container,
+        .tabulator-header .min-max-filter-container,
         .tabulator-header-filter .min-max-filter-container {
             display: flex !important;
             flex-direction: column !important;
             flex-wrap: nowrap !important;
             gap: 2px !important;
-            width: 100% !important;
             max-width: 45px !important;
             margin: 0 auto !important;
         }
         
         .min-max-input,
-        .tabulator .min-max-input,
-        .min-max-filter-container input,
         .min-max-filter-container > input {
             width: 100% !important;
-            flex: 0 0 auto !important;
             flex-shrink: 0 !important;
-            font-size: 9px !important;
             padding: 2px 3px !important;
+            font-size: 9px !important;
             border: 1px solid #ccc !important;
             border-radius: 2px !important;
             text-align: center !important;
             box-sizing: border-box !important;
+            -moz-appearance: textfield !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+        }
+        
+        /* Hide number input arrows */
+        .min-max-input::-webkit-outer-spin-button,
+        .min-max-input::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+        }
+        
+        .min-max-input:focus {
+            outline: none !important;
+            border-color: #f97316 !important;
+            box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2) !important;
         }
         
         /* =====================================================
-           STANDALONE HEADER FIX for mobile/tablet
-           When Name/Team columns are frozen, their headers need
-           to be top-aligned so other headers don't show above them
-           when horizontally scrolling.
+           EXPANDABLE ROW / SUBTABLE Styles
            ===================================================== */
+        .subrow-container {
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
+            border-top: 2px solid #f97316 !important;
+        }
+        
+        .expand-icon {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        /* =====================================================
+           CRITICAL FIX: Standalone header vertical alignment
+           On mobile/tablet, columns without parent groups (Name, Team, Lineup)
+           need to be top-aligned and fill full header height to prevent
+           other headers from showing above frozen columns when scrolling
+           ===================================================== */
+        
         @media screen and (max-width: 1024px) {
-            /* All header cells should be top-aligned by default */
-            .tabulator-header .tabulator-col {
-                vertical-align: top !important;
+            /* Ensure header container uses flexbox */
+            .tabulator-header {
+                display: flex !important;
+                align-items: stretch !important;
             }
             
-            /* Specifically target frozen header columns */
-            .tabulator-header .tabulator-col.tabulator-frozen {
-                vertical-align: top !important;
+            .tabulator-headers {
+                display: flex !important;
+                align-items: stretch !important;
             }
             
-            /* Ensure the column content wrapper is also top-aligned */
-            .tabulator-col-content {
-                vertical-align: top !important;
+            /* All top-level columns should stretch to fill header height */
+            .tabulator-headers > .tabulator-col {
+                display: flex !important;
+                flex-direction: column !important;
             }
             
-            /* Ensure frozen header cells have no transparency */
+            /* Standalone columns (marked with cssClass or not a column group) */
+            .tabulator-col.standalone-header {
+                justify-content: flex-start !important;
+            }
+            
+            /* The content inside standalone headers should start at top */
+            .tabulator-col.standalone-header > .tabulator-col-content {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                height: 100% !important;
+                padding-top: 6px !important;
+            }
+            
+            /* Title holder fills space and aligns to top */
+            .tabulator-col.standalone-header .tabulator-col-title-holder {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                flex-grow: 0 !important;
+            }
+            
+            /* Header filter container at bottom */
+            .tabulator-col.standalone-header .tabulator-header-filter {
+                margin-top: auto !important;
+            }
+            
+            /* Ensure frozen header has opaque background */
             .tabulator-header .tabulator-col.tabulator-frozen {
                 background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+                z-index: 100 !important;
             }
             
-            /* Frozen cells need pseudo-element for full background coverage */
-            .tabulator-header .tabulator-col.tabulator-frozen::before {
+            /* Add a pseudo-element to fill any gap above standalone headers */
+            .tabulator-col.standalone-header::before {
                 content: '' !important;
+                display: block !important;
                 position: absolute !important;
                 top: 0 !important;
                 left: 0 !important;
@@ -638,30 +838,70 @@ function injectFullStyles() {
             
             /* Target the flex container inside subtables - reduce gap */
             .subrow-container > div {
-                gap: 4px !important;
+                gap: 6px !important;
             }
             
-            /* Reduce gap in subtable cells */
-            .subrow-container .subtable-cell,
-            .subrow-container [class*="subtable"] {
-                padding: 2px 4px !important;
-                gap: 2px !important;
+            /* Target individual info boxes - reduce padding */
+            .subrow-container > div > div {
+                padding: 8px !important;
+                min-width: unset !important;
+            }
+            
+            /* Smaller headers in subtables */
+            .subrow-container h4 {
+                font-size: 11px !important;
+                margin: 0 0 4px 0 !important;
+            }
+            
+            /* Smaller content text in subtables */
+            .subrow-container div > div > div {
+                font-size: 10px !important;
+                margin-bottom: 2px !important;
+            }
+            
+            /* Scrollable wrapper adjustments */
+            .subtable-scroll-wrapper {
+                gap: 8px !important;
+                max-height: 350px !important;
             }
         }
         
-        /* Tablet: Slightly less compact */
+        /* Tablet: Moderately reduced spacing */
         @media screen and (min-width: 769px) and (max-width: 1024px) {
             .subrow-container {
                 padding: 10px 15px !important;
             }
             
             .subrow-container > div {
-                gap: 6px !important;
+                gap: 10px !important;
             }
+            
+            .subrow-container > div > div {
+                padding: 10px !important;
+            }
+            
+            .subrow-container h4 {
+                font-size: 12px !important;
+            }
+            
+            .subrow-container div > div > div {
+                font-size: 11px !important;
+            }
+            
+            .subtable-scroll-wrapper {
+                gap: 10px !important;
+            }
+        }
+        
+        /* Ensure flex-nowrap is always respected */
+        .subrow-container > div[style*="flex"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
         }
         
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
+           The scroll must happen at tableholder level for position:sticky to work.
            On mobile, we constrain BOTH container AND tabulator width so 
            tableholder becomes the scroll container.
            
@@ -694,7 +934,7 @@ function injectFullStyles() {
                 -webkit-overflow-scrolling: touch !important;
             }
             
-            /* Frozen cells in data rows need proper background */
+            /* Frozen cells in data rows need proper background and positioning */
             .tabulator-row .tabulator-cell.tabulator-frozen {
                 background: inherit !important;
                 position: sticky !important;
@@ -724,13 +964,7 @@ function injectFullStyles() {
                 z-index: 101 !important;
             }
         }
-        
-        /* Expandable row styling */
-        .subrow-container {
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
-            border-top: 2px solid #f97316 !important;
-        }
     `;
     document.head.appendChild(style);
-    console.log('Basketball full styles injected with matchups scrollbar fix');
+    console.log('Basketball full styles injected with mobile frozen column fix');
 }
