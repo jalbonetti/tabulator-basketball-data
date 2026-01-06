@@ -11,9 +11,15 @@
 // - Defense prop ranks prefixed with #
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 // - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
+// - FIXED: Mobile layout - changed to fitData with minWidth columns to prevent excess padding
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
+
+// Minimum width needed to display subtables properly
+// Defense subtable: ~510px, Player subtable: ~540px on mobile
+const SUBTABLE_MIN_WIDTH_MOBILE = 540;
+const SUBTABLE_MIN_WIDTH_DESKTOP = 600;
 
 export class BasketMatchupsTable extends BaseTable {
     constructor(elementId) {
@@ -103,6 +109,9 @@ export class BasketMatchupsTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // Set subtable min width based on device
+        this.SUBTABLE_MIN_WIDTH = isSmallScreen ? SUBTABLE_MIN_WIDTH_MOBILE : SUBTABLE_MIN_WIDTH_DESKTOP;
+        
         const config = {
             ...this.tableConfig,
             virtualDom: false, // Disable for proper subtable rendering
@@ -112,7 +121,8 @@ export class BasketMatchupsTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading matchups...",
-            layout: "fitColumns",
+            // FIXED: Changed from fitColumns to fitData to prevent excess padding on mobile
+            layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
             initialSort: [
@@ -151,7 +161,7 @@ export class BasketMatchupsTable extends BaseTable {
                 this.prefetchSubtableData(data);
             }
             
-            // Calculate widths to reserve space for scrollbar (desktop only)
+            // Calculate widths to reserve space for scrollbar
             setTimeout(() => {
                 this.calculateAndApplyWidths();
             }, 200);
@@ -226,10 +236,11 @@ export class BasketMatchupsTable extends BaseTable {
             return str;
         };
         
-        // Responsive minWidth values - smaller on mobile/tablet
-        const matchupMinWidth = isSmallScreen ? 120 : 200;
-        const spreadMinWidth = isSmallScreen ? 60 : 100;
-        const totalMinWidth = isSmallScreen ? 60 : 100;
+        // FIXED: Changed from percentage widths to minWidth values for fitData layout
+        // This prevents the columns from expanding to fill container on mobile
+        const matchupMinWidth = isSmallScreen ? 200 : 300;
+        const spreadMinWidth = isSmallScreen ? 80 : 120;
+        const totalMinWidth = isSmallScreen ? 80 : 120;
         
         return [
             // Hidden Matchup ID for sorting
@@ -239,11 +250,11 @@ export class BasketMatchupsTable extends BaseTable {
                 visible: false,
                 sorter: "number"
             },
-            // UPDATED: Matchup column now 50% width
+            // FIXED: Changed from width: "50%" to minWidth with widthGrow
             {
                 title: "Matchup", 
                 field: "Matchup", 
-                width: "50%",
+                widthGrow: 2,  // Takes more space proportionally
                 minWidth: matchupMinWidth,
                 sorter: "string",
                 resizable: false,
@@ -251,12 +262,11 @@ export class BasketMatchupsTable extends BaseTable {
                 hozAlign: "left",
                 cssClass: "matchup-cell"
             },
-            // UPDATED: Spread column now 25% width with custom numeric sorter
-            // Extracts numeric value from "TEAM -X.X" or "TEAM +X.X" format
+            // FIXED: Changed from width: "25%" to minWidth with widthGrow
             {
                 title: "Spread", 
                 field: "Spread", 
-                width: "25%",
+                widthGrow: 1,
                 minWidth: spreadMinWidth,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     // Extract numeric value from spread format (e.g., "MIL -6.0" or "PHX +6.0")
@@ -284,12 +294,11 @@ export class BasketMatchupsTable extends BaseTable {
                 resizable: false,
                 hozAlign: "center"
             },
-            // UPDATED: Total column now 25% width with formatter for 1 decimal place
-            // Custom sorter extracts numeric value from "O/U XXX.X" format
+            // FIXED: Changed from width: "25%" to minWidth with widthGrow
             {
                 title: "Total", 
                 field: "Total", 
-                width: "25%",
+                widthGrow: 1,
                 minWidth: totalMinWidth,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     // Extract numeric value from O/U format
@@ -327,8 +336,7 @@ export class BasketMatchupsTable extends BaseTable {
         };
     }
 
-    // Calculate and apply widths to always reserve space for vertical scrollbar
-    // This prevents horizontal scrollbar from appearing when subtables expand
+    // FIXED: Calculate and apply widths - now handles both mobile and desktop
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -341,31 +349,65 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // Only apply on desktop
-        if (isMobile() || isTablet()) {
-            return;
-        }
+        const isSmallScreen = isMobile() || isTablet();
         
         try {
-            // CRITICAL: Force tableholder to always show scrollbar track
-            // This reserves space for the scrollbar even when not needed
+            // Reset explicit widths before recalculating
+            tableElement.style.width = 'auto';
+            tableElement.style.minWidth = 'auto';
+            tableElement.style.maxWidth = 'none';
+            
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
-                tableHolder.style.overflowY = 'scroll';
+                tableHolder.style.width = 'auto';
+                tableHolder.style.maxWidth = 'none';
             }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = 'auto';
+            }
+            
+            const tabulatorTable = tableElement.querySelector('.tabulator-table');
+            if (tabulatorTable) {
+                tabulatorTable.style.width = 'auto';
+            }
+            
+            // Force a browser reflow
+            void tableElement.offsetWidth;
             
             // Get all columns and calculate total width
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
+            let matchupColumn = null;
+            let matchupColumnWidth = 0;
             
             columns.forEach(col => {
                 if (col.isVisible()) {
-                    totalColumnWidth += col.getWidth();
+                    const field = col.getField();
+                    const width = col.getWidth();
+                    
+                    if (field === "Matchup") {
+                        matchupColumn = col;
+                        matchupColumnWidth = width;
+                    }
+                    totalColumnWidth += width;
                 }
             });
             
+            console.log(`Matchups Width calculation: Total columns=${totalColumnWidth}px, Matchup=${matchupColumnWidth}px, Subtable Min=${this.SUBTABLE_MIN_WIDTH}px`);
+            
+            // If subtables need more width than current total, expand Matchup column
+            if (this.SUBTABLE_MIN_WIDTH > totalColumnWidth && matchupColumn) {
+                const additionalWidthNeeded = this.SUBTABLE_MIN_WIDTH - totalColumnWidth;
+                const newMatchupWidth = matchupColumnWidth + additionalWidthNeeded;
+                
+                matchupColumn.setWidth(newMatchupWidth);
+                totalColumnWidth = this.SUBTABLE_MIN_WIDTH;
+                console.log(`Matchups: Expanded Matchup column from ${matchupColumnWidth}px to ${newMatchupWidth}px to accommodate subtables`);
+            }
+            
             // ALWAYS add scrollbar width to reserve space for vertical scrollbar
-            // This prevents horizontal scrollbar from appearing when subtables expand
             const SCROLLBAR_WIDTH = 17;
             const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
             
@@ -374,14 +416,14 @@ export class BasketMatchupsTable extends BaseTable {
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
-            // Also constrain internal elements
-            if (tableHolder) {
+            // Force tableholder to always show scrollbar track (desktop only)
+            if (!isSmallScreen && tableHolder) {
+                tableHolder.style.overflowY = 'scroll';
                 tableHolder.style.width = totalWidthWithScrollbar + 'px';
                 tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
             }
             
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
+            if (!isSmallScreen && tabulatorHeader) {
                 tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
             
@@ -405,31 +447,8 @@ export class BasketMatchupsTable extends BaseTable {
     expandMatchupColumnToFill() {
         if (!this.table) return;
         
-        // First, recalculate widths to ensure scrollbar space is reserved
+        // Recalculate widths
         this.calculateAndApplyWidths();
-        
-        const tableElement = this.table.element;
-        const containerWidth = tableElement.offsetWidth;
-        
-        // Get current total width of all columns
-        let totalColumnWidth = 0;
-        const columns = this.table.getColumns();
-        columns.forEach(col => {
-            if (col.isVisible()) {
-                totalColumnWidth += col.getWidth();
-            }
-        });
-        
-        // Calculate remaining space
-        const remainingSpace = containerWidth - totalColumnWidth - 20; // 20px buffer
-        
-        if (remainingSpace > 0) {
-            const matchupColumn = this.table.getColumn("Matchup");
-            if (matchupColumn) {
-                const currentWidth = matchupColumn.getWidth();
-                matchupColumn.setWidth(currentWidth + remainingSpace);
-            }
-        }
     }
 
     // Alias for main.js compatibility - main.js calls expandNameColumnToFill on all tables
@@ -970,7 +989,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create defense subtable - UPDATED with # prefix on prop ranks
-    // FIXED: Responsive min-widths for mobile
+    // FIXED: Responsive min-widths for mobile - matching other table subtables
     createDefenseSubtable(defenseData, title) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -999,13 +1018,13 @@ export class BasketMatchupsTable extends BaseTable {
             return 0;
         });
         
-        // Responsive min-widths - smaller on mobile
+        // Responsive sizing - matching other table subtables (11px font, 4px 8px padding)
         const isSmallScreen = isMobile() || isTablet();
-        const paceMinWidth = isSmallScreen ? '40px' : '60px';
-        const splitMinWidth = isSmallScreen ? '50px' : '70px';
-        const statMinWidth = isSmallScreen ? '35px' : '50px';
-        const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
-        const fontSize = isSmallScreen ? '9px' : '11px';
+        const paceMinWidth = isSmallScreen ? '50px' : '60px';
+        const splitMinWidth = isSmallScreen ? '60px' : '70px';
+        const statMinWidth = isSmallScreen ? '40px' : '50px';
+        const cellPadding = '4px 8px';
+        const fontSize = '11px';
         
         // Create table
         const table = document.createElement('table');
@@ -1080,7 +1099,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create players subtable - UPDATED for new injured player handling
-    // FIXED: Responsive min-widths for mobile
+    // FIXED: Responsive min-widths for mobile - matching other table subtables
     createPlayersSubtable(playerData, title, homeAway) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -1148,12 +1167,12 @@ export class BasketMatchupsTable extends BaseTable {
         // Combine: Active players, then injured
         const sortedData = [...activePlayers, ...injuredPlayers];
         
-        // Responsive min-widths - smaller on mobile
+        // Responsive sizing - matching other table subtables (11px font, 4px 8px padding)
         const isSmallScreen = isMobile() || isTablet();
-        const playerMinWidth = isSmallScreen ? '120px' : '200px';
-        const statMinWidth = isSmallScreen ? '35px' : '50px';
-        const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
-        const fontSize = isSmallScreen ? '9px' : '11px';
+        const playerMinWidth = isSmallScreen ? '150px' : '200px';
+        const statMinWidth = isSmallScreen ? '40px' : '50px';
+        const cellPadding = '4px 8px';
+        const fontSize = '11px';
         
         // Create table
         const table = document.createElement('table');
@@ -1321,7 +1340,7 @@ export class BasketMatchupsTable extends BaseTable {
             super.restoreState();
         }
         
-        // Recalculate widths to reserve scrollbar space (desktop only)
+        // Recalculate widths to reserve scrollbar space
         // Use requestAnimationFrame to ensure the table is visible first
         requestAnimationFrame(() => {
             setTimeout(() => {
