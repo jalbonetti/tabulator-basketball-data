@@ -226,6 +226,11 @@ export class BasketMatchupsTable extends BaseTable {
             return str;
         };
         
+        // Responsive minWidth values - smaller on mobile/tablet
+        const matchupMinWidth = isSmallScreen ? 120 : 200;
+        const spreadMinWidth = isSmallScreen ? 60 : 100;
+        const totalMinWidth = isSmallScreen ? 60 : 100;
+        
         return [
             // Hidden Matchup ID for sorting
             {
@@ -239,7 +244,7 @@ export class BasketMatchupsTable extends BaseTable {
                 title: "Matchup", 
                 field: "Matchup", 
                 width: "50%",
-                minWidth: 200,
+                minWidth: matchupMinWidth,
                 sorter: "string",
                 resizable: false,
                 formatter: this.createNameFormatter(),
@@ -252,7 +257,7 @@ export class BasketMatchupsTable extends BaseTable {
                 title: "Spread", 
                 field: "Spread", 
                 width: "25%",
-                minWidth: 100,
+                minWidth: spreadMinWidth,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     // Extract numeric value from spread format (e.g., "MIL -6.0" or "PHX +6.0")
                     const getNum = (val) => {
@@ -285,7 +290,7 @@ export class BasketMatchupsTable extends BaseTable {
                 title: "Total", 
                 field: "Total", 
                 width: "25%",
-                minWidth: 100,
+                minWidth: totalMinWidth,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     // Extract numeric value from O/U format
                     const getNum = (val) => {
@@ -965,6 +970,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create defense subtable - UPDATED with # prefix on prop ranks
+    // FIXED: Responsive min-widths for mobile
     createDefenseSubtable(defenseData, title) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -993,36 +999,44 @@ export class BasketMatchupsTable extends BaseTable {
             return 0;
         });
         
+        // Responsive min-widths - smaller on mobile
+        const isSmallScreen = isMobile() || isTablet();
+        const paceMinWidth = isSmallScreen ? '40px' : '60px';
+        const splitMinWidth = isSmallScreen ? '50px' : '70px';
+        const statMinWidth = isSmallScreen ? '35px' : '50px';
+        const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
+        const fontSize = isSmallScreen ? '9px' : '11px';
+        
         // Create table
         const table = document.createElement('table');
-        table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
+        table.style.cssText = `font-size: ${fontSize}; border-collapse: collapse; width: 100%;`;
         
         // Header
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 60px;">Season Pace Rank</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 70px;">Split</th>
-                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Ranks (Tot)</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${paceMinWidth};">Season Pace Rank</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${splitMinWidth};">Split</th>
+                <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Ranks (Avg)</th>
+                <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Ranks (Avg)</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Ranks (Avg)</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Ranks (Tot)</th>
             </tr>
             <tr style="background: #fafafa;">
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Points</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTA</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">FTA</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -1037,25 +1051,25 @@ export class BasketMatchupsTable extends BaseTable {
             if (index === 0) {
                 const paceDisplay = this.formatRankWithHash(paceValue);
                 tr.innerHTML = `
-                    <td rowspan="${sortedData.length}" style="padding: 4px 8px; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
+                    <td rowspan="${sortedData.length}" style="padding: ${cellPadding}; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
                 `;
             }
             
             // Format all rank values with # prefix
             tr.innerHTML += `
-                <td style="padding: 4px 8px; text-align: center;">${row["Split"] || '-'}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${row["Split"] || '-'}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1066,6 +1080,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Create players subtable - UPDATED for new injured player handling
+    // FIXED: Responsive min-widths for mobile
     createPlayersSubtable(playerData, title, homeAway) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -1133,34 +1148,41 @@ export class BasketMatchupsTable extends BaseTable {
         // Combine: Active players, then injured
         const sortedData = [...activePlayers, ...injuredPlayers];
         
+        // Responsive min-widths - smaller on mobile
+        const isSmallScreen = isMobile() || isTablet();
+        const playerMinWidth = isSmallScreen ? '120px' : '200px';
+        const statMinWidth = isSmallScreen ? '35px' : '50px';
+        const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
+        const fontSize = isSmallScreen ? '9px' : '11px';
+        
         // Create table
         const table = document.createElement('table');
-        table.style.cssText = 'font-size: 11px; border-collapse: collapse; width: 100%;';
+        table.style.cssText = `font-size: ${fontSize}; border-collapse: collapse; width: 100%;`;
         
         // Header - UPDATED: Changed "FT" to "FTM", renamed Scoring to Offensive, moved TOs
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr style="background: #f8f9fa;">
-                <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd; min-width: 200px;">Player</th>
-                <th colspan="5" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
-                <th colspan="3" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
-                <th colspan="2" style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
+                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd; min-width: ${playerMinWidth};">Player</th>
+                <th colspan="5" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Offensive Medians</th>
+                <th colspan="3" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Rebounds Medians</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #f0f0f0;">Defensive Medians</th>
+                <th colspan="2" style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; background: #e8e8e8;">Combos Totals</th>
             </tr>
             <tr style="background: #fafafa;">
-                <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Points</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">3PM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">FTM</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Assists</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TOs</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Off</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Def</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Total</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Blocks</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">Steals</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">DD</th>
-                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd; min-width: 50px;">TD</th>
+                <th style="padding: ${cellPadding}; text-align: left; border-bottom: 1px solid #ddd;"></th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Points</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">3PM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">FTM</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Assists</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">TOs</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Off</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Def</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Total</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Blocks</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">Steals</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">DD</th>
+                <th style="padding: ${cellPadding}; text-align: center; border-bottom: 1px solid #ddd; min-width: ${statMinWidth};">TD</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -1193,19 +1215,19 @@ export class BasketMatchupsTable extends BaseTable {
             // UPDATED: Show stats for all players (including injured), unless values are null
             // TOs moved to after Assists in Offensive section
             tr.innerHTML = `
-                <td style="padding: 4px 8px; text-align: left; white-space: nowrap;">${playerInfo}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["3P"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["FT"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
-                <td style="padding: 4px 8px; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: left; white-space: nowrap;">${playerInfo}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Pts"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["3P"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["FT"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Assists"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["TOs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["ORebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["DRebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Rebs"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Blocks"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatStatValue(row["Steals"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatIntegerValue(row["DD"])}</td>
+                <td style="padding: ${cellPadding}; text-align: center;">${this.formatIntegerValue(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
