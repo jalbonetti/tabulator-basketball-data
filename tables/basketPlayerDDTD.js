@@ -943,6 +943,14 @@ export class BasketPlayerDDTDTable extends BaseTable {
     }
 
     // =====================================================
+    // Helper to format rank values with # prefix for subtables
+    // =====================================================
+    formatRankValue(value) {
+        if (value === null || value === undefined || value === '' || value === '-') return '-';
+        return '#' + String(value);
+    }
+
+    // =====================================================
     // Subtable content with Player/Opponent Stats table
     // =====================================================
     createSubtableContent(container, data) {
@@ -966,12 +974,12 @@ export class BasketPlayerDDTDTable extends BaseTable {
         const playerBlocks = this.formatStatValue(data["Player Blocks"]);
         const playerSteals = this.formatStatValue(data["Player Steals"]);
         
-        // Opponent stats (ranks with averages - keep as-is from data)
-        const oppPoints = data["Opponent Points"] || '-';
-        const oppRebounds = data["Opponent Rebounds"] || '-';
-        const oppAssists = data["Opponent Assists"] || '-';
-        const oppBlocks = data["Opponent Blocks"] || '-';
-        const oppSteals = data["Opponent Steals"] || '-';
+        // Opponent stats (ranks with averages - format with # prefix)
+        const oppPoints = this.formatRankValue(data["Opponent Points"]);
+        const oppRebounds = this.formatRankValue(data["Opponent Rebounds"]);
+        const oppAssists = this.formatRankValue(data["Opponent Assists"]);
+        const oppBlocks = this.formatRankValue(data["Opponent Blocks"]);
+        const oppSteals = this.formatRankValue(data["Opponent Steals"]);
         
         container.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
