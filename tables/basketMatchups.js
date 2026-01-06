@@ -10,6 +10,7 @@
 // - Total column formatted with 1 decimal place
 // - Defense prop ranks prefixed with #
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
+// - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -149,6 +150,11 @@ export class BasketMatchupsTable extends BaseTable {
             if (data.length > 0 && this.defenseDataCache.size === 0) {
                 this.prefetchSubtableData(data);
             }
+            
+            // Calculate widths to reserve space for scrollbar (desktop only)
+            setTimeout(() => {
+                this.calculateAndApplyWidths();
+            }, 200);
         });
         
         // Handle render complete - restore any missing subtables
@@ -176,6 +182,13 @@ export class BasketMatchupsTable extends BaseTable {
                 }, 100);
             }
         });
+        
+        // Handle window resize - recalculate widths
+        window.addEventListener('resize', this.debounce(() => {
+            if (this.table && this.table.getDataCount() > 0) {
+                this.calculateAndApplyWidths();
+            }
+        }, 250));
     }
 
     getColumns(isSmallScreen = false) {
@@ -293,6 +306,82 @@ export class BasketMatchupsTable extends BaseTable {
                 formatter: totalFormatter
             }
         ];
+    }
+
+    // Simple debounce helper
+    debounce(func, wait) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    // Calculate and apply widths to always reserve space for vertical scrollbar
+    // This prevents horizontal scrollbar from appearing when subtables expand
+    calculateAndApplyWidths() {
+        if (!this.table) {
+            console.log('Matchups calculateAndApplyWidths: table not ready');
+            return;
+        }
+        
+        const tableElement = this.table.element;
+        if (!tableElement) {
+            console.log('Matchups calculateAndApplyWidths: tableElement not ready');
+            return;
+        }
+        
+        // Only apply on desktop
+        if (isMobile() || isTablet()) {
+            return;
+        }
+        
+        try {
+            // Get all columns and calculate total width
+            const columns = this.table.getColumns();
+            let totalColumnWidth = 0;
+            
+            columns.forEach(col => {
+                if (col.isVisible()) {
+                    totalColumnWidth += col.getWidth();
+                }
+            });
+            
+            // ALWAYS add scrollbar width to reserve space for vertical scrollbar
+            // This prevents horizontal scrollbar from appearing when subtables expand
+            const SCROLLBAR_WIDTH = 17;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            
+            // Apply width to table element
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            // Also constrain internal elements
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+            }
+            
+            // Also constrain the table container
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Matchups: Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            
+        } catch (error) {
+            console.error('Error in Matchups calculateAndApplyWidths:', error);
+        }
     }
 
     // Expand Matchup column to fill remaining container width (desktop only)
