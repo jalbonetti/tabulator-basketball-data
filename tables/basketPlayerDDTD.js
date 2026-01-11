@@ -2,12 +2,14 @@
 // Double-Double and Triple-Double clearance data
 // Based on basketPlayerPropClearances.js with column modifications
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
+// UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+import { getRankBackgroundColor } from '../shared/utils.js';
 
 // Minimum width needed to display subtables in a single row
 const SUBTABLE_MIN_WIDTH = 550;
@@ -480,10 +482,17 @@ export class BasketPlayerDDTDTable extends BaseTable {
             return num > 0 ? `+${num}` : `${num}`;
         };
 
-        // Rank formatter - prepends "#" to rank values
+        // Rank formatter - prepends "#" to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
+            
+            // Apply background color based on rank
+            const bgColor = getRankBackgroundColor(value);
+            if (bgColor) {
+                cell.getElement().style.backgroundColor = bgColor;
+            }
+            
             return '#' + String(value);
         };
 
@@ -599,6 +608,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
 
             // =====================================================
             // OPPONENT GROUP - "Prop Rank (Tot)" instead of "(Avg)"
+            // UPDATED: Added background color to rank cells
             // =====================================================
             {
                 title: "Opponent", 
@@ -945,6 +955,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
     // =====================================================
     // Helper to format rank values with # prefix for subtables
     // Handles formats like "5", "5 (23.4)", etc.
+    // Returns object with formatted value and background color
     // =====================================================
     formatRankValue(value) {
         if (value === null || value === undefined || value === '' || value === '-') return '-';
@@ -962,7 +973,20 @@ export class BasketPlayerDDTDTable extends BaseTable {
     }
 
     // =====================================================
+    // Helper to get rank cell style for subtables
+    // Returns inline style string with background color if applicable
+    // =====================================================
+    getRankCellStyle(value) {
+        const bgColor = getRankBackgroundColor(value);
+        if (bgColor) {
+            return `padding: 4px 8px; text-align: center; background-color: ${bgColor};`;
+        }
+        return 'padding: 4px 8px; text-align: center;';
+    }
+
+    // =====================================================
     // Subtable content with Player/Opponent Stats table
+    // UPDATED: Opponent rank cells now have background colors
     // =====================================================
     createSubtableContent(container, data) {
         // Matchup details
@@ -1001,6 +1025,13 @@ export class BasketPlayerDDTDTable extends BaseTable {
         const oppSteals = this.formatRankValue(data["Opponent Steals"]);
         console.log('DEBUG Opponent Stats after formatRankValue:', { oppPoints, oppRebounds, oppAssists, oppBlocks, oppSteals });
         
+        // Get cell styles with background colors for opponent ranks
+        const oppPointsStyle = this.getRankCellStyle(data["Opponent Points"]);
+        const oppReboundsStyle = this.getRankCellStyle(data["Opponent Rebounds"]);
+        const oppAssistsStyle = this.getRankCellStyle(data["Opponent Assists"]);
+        const oppBlocksStyle = this.getRankCellStyle(data["Opponent Blocks"]);
+        const oppStealsStyle = this.getRankCellStyle(data["Opponent Steals"]);
+        
         container.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
                 <!-- Matchup Details -->
@@ -1038,11 +1069,11 @@ export class BasketPlayerDDTDTable extends BaseTable {
                             </tr>
                             <tr style="background: #fafafa;">
                                 <td style="padding: 4px 8px; font-weight: 600; color: #333;">Opp Stat Ranks (Avg)</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppPoints}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppRebounds}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppAssists}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppBlocks}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppSteals}</td>
+                                <td style="${oppPointsStyle}">${oppPoints}</td>
+                                <td style="${oppReboundsStyle}">${oppRebounds}</td>
+                                <td style="${oppAssistsStyle}">${oppAssists}</td>
+                                <td style="${oppBlocksStyle}">${oppBlocks}</td>
+                                <td style="${oppStealsStyle}">${oppSteals}</td>
                             </tr>
                         </tbody>
                     </table>
