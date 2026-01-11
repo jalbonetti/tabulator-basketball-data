@@ -1,6 +1,32 @@
 // shared/utils.js - Utility Functions for Basketball Props Tables
 
 /**
+ * Get background color for rank values (1-10 green, 11-20 white, 21-30 red)
+ * @param {number|string} rank - Rank value (can be "5" or "5 (12.3)" format)
+ * @returns {string} CSS color value or empty string for default/white
+ */
+export function getRankBackgroundColor(rank) {
+    // Extract numeric rank from various formats
+    let num;
+    if (typeof rank === 'number') {
+        num = rank;
+    } else if (typeof rank === 'string') {
+        // Handle formats like "5", "#5", "5 (12.3)", "#5 (12.3)"
+        const cleaned = rank.replace('#', '').trim();
+        const match = cleaned.match(/^(\d+)/);
+        num = match ? parseInt(match[1], 10) : NaN;
+    } else {
+        return '';
+    }
+    
+    if (isNaN(num)) return '';
+    
+    if (num <= 10) return '#d4edda';  // Light green
+    if (num >= 21) return '#f8d7da';  // Light red
+    return '';  // 11-20 = white/default
+}
+
+/**
  * Format a decimal value as a percentage
  * @param {number} value - Decimal value (e.g., 0.75)
  * @param {number} decimals - Number of decimal places
@@ -201,6 +227,7 @@ export function removeLeadingZeroFromValue(value) {
 
 // Default export
 export default {
+    getRankBackgroundColor,
     formatPercentage,
     formatClearancePercentage,
     formatRatio,
