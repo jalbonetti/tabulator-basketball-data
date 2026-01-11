@@ -2,6 +2,8 @@
 // Simple flat table with no expandable rows or grouped headers
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// UPDATED: Mobile/tablet shows abbreviated team names in Matchup column (e.g., "LAC @ BOS")
+// UPDATED: Desktop properly sizes for longest team names like "Los Angeles Clippers"
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -11,6 +13,57 @@ import { isMobile, isTablet } from '../shared/config.js';
 export class BasketPlayerPropOddsTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerPropOdds');
+        
+        // Team full name to abbreviation mapping
+        this.teamAbbrevMap = {
+            'Atlanta Hawks': 'ATL',
+            'Boston Celtics': 'BOS',
+            'Brooklyn Nets': 'BKN',
+            'Charlotte Hornets': 'CHA',
+            'Chicago Bulls': 'CHI',
+            'Cleveland Cavaliers': 'CLE',
+            'Dallas Mavericks': 'DAL',
+            'Denver Nuggets': 'DEN',
+            'Detroit Pistons': 'DET',
+            'Golden State Warriors': 'GSW',
+            'Houston Rockets': 'HOU',
+            'Indiana Pacers': 'IND',
+            'Los Angeles Clippers': 'LAC',
+            'LA Clippers': 'LAC',
+            'Los Angeles Lakers': 'LAL',
+            'LA Lakers': 'LAL',
+            'Memphis Grizzlies': 'MEM',
+            'Miami Heat': 'MIA',
+            'Milwaukee Bucks': 'MIL',
+            'Minnesota Timberwolves': 'MIN',
+            'New Orleans Pelicans': 'NOP',
+            'New York Knicks': 'NYK',
+            'Oklahoma City Thunder': 'OKC',
+            'Orlando Magic': 'ORL',
+            'Philadelphia 76ers': 'PHI',
+            'Phoenix Suns': 'PHX',
+            'Portland Trail Blazers': 'POR',
+            'Sacramento Kings': 'SAC',
+            'San Antonio Spurs': 'SAS',
+            'Toronto Raptors': 'TOR',
+            'Utah Jazz': 'UTA',
+            'Washington Wizards': 'WAS'
+        };
+    }
+
+    // Convert full team names in matchup string to abbreviations
+    abbreviateMatchup(matchup) {
+        if (!matchup) return '-';
+        let abbreviated = matchup;
+        
+        // Replace each full team name with its abbreviation
+        Object.entries(this.teamAbbrevMap).forEach(([fullName, abbrev]) => {
+            // Use word boundary-aware replacement to avoid partial matches
+            const regex = new RegExp(fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            abbreviated = abbreviated.replace(regex, abbrev);
+        });
+        
+        return abbreviated;
     }
 
     initialize() {
@@ -49,11 +102,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 if (data.length > 0) {
                     console.log('DEBUG - Player Prop Odds First row sample:', {
                         'Player Name': data[0]["Player Name"],
-                        'Player Prop Type': data[0]["Player Prop Type"],
-                        'Player Prop Odds': data[0]["Player Prop Odds"]
+                        'Player Matchup': data[0]["Player Matchup"],
+                        'Player Team': data[0]["Player Team"]
                     });
                 }
                 
+                // Remove loading indicator
                 const element = document.querySelector(this.elementId);
                 if (element) {
                     const loadingDiv = element.querySelector('.loading-indicator');
@@ -63,53 +117,46 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 }
             },
             ajaxError: (error) => {
-                console.error("Error loading Player Prop Odds data:", error);
+                console.error("Error loading player prop odds data:", error);
             }
         };
 
         this.table = new Tabulator(this.elementId, config);
         
         this.table.on("tableBuilt", () => {
-            console.log("Player Prop Odds table built successfully");
-            setTimeout(() => {
-                const rowCount = this.table.getDataCount();
-                console.log(`Player Prop Odds Table has ${rowCount} rows loaded`);
-                
-                if (rowCount > 0) {
-                    const data = this.table.getData();
-                    this.scanDataForMaxWidths(data);
-                    this.equalizeClusteredColumns();
-                    this.calculateAndApplyWidths();
-                } else {
-                    console.log('No data yet, width calculation deferred');
-                }
-            }, 200);
+            console.log("Player Prop Odds table built");
             
-            window.addEventListener('resize', this.debounce(() => {
-                if (this.table && this.table.getDataCount() > 0) {
-                    this.equalizeClusteredColumns();
-                    this.calculateAndApplyWidths();
-                }
-            }, 250));
+            // Desktop-specific width calculations
+            if (!isMobile() && !isTablet()) {
+                setTimeout(() => {
+                    const data = this.table ? this.table.getData() : [];
+                    if (data.length > 0) {
+                        this.scanDataForMaxWidths(data);
+                        this.equalizeClusteredColumns();
+                        this.calculateAndApplyWidths();
+                    }
+                }, 100);
+            }
         });
         
-        this.table.on("dataLoaded", () => {
-            setTimeout(() => {
-                console.log("Player Prop Odds Data loaded event, recalculating widths...");
-                const data = this.table.getData();
-                this.scanDataForMaxWidths(data);
-                this.equalizeClusteredColumns();
-                this.calculateAndApplyWidths();
-            }, 100);
+        this.table.on("renderComplete", () => {
+            // Recalculate widths after render (handles tab switching) - desktop only
+            if (!isMobile() && !isTablet()) {
+                setTimeout(() => {
+                    this.calculateAndApplyWidths();
+                }, 100);
+            }
         });
+        
+        // Handle window resize - recalculate widths (desktop only)
+        window.addEventListener('resize', this.debounce(() => {
+            if (this.table && this.table.getDataCount() > 0 && !isMobile() && !isTablet()) {
+                this.calculateAndApplyWidths();
+            }
+        }, 250));
     }
-    
-    // Backward compatibility alias for main.js resize handler and TabManager
-    expandNameColumnToFill() {
-        this.forceRecalculateWidths();
-    }
-    
-    // Simple debounce helper
+
+    // Debounce helper
     debounce(func, wait) {
         let timeout;
         return (...args) => {
@@ -117,137 +164,11 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             timeout = setTimeout(() => func.apply(this, args), wait);
         };
     }
-    
-    // Equalize column widths within each cluster
-    equalizeClusteredColumns() {
+
+    // Force recalculation of column widths - called by TabManager on tab switch
+    forceRecalculateWidths() {
         if (!this.table) return;
         
-        // Define clusters for odds columns
-        const clusters = {
-            'cluster-odds': ['Player Prop Odds', 'Player Median Odds', 'Player Best Odds']
-        };
-        
-        Object.keys(clusters).forEach(clusterName => {
-            const fields = clusters[clusterName];
-            let maxWidth = 0;
-            
-            fields.forEach(field => {
-                const column = this.table.getColumn(field);
-                if (column) {
-                    const width = column.getWidth();
-                    if (width > maxWidth) {
-                        maxWidth = width;
-                    }
-                }
-            });
-            
-            if (maxWidth > 0) {
-                fields.forEach(field => {
-                    const column = this.table.getColumn(field);
-                    if (column) {
-                        column.setWidth(maxWidth);
-                    }
-                });
-                console.log(`Player Prop Odds Cluster ${clusterName}: equalized to ${maxWidth}px`);
-            }
-        });
-    }
-    
-    // Calculate and apply widths based on content
-    calculateAndApplyWidths() {
-        if (!this.table) {
-            console.log('calculateAndApplyWidths: table not ready');
-            return;
-        }
-        
-        const tableElement = this.table.element;
-        if (!tableElement) {
-            console.log('calculateAndApplyWidths: tableElement not ready');
-            return;
-        }
-        
-        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
-        // This fixes the grey/blue space issue when switching tabs
-        if (!isMobile() && !isTablet()) {
-            // Reset outer element widths to allow recalculation
-            tableElement.style.width = 'auto';
-            tableElement.style.minWidth = 'auto';
-            tableElement.style.maxWidth = 'none';
-            
-            // Reset internal Tabulator elements that may have cached widths
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = 'auto';
-                tableHolder.style.maxWidth = 'none';
-            }
-            
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = 'auto';
-            }
-            
-            const tabulatorTable = tableElement.querySelector('.tabulator-table');
-            if (tabulatorTable) {
-                tabulatorTable.style.width = 'auto';
-            }
-            
-            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
-            void tableElement.offsetWidth;
-        }
-        
-        try {
-            const columns = this.table.getColumns();
-            let totalColumnWidth = 0;
-            
-            columns.forEach(col => {
-                const width = col.getWidth();
-                totalColumnWidth += width;
-            });
-            
-            console.log(`Player Prop Odds Width calculation: Total columns=${totalColumnWidth}px`);
-            
-            const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
-            
-            // Store the calculated width for persistence across tab switches
-            this._calculatedTableWidth = totalWidthWithScrollbar;
-            
-            tableElement.style.width = totalWidthWithScrollbar + 'px';
-            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
-            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
-            
-            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
-            if (!isMobile() && !isTablet()) {
-                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-                if (tableHolder) {
-                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
-                }
-                
-                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-                if (tabulatorHeader) {
-                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
-                }
-            }
-            
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.width = 'fit-content';
-                tableContainer.style.minWidth = 'auto';
-                tableContainer.style.maxWidth = 'none';
-            }
-            
-            console.log(`Player Prop Odds Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
-            
-        } catch (error) {
-            console.error('Error in calculateAndApplyWidths:', error);
-        }
-    }
-    
-    // Force width recalculation - called by TabManager on tab switch
-    forceRecalculateWidths() {
-        console.log('Player Prop Odds forceRecalculateWidths called');
         const data = this.table ? this.table.getData() : [];
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
@@ -257,8 +178,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
     }
 
     // Scan ALL data to find max widths needed for text columns
+    // UPDATED: Properly measures full team names for desktop display
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
+        
+        // Skip on mobile/tablet since we use abbreviated matchups
+        if (isMobile() || isTablet()) return;
         
         console.log(`Player Prop Odds Scanning ${data.length} rows for max column widths...`);
         
@@ -287,6 +212,15 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 }
             });
         });
+        
+        // UPDATED: Ensure minimum width for Player Matchup accounts for longest possible matchup
+        // "Los Angeles Clippers @ Los Angeles Lakers" is the longest possible
+        const longestMatchup = "Los Angeles Clippers @ Los Angeles Lakers";
+        const longestMatchupWidth = ctx.measureText(longestMatchup).width;
+        if (longestMatchupWidth > maxWidths["Player Matchup"]) {
+            maxWidths["Player Matchup"] = longestMatchupWidth;
+            console.log(`Player Prop Odds: Using minimum matchup width for "${longestMatchup}": ${Math.ceil(longestMatchupWidth)}px`);
+        }
         
         const CELL_PADDING = 16;
         const BUFFER = 10;
@@ -354,6 +288,20 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             return num.toFixed(1);
         };
 
+        // Matchup formatter - abbreviates team names on mobile/tablet only
+        const matchupFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '-';
+            
+            // On mobile/tablet, abbreviate team names
+            if (isSmallScreen) {
+                return self.abbreviateMatchup(value);
+            }
+            
+            // On desktop, show full names
+            return value;
+        };
+
         return [
             {
                 title: "Name", 
@@ -370,11 +318,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 title: "Matchup", 
                 field: "Player Matchup", 
                 widthGrow: 0,
-                minWidth: 80,
+                minWidth: isSmallScreen ? 70 : 80, // Smaller minWidth on mobile since abbreviated
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: matchupFormatter
             },
             {
                 title: "Team", 
@@ -473,18 +422,107 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 resizable: false,
                 formatter: oddsFormatter,
                 hozAlign: "center",
-                cssClass: "cluster-odds"
+                cssClass: "cluster-best-odds"
             },
             {
                 title: "Best Books", 
                 field: "Player Best Odds Books", 
                 widthGrow: 0,
                 minWidth: 70,
-                sorter: "string", 
-                headerFilter: createCustomMultiSelect,
+                sorter: "string",
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                cssClass: "cluster-best-odds"
             }
         ];
+    }
+
+    // Equalize column widths for clustered columns (odds columns)
+    equalizeClusteredColumns() {
+        if (!this.table) return;
+        
+        // Skip on mobile/tablet
+        if (isMobile() || isTablet()) return;
+        
+        const clusters = {
+            'cluster-odds': ['Player Prop Odds', 'Player Median Odds'],
+            'cluster-best-odds': ['Player Best Odds', 'Player Best Odds Books']
+        };
+        
+        Object.keys(clusters).forEach(clusterClass => {
+            const fields = clusters[clusterClass];
+            let maxWidth = 0;
+            
+            fields.forEach(field => {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    const width = column.getWidth();
+                    if (width > maxWidth) {
+                        maxWidth = width;
+                    }
+                }
+            });
+            
+            if (maxWidth > 0) {
+                fields.forEach(field => {
+                    const column = this.table.getColumn(field);
+                    if (column && column.getWidth() < maxWidth) {
+                        column.setWidth(maxWidth);
+                    }
+                });
+            }
+        });
+    }
+
+    // Calculate and apply table width based on actual column widths
+    calculateAndApplyWidths() {
+        if (!this.table) return;
+        
+        // Skip on mobile/tablet
+        if (isMobile() || isTablet()) return;
+        
+        try {
+            const columns = this.table.getColumns();
+            let totalColumnWidth = 0;
+            
+            columns.forEach(col => {
+                if (col.isVisible()) {
+                    totalColumnWidth += col.getWidth();
+                }
+            });
+            
+            const tableElement = this.table.element;
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            
+            // Add scrollbar width buffer for desktop
+            const SCROLLBAR_WIDTH = 17;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            
+            tableElement.style.width = totalWidthWithScrollbar + 'px';
+            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+            
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+            }
+            
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
+            }
+            
+            console.log(`Player Prop Odds: Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            
+        } catch (error) {
+            console.error('Error in Player Prop Odds calculateAndApplyWidths:', error);
+        }
     }
 }
