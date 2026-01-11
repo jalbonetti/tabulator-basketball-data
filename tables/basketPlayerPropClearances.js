@@ -11,12 +11,14 @@
 // - UPDATED: Matchup Total now displays with 1 forced decimal place
 // - UPDATED: Dynamic width calculation - container contracts to content, expands for subtables
 // - UPDATED: Rank columns now display with "#" prefix (e.g., "#5 (12.3)")
+// - UPDATED: Rank columns now have conditional background colors (green/white/red)
 // - FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+import { getRankBackgroundColor } from '../shared/utils.js';
 
 // Minimum width needed for subtables (3 boxes + gaps)
 // Matchup Details (~180px) + Minutes Data (~150px) + Best Books (~150px) + gaps (30px)
@@ -510,10 +512,17 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             return num > 0 ? `+${num}` : `${num}`;
         };
 
-        // Rank formatter - prepends "#" to rank values (e.g., "5 (12.3)" -> "#5 (12.3)")
+        // Rank formatter - prepends "#" to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
+            
+            // Apply background color based on rank
+            const bgColor = getRankBackgroundColor(value);
+            if (bgColor) {
+                cell.getElement().style.backgroundColor = bgColor;
+            }
+            
             return '#' + value;
         };
 
@@ -647,7 +656,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
 
             // =====================================================
             // OPPONENT GROUP - renamed headers
-            // UPDATED: Added rankFormatter to display "#" prefix
+            // UPDATED: Added rankFormatter to display "#" prefix and background color
             // =====================================================
             {
                 title: "Opponent", 
