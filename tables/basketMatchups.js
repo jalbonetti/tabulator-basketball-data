@@ -1144,21 +1144,28 @@ export class BasketMatchupsTable extends BaseTable {
             return container;
         }
         
-        // UPDATED: New sorting logic
+// UPDATED: New sorting logic
         // Injured players (Lineup="Injury") now have single rows with Split="Full Season"
         // Sort: Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
-        // Then injured players at bottom (alphabetically)
+        // Then Out players, then OFS players at very bottom (alphabetically within each)
         
-        // Separate players into categories based on Lineup field
+        // Separate players into categories based on Lineup field and injury status
         const activePlayers = [];
-        const injuredPlayers = [];
+        const outPlayers = [];
+        const ofsPlayers = [];
         
         playerData.forEach(row => {
             const lineup = row["Lineup"] || '';
+            const playerName = row["Player"] || '';
             
             if (lineup === 'Injury') {
-                // Injured player - single row
-                injuredPlayers.push(row);
+                // Check if OFS or Out based on player name
+                if (playerName.includes('(OFS)')) {
+                    ofsPlayers.push(row);
+                } else {
+                    // Includes (Out) and any other injury status
+                    outPlayers.push(row);
+                }
             } else {
                 // Active player
                 activePlayers.push(row);
@@ -1183,15 +1190,22 @@ export class BasketMatchupsTable extends BaseTable {
             return aSplit - bSplit;
         });
         
-        // Sort injured players alphabetically by name
-        injuredPlayers.sort((a, b) => {
+        // Sort Out players alphabetically by name
+        outPlayers.sort((a, b) => {
             const aName = a["Player"] || '';
             const bName = b["Player"] || '';
             return aName.localeCompare(bName);
         });
         
-        // Combine: Active players, then injured
-        const sortedData = [...activePlayers, ...injuredPlayers];
+        // Sort OFS players alphabetically by name
+        ofsPlayers.sort((a, b) => {
+            const aName = a["Player"] || '';
+            const bName = b["Player"] || '';
+            return aName.localeCompare(bName);
+        });
+        
+        // Combine: Active players, then Out, then OFS at very bottom
+        const sortedData = [...activePlayers, ...outPlayers, ...ofsPlayers];
         
         // Responsive min-widths - smaller on mobile
         const isSmallScreen = isMobile() || isTablet();
