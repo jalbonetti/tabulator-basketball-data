@@ -2,12 +2,14 @@
 // FanDuel Daily Fantasy Sports data
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 // UPDATED: Added min/max filter to Price column
+// UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+import { getRankBackgroundColor } from '../shared/utils.js';
 
 // Minimum width needed to display subtables in a single row
 const SUBTABLE_MIN_WIDTH = 700;
@@ -447,10 +449,17 @@ export class BasketPlayerFDTable extends BaseTable {
             return str;
         };
 
-        // Rank formatter - prepends # to rank values
+        // Rank formatter - prepends # to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
+            
+            // Apply background color based on rank
+            const bgColor = getRankBackgroundColor(value);
+            if (bgColor) {
+                cell.getElement().style.backgroundColor = bgColor;
+            }
+            
             return '#' + value;
         };
 
