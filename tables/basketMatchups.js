@@ -9,11 +9,13 @@
 // - Out/OFS players show stats and format: "Name - All - Full Season - Games - Mins"
 // - Total column formatted with 1 decimal place
 // - Defense prop ranks prefixed with #
+// - Defense rank cells now have conditional background colors (green/white/red)
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 // - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
+import { getRankBackgroundColor } from '../shared/utils.js';
 
 export class BasketMatchupsTable extends BaseTable {
     constructor(elementId) {
@@ -1014,7 +1016,17 @@ export class BasketMatchupsTable extends BaseTable {
         return 'Expected';
     }
 
-    // Create defense subtable - UPDATED with # prefix on prop ranks
+    // Helper to get rank cell style for defense subtables
+    // Returns inline style string with background color if applicable
+    getRankCellStyle(value, baseStyle) {
+        const bgColor = getRankBackgroundColor(value);
+        if (bgColor) {
+            return `${baseStyle} background-color: ${bgColor};`;
+        }
+        return baseStyle;
+    }
+
+    // Create defense subtable - UPDATED with # prefix on prop ranks and background colors
     // FIXED: Responsive min-widths for mobile
     createDefenseSubtable(defenseData, title) {
         const container = document.createElement('div');
@@ -1051,6 +1063,9 @@ export class BasketMatchupsTable extends BaseTable {
         const statMinWidth = isSmallScreen ? '35px' : '50px';
         const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
         const fontSize = isSmallScreen ? '9px' : '11px';
+        
+        // Base cell style for data cells
+        const baseCellStyle = `padding: ${cellPadding}; text-align: center;`;
         
         // Create table
         const table = document.createElement('table');
@@ -1092,29 +1107,30 @@ export class BasketMatchupsTable extends BaseTable {
             const tr = document.createElement('tr');
             tr.style.cssText = index % 2 === 1 ? 'background: #fafafa;' : '';
             
-            // Pace cell (merged for first row) - add # prefix
+            // Pace cell (merged for first row) - add # prefix and background color
             if (index === 0) {
                 const paceDisplay = this.formatRankWithHash(paceValue);
+                const paceStyle = this.getRankCellStyle(paceValue, `${baseCellStyle} border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;`);
                 tr.innerHTML = `
-                    <td rowspan="${sortedData.length}" style="padding: ${cellPadding}; text-align: center; border-right: 1px solid #eee; vertical-align: middle; font-weight: 600;">${paceDisplay}</td>
+                    <td rowspan="${sortedData.length}" style="${paceStyle}">${paceDisplay}</td>
                 `;
             }
             
-            // Format all rank values with # prefix
+            // Format all rank values with # prefix and get background color styles
             tr.innerHTML += `
-                <td style="padding: ${cellPadding}; text-align: center;">${row["Split"] || '-'}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Pts"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["3P"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["FTA"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Assists"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TOs"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["ORebs"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DRebs"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Rebs"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Blocks"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["Steals"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["DD"])}</td>
-                <td style="padding: ${cellPadding}; text-align: center;">${this.formatRankWithHash(row["TD"])}</td>
+                <td style="${baseCellStyle}">${row["Split"] || '-'}</td>
+                <td style="${this.getRankCellStyle(row["Pts"], baseCellStyle)}">${this.formatRankWithHash(row["Pts"])}</td>
+                <td style="${this.getRankCellStyle(row["3P"], baseCellStyle)}">${this.formatRankWithHash(row["3P"])}</td>
+                <td style="${this.getRankCellStyle(row["FTA"], baseCellStyle)}">${this.formatRankWithHash(row["FTA"])}</td>
+                <td style="${this.getRankCellStyle(row["Assists"], baseCellStyle)}">${this.formatRankWithHash(row["Assists"])}</td>
+                <td style="${this.getRankCellStyle(row["TOs"], baseCellStyle)}">${this.formatRankWithHash(row["TOs"])}</td>
+                <td style="${this.getRankCellStyle(row["ORebs"], baseCellStyle)}">${this.formatRankWithHash(row["ORebs"])}</td>
+                <td style="${this.getRankCellStyle(row["DRebs"], baseCellStyle)}">${this.formatRankWithHash(row["DRebs"])}</td>
+                <td style="${this.getRankCellStyle(row["Rebs"], baseCellStyle)}">${this.formatRankWithHash(row["Rebs"])}</td>
+                <td style="${this.getRankCellStyle(row["Blocks"], baseCellStyle)}">${this.formatRankWithHash(row["Blocks"])}</td>
+                <td style="${this.getRankCellStyle(row["Steals"], baseCellStyle)}">${this.formatRankWithHash(row["Steals"])}</td>
+                <td style="${this.getRankCellStyle(row["DD"], baseCellStyle)}">${this.formatRankWithHash(row["DD"])}</td>
+                <td style="${this.getRankCellStyle(row["TD"], baseCellStyle)}">${this.formatRankWithHash(row["TD"])}</td>
             `;
             tbody.appendChild(tr);
         });
