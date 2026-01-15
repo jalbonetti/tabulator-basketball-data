@@ -142,13 +142,13 @@ function injectMinimalStyles() {
             visibility: visible !important;
             opacity: 1 !important;
             width: 100% !important;
-            background: #fafafa !important;
+            background: #e8e8e8 !important;
         }
         
         .table-container {
             display: block !important;
             visibility: visible !important;
-            background: #fafafa !important;
+            background: #e8e8e8 !important;
         }
         
         /* HEADERS: Allow word wrapping at word boundaries, center-justified */
@@ -185,19 +185,19 @@ function injectMinimalStyles() {
            ===================================================== */
         @media screen and (min-width: 1025px) {
             .table-container {
-                background: #fafafa !important;
+                background: #e8e8e8 !important;
             }
             
             .table-wrapper {
-                background: #fafafa !important;
+                background: #e8e8e8 !important;
             }
             
             .tabulator {
-                background-color: #fafafa !important;
+                background-color: #e8e8e8 !important;
             }
             
             .tabulator .tabulator-tableholder {
-                background-color: #fafafa !important;
+                background-color: #e8e8e8 !important;
             }
         }
         
@@ -494,7 +494,7 @@ function injectFullStyles() {
             max-width: 100%;
             margin: 0 auto;
             position: relative;
-            background: #fafafa;
+            background: #e8e8e8;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: visible;
@@ -502,7 +502,7 @@ function injectFullStyles() {
         
         /* Table wrapper - grey background */
         .table-wrapper {
-            background: #fafafa;
+            background: #e8e8e8;
         }
         
         /* Tabulator base styles - grey background */
@@ -510,7 +510,7 @@ function injectFullStyles() {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             font-size: ${baseFontSize}px !important;
             line-height: 1.3 !important;
-            background-color: #fafafa;
+            background-color: #e8e8e8;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             overflow: visible !important;
@@ -518,7 +518,7 @@ function injectFullStyles() {
         
         /* Tableholder - grey background fills empty space */
         .tabulator .tabulator-tableholder {
-            background-color: #fafafa;
+            background-color: #e8e8e8;
         }
         
         /* Note: Dropdowns use position:fixed, so they don't need overflow:visible here.
@@ -841,20 +841,20 @@ function injectFullStyles() {
             .tabulator {
                 width: 100% !important;
                 max-width: 100% !important;
-                background-color: #fafafa !important;
+                background-color: #e8e8e8 !important;
             }
             
             .table-container {
                 overflow-x: auto !important;
-                background: #fafafa !important;
+                background: #e8e8e8 !important;
             }
             
             .table-wrapper {
-                background: #fafafa !important;
+                background: #e8e8e8 !important;
             }
             
             .tabulator .tabulator-tableholder {
-                background-color: #fafafa !important;
+                background-color: #e8e8e8 !important;
             }
         }
         
