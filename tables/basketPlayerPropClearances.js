@@ -13,6 +13,7 @@
 // - UPDATED: Rank columns now display with "#" prefix (e.g., "#5 (12.3)")
 // - UPDATED: Rank columns now have conditional background colors (green/white/red)
 // - FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// - FIXED: Desktop grey background fills empty space consistently (no more website background showing)
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -303,12 +304,17 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 }
             }
             
-            // Also constrain the table container
+            // UPDATED: Handle table container - desktop gets full width with grey background
+            // Mobile/tablet: CSS handles via !important rules, no JS changes needed
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
-                tableContainer.style.width = 'fit-content';
-                tableContainer.style.minWidth = 'auto';
-                tableContainer.style.maxWidth = 'none';
+                if (!isMobile() && !isTablet()) {
+                    // Desktop: full width container with grey background
+                    // The table element inside is constrained, but container fills available space
+                    tableContainer.style.width = '100%';
+                    tableContainer.style.background = '#fafafa';
+                }
+                // Mobile/tablet: Don't set any inline styles - let CSS handle it
             }
             
             console.log(`Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
