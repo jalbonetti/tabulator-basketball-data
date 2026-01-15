@@ -358,7 +358,7 @@ export class BasketGameOddsTable extends BaseTable {
             },
             {
                 title: "Book Odds", 
-                field: "Game Prop Odds", 
+                field: "Game Odds", 
                 widthGrow: 0,
                 minWidth: 55,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
