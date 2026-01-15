@@ -12,6 +12,7 @@
 // - FIXED: Desktop scrollbar - counters Webflow's aggressive *::-webkit-scrollbar { display: none }
 // - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
 // - FIXED: Mobile frozen columns - constrain tabulator width so scroll happens at tableholder level
+// - FIXED: Desktop grey background fills empty space to right of table (consistent across all tables)
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -141,11 +142,13 @@ function injectMinimalStyles() {
             visibility: visible !important;
             opacity: 1 !important;
             width: 100% !important;
+            background: #fafafa !important;
         }
         
         .table-container {
             display: block !important;
             visibility: visible !important;
+            background: #fafafa !important;
         }
         
         /* HEADERS: Allow word wrapping at word boundaries, center-justified */
@@ -175,6 +178,27 @@ function injectMinimalStyles() {
             border: 1px solid #333 !important;
             border-radius: 4px !important;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
+        }
+        
+        /* =====================================================
+           DESKTOP: Grey background fills empty space
+           ===================================================== */
+        @media screen and (min-width: 1025px) {
+            .table-container {
+                background: #fafafa !important;
+            }
+            
+            .table-wrapper {
+                background: #fafafa !important;
+            }
+            
+            .tabulator {
+                background-color: #fafafa !important;
+            }
+            
+            .tabulator .tabulator-tableholder {
+                background-color: #fafafa !important;
+            }
         }
         
         /* =====================================================
@@ -418,7 +442,7 @@ function injectMinimalStyles() {
         }
     `;
     document.head.appendChild(style);
-    console.log('Basketball minimal styles injected with standalone header fix, scrollbar, mobile subtable fixes, and frozen column fix');
+    console.log('Basketball minimal styles injected with standalone header fix, scrollbar, mobile subtable fixes, frozen column fix, and desktop grey background');
 }
 
 function injectFullStyles() {
@@ -444,6 +468,7 @@ function injectFullStyles() {
            Standalone headers top-aligned on mobile
            Mobile subtable compact layout
            Mobile frozen column support
+           Desktop grey background for empty space
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -463,27 +488,37 @@ function injectFullStyles() {
             line-height: 1.3 !important;
         }
         
-        /* Base table container styles */
+        /* Base table container styles - grey background for empty space */
         .table-container {
             width: 100%;
             max-width: 100%;
             margin: 0 auto;
             position: relative;
-            background: white;
+            background: #fafafa;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: visible;
         }
         
-        /* Tabulator base styles */
+        /* Table wrapper - grey background */
+        .table-wrapper {
+            background: #fafafa;
+        }
+        
+        /* Tabulator base styles - grey background */
         .tabulator {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             font-size: ${baseFontSize}px !important;
             line-height: 1.3 !important;
-            background-color: white;
+            background-color: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             overflow: visible !important;
+        }
+        
+        /* Tableholder - grey background fills empty space */
+        .tabulator .tabulator-tableholder {
+            background-color: #fafafa;
         }
         
         /* Note: Dropdowns use position:fixed, so they don't need overflow:visible here.
@@ -801,15 +836,25 @@ function injectFullStyles() {
             }
         }
         
-        /* Desktop: Ensure table fits in browser width */
+        /* Desktop: Ensure table fits in browser width with grey background */
         @media screen and (min-width: 1025px) {
             .tabulator {
                 width: 100% !important;
                 max-width: 100% !important;
+                background-color: #fafafa !important;
             }
             
             .table-container {
                 overflow-x: auto !important;
+                background: #fafafa !important;
+            }
+            
+            .table-wrapper {
+                background: #fafafa !important;
+            }
+            
+            .tabulator .tabulator-tableholder {
+                background-color: #fafafa !important;
             }
         }
         
@@ -966,5 +1011,5 @@ function injectFullStyles() {
         }
     `;
     document.head.appendChild(style);
-    console.log('Basketball full styles injected with mobile frozen column fix');
+    console.log('Basketball full styles injected with mobile frozen column fix and desktop grey background');
 }
