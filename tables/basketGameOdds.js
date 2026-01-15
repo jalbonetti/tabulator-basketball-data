@@ -235,50 +235,14 @@ export class BasketGameOddsTable extends BaseTable {
             console.log(`Game Odds: Using minimum matchup width for "${longestMatchup}": ${Math.ceil(longestMatchupWidth)}px`);
         }
         
-        // FIXED: Ensure Best Books column accounts for long multi-book values
-        // Common long values include combinations like "FanDuel/DraftKings/Caesars/BetMGM"
-        const longBestBooksExamples = [
-            "FanDuel/DraftKings/Caesars/BetMGM",
-            "FanDuel/DraftKings/Caesars/BetRivers",
-            "Fanatics/BetMGM/DraftKings/Caesars",
-            "FanDuel/DraftKings/BetMGM/Pinnacle"
-        ];
-        longBestBooksExamples.forEach(example => {
-            const exampleWidth = ctx.measureText(example).width;
-            if (exampleWidth > maxWidths["Game Best Odds Books"]) {
-                maxWidths["Game Best Odds Books"] = exampleWidth;
-            }
-        });
-        console.log(`Game Odds: Best Books max width from data/examples: ${Math.ceil(maxWidths["Game Best Odds Books"])}px`);
-        
         const CELL_PADDING = 16;
-        const BUFFER = 15; // Increased buffer for better text fit
-        const SORT_ICON_WIDTH = 20; // Space for sort icon in headers
-        
-        // Also measure header widths for each column
-        const headerCtx = canvas.getContext('2d');
-        headerCtx.font = '600 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Header font (bolder)
-        
-        Object.keys(maxWidths).forEach(field => {
-            const column = this.table.getColumn(field);
-            if (column) {
-                // Check header width
-                const headerTitle = column.getDefinition().title;
-                if (headerTitle) {
-                    const headerTextWidth = headerCtx.measureText(headerTitle).width;
-                    if (headerTextWidth > maxWidths[field]) {
-                        maxWidths[field] = headerTextWidth;
-                        console.log(`Game Odds: Header "${headerTitle}" wider than data for ${field}`);
-                    }
-                }
-            }
-        });
+        const BUFFER = 10;
         
         Object.keys(maxWidths).forEach(field => {
             if (maxWidths[field] > 0) {
                 const column = this.table.getColumn(field);
                 if (column) {
-                    const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER + SORT_ICON_WIDTH;
+                    const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
                     const currentWidth = column.getWidth();
                     
                     if (requiredWidth > currentWidth) {
