@@ -4,6 +4,9 @@
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // UPDATED: Mobile/tablet shows abbreviated team names (e.g., "LAC @ BOS" instead of full names)
 // UPDATED: Desktop properly sizes for longest team names like "Los Angeles Clippers"
+// FIXED: All 3 odds columns (Book, Median, Best) now equalize to same width
+// FIXED: Best Books column now properly expands for long multi-book values
+// FIXED: Corrected field name from 'Game Prop Odds' to 'Game Odds'
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -179,6 +182,7 @@ export class BasketGameOddsTable extends BaseTable {
 
     // Scan ALL data to find max widths needed for text columns
     // UPDATED: Properly measures full team names for desktop display
+    // FIXED: Now includes odds columns and Best Books for proper width measurement
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -196,6 +200,9 @@ export class BasketGameOddsTable extends BaseTable {
             "Game Prop Type": 0,
             "Game Label": 0,
             "Game Book": 0,
+            "Game Odds": 0,
+            "Game Median Odds": 0,
+            "Game Best Odds": 0,
             "Game Best Odds Books": 0
         };
         
@@ -203,7 +210,15 @@ export class BasketGameOddsTable extends BaseTable {
             Object.keys(maxWidths).forEach(field => {
                 const value = row[field];
                 if (value !== null && value !== undefined && value !== '') {
-                    const textWidth = ctx.measureText(String(value)).width;
+                    // For odds fields, format with +/- prefix for measurement
+                    let displayValue = String(value);
+                    if (field.includes('Odds') && field !== 'Game Best Odds Books') {
+                        const num = parseInt(value, 10);
+                        if (!isNaN(num)) {
+                            displayValue = num > 0 ? `+${num}` : `${num}`;
+                        }
+                    }
+                    const textWidth = ctx.measureText(displayValue).width;
                     if (textWidth > maxWidths[field]) {
                         maxWidths[field] = textWidth;
                     }
@@ -402,7 +417,7 @@ export class BasketGameOddsTable extends BaseTable {
                 resizable: false,
                 formatter: oddsFormatter,
                 hozAlign: "center",
-                cssClass: "cluster-best-odds"
+                cssClass: "cluster-odds"
             },
             {
                 title: "Best Books", 
@@ -411,47 +426,65 @@ export class BasketGameOddsTable extends BaseTable {
                 minWidth: 70,
                 sorter: "string",
                 resizable: false,
-                hozAlign: "center",
-                cssClass: "cluster-best-odds"
+                hozAlign: "center"
             }
         ];
     }
 
     // Equalize column widths for clustered columns (odds columns)
+    // FIXED: All three odds columns (Book Odds, Median Odds, Best Odds) now equalize to the same width
+    // FIXED: Corrected field name from 'Game Prop Odds' to 'Game Odds'
+    // Width is based on the maximum of: data width OR header text width
     equalizeClusteredColumns() {
         if (!this.table) return;
         
         // Skip on mobile/tablet
         if (isMobile() || isTablet()) return;
         
-        const clusters = {
-            'cluster-odds': ['Game Prop Odds', 'Game Median Odds'],
-            'cluster-best-odds': ['Game Best Odds', 'Game Best Odds Books']
-        };
+        // Group all 3 odds columns together - they should all be the same width
+        // FIXED: Use correct field name 'Game Odds' (not 'Game Prop Odds')
+        const oddsCluster = ['Game Odds', 'Game Median Odds', 'Game Best Odds'];
         
-        Object.keys(clusters).forEach(clusterClass => {
-            const fields = clusters[clusterClass];
-            let maxWidth = 0;
-            
-            fields.forEach(field => {
-                const column = this.table.getColumn(field);
-                if (column) {
-                    const width = column.getWidth();
-                    if (width > maxWidth) {
-                        maxWidth = width;
+        // Measure header widths to include in calculation
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '600 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Header font weight
+        
+        const CELL_PADDING = 16;
+        const SORT_ICON_WIDTH = 20; // Space for sort icon
+        
+        let maxWidth = 0;
+        
+        oddsCluster.forEach(field => {
+            const column = this.table.getColumn(field);
+            if (column) {
+                // Get current column width (based on data)
+                const dataWidth = column.getWidth();
+                if (dataWidth > maxWidth) {
+                    maxWidth = dataWidth;
+                }
+                
+                // Also measure header text width
+                const headerTitle = column.getDefinition().title;
+                if (headerTitle) {
+                    const headerTextWidth = ctx.measureText(headerTitle).width;
+                    const headerRequiredWidth = headerTextWidth + CELL_PADDING + SORT_ICON_WIDTH;
+                    if (headerRequiredWidth > maxWidth) {
+                        maxWidth = headerRequiredWidth;
                     }
                 }
-            });
-            
-            if (maxWidth > 0) {
-                fields.forEach(field => {
-                    const column = this.table.getColumn(field);
-                    if (column && column.getWidth() < maxWidth) {
-                        column.setWidth(maxWidth);
-                    }
-                });
             }
         });
+        
+        if (maxWidth > 0) {
+            oddsCluster.forEach(field => {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    column.setWidth(Math.ceil(maxWidth));
+                }
+            });
+            console.log(`Game Odds: Equalized odds columns to ${Math.ceil(maxWidth)}px`);
+        }
     }
 
     // Calculate and apply table width based on actual column widths
