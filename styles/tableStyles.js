@@ -198,6 +198,8 @@ function injectMinimalStyles() {
             
             .tabulator .tabulator-tableholder {
                 background-color: #e8e8e8 !important;
+                overflow-y: scroll !important;
+                overflow-x: auto !important;
             }
         }
         
@@ -855,6 +857,8 @@ function injectFullStyles() {
             
             .tabulator .tabulator-tableholder {
                 background-color: #e8e8e8 !important;
+                overflow-y: scroll !important;
+                overflow-x: auto !important;
             }
         }
         
