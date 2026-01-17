@@ -4,6 +4,7 @@
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// FIXED: Virtual DOM timing issue - force re-render after data loads
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -80,6 +81,15 @@ export class BasketPlayerFDTable extends BaseTable {
                         loadingDiv.remove();
                     }
                 }
+                
+                // FIX: Force re-render of visible rows to bind data properly
+                // This fixes virtual DOM timing issue where initial rows render before data is bound
+                setTimeout(() => {
+                    if (this.table && this.table.rowManager) {
+                        this.table.rowManager.reRenderInPosition();
+                        console.log('FD DFS: Forced re-render of visible rows');
+                    }
+                }, 50);
             },
             ajaxError: (error) => {
                 console.error("Error loading FD DFS data:", error);
