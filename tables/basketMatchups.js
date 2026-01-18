@@ -388,37 +388,115 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Calculate the required width for subtables
-    // This measures the actual rendered subtable width requirement
+    // This calculates based on the actual column definitions used in createDefenseSubtable/createPlayersSubtable
     getSubtableRequiredWidth() {
-        // The subtable has these columns with these approximate minimum widths:
-        // Defense subtable: Pace(40) + Split(50) + 12 stat columns(35 each) = 510px minimum
-        // Player subtable: Player(120) + 12 stat columns(35 each) = 540px minimum
-        // Adding padding and borders: ~560px total
-        
-        // On mobile, the subtables use smaller fonts/padding, so we use the mobile values
         const isSmallScreen = isMobile() || isTablet();
         
         if (isSmallScreen) {
-            // Mobile subtable widths (from createDefenseSubtable/createPlayersSubtable):
-            // paceMinWidth: 40px, splitMinWidth: 50px, statMinWidth: 35px (x12 = 420px)
-            // playerMinWidth: 120px, statMinWidth: 35px (x12 = 420px)
-            // Plus container padding (8px x 2 = 16px) and table padding
-            // The player subtable is typically the widest due to long player info strings
+            // Mobile subtable column widths (from createDefenseSubtable and createPlayersSubtable):
+            // 
+            // DEFENSE SUBTABLE:
+            // - Season Pace Rank: 40px min-width
+            // - Split: 50px min-width  
+            // - 12 stat columns (Points, 3PM, FTA, Assists, TOs, Off, Def, Total, Blocks, Steals, DD, TD): 35px each = 420px
+            // - Cell padding: 2px + 4px per cell = ~6px per cell, 14 cells = 84px
+            // - Container padding: 12px * 2 = 24px
+            // Defense total: 40 + 50 + 420 + 84 + 24 = 618px
+            //
+            // PLAYER SUBTABLE:
+            // - Player column: 120px min-width (but content is much wider!)
+            //   Actual content like "Dyson Daniels (Q) - Starter - Full Season - 42 Games - 32.5 Mins"
+            //   At 9px font, this is roughly 350-400px
+            // - 12 stat columns: 35px each = 420px
+            // - Cell padding: ~84px
+            // - Container padding: 24px
+            // Player total with actual content: ~400 + 420 + 84 + 24 = 928px
+            //
+            // The player subtable is the widest, so we use that as our target
+            // But we need to measure actual player name lengths from data
             
-            // Actually measure if we have a rendered subtable
-            const existingSubtable = document.querySelector('#matchups-table .subtable-scroll-wrapper table');
-            if (existingSubtable) {
-                return existingSubtable.offsetWidth + 40; // Add padding buffer
-            }
+            // Calculate actual player info width based on data
+            const playerInfoWidth = this.calculateMaxPlayerInfoWidth();
             
-            // Fallback: calculate based on known column widths
-            // Player column needs ~300px for long names like "Dyson Daniels (Q) - Starter - Full Season - 42 Games - 32.5 Mins"
-            // 12 stat columns at 35px each = 420px
-            // Total: ~720px + some padding = ~750px
-            return 560; // Conservative estimate for mobile
+            // 12 stat columns at 35px each
+            const statColumnsWidth = 12 * 35;
+            
+            // Cell padding (approximately 6px per cell for 13 cells)
+            const cellPadding = 13 * 6;
+            
+            // Container padding
+            const containerPadding = 24;
+            
+            // Scrollbar width for the subtable scroll wrapper
+            const scrollbarWidth = 8;
+            
+            const totalWidth = playerInfoWidth + statColumnsWidth + cellPadding + containerPadding + scrollbarWidth;
+            
+            console.log(`Matchups: Calculated subtable width = ${totalWidth}px (playerInfo=${playerInfoWidth}, stats=${statColumnsWidth}, padding=${cellPadding + containerPadding}, scrollbar=${scrollbarWidth})`);
+            
+            return totalWidth;
         }
         
         return 800; // Desktop estimate
+    }
+
+    // Calculate the maximum width needed for player info strings
+    // Format: "Name (Status) - Lineup - Split - X Games - X.X Mins"
+    calculateMaxPlayerInfoWidth() {
+        // If we don't have player data cached yet, use a reasonable default
+        if (!this.playersDataCache || this.playersDataCache.size === 0) {
+            // Default based on typical long player names
+            // "Shai Gilgeous-Alexander - Starter - Full Season - 42 Games - 35.5 Mins" ≈ 380px at 9px font
+            return 320;
+        }
+        
+        // Create a temporary span to measure text width
+        const measureSpan = document.createElement('span');
+        measureSpan.style.cssText = `
+            position: absolute;
+            visibility: hidden;
+            white-space: nowrap;
+            font-size: 9px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        `;
+        document.body.appendChild(measureSpan);
+        
+        let maxWidth = 0;
+        
+        // Check all cached player data
+        this.playersDataCache.forEach((players, matchupId) => {
+            players.forEach(row => {
+                const playerName = row["Player"] || '';
+                const lineup = row["Lineup"] || '';
+                const split = row["Split"] || '';
+                const games = row["Games"] || '0';
+                const minutes = row["Minutes"] ? parseFloat(row["Minutes"]).toFixed(1) : '0.0';
+                
+                // Build the full player info string as it appears in the table
+                let playerInfo;
+                if (lineup === 'Injury') {
+                    playerInfo = `${playerName} - All - Full Season - ${games} Games - ${minutes} Mins`;
+                } else {
+                    playerInfo = `${playerName} - ${lineup} - ${split} - ${games} Games - ${minutes} Mins`;
+                }
+                
+                measureSpan.textContent = playerInfo;
+                const width = measureSpan.offsetWidth;
+                if (width > maxWidth) {
+                    maxWidth = width;
+                }
+            });
+        });
+        
+        document.body.removeChild(measureSpan);
+        
+        // Add some buffer for cell padding
+        const CELL_PADDING = 8;
+        
+        // Minimum width to ensure readability
+        const MIN_PLAYER_WIDTH = 250;
+        
+        return Math.max(maxWidth + CELL_PADDING, MIN_PLAYER_WIDTH);
     }
 
     // Simple debounce helper
@@ -977,6 +1055,13 @@ export class BasketMatchupsTable extends BaseTable {
             
             // Mark cache as ready
             this.subtableDataReady = true;
+            
+            // IMPORTANT: Now that we have player data cached, recalculate column widths on mobile
+            // This ensures Spread/Total columns are properly sized BEFORE any row is expanded
+            if (isMobile() || isTablet()) {
+                console.log('Matchups: Player data cached, recalculating mobile column widths');
+                this.calculateMobileColumnWidths();
+            }
             
             // Start the watchdog to ensure subtables stay in place
             this.startSubtableWatchdog();
