@@ -276,8 +276,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Matchup", 
                     field: "Matchup", 
-                    widthGrow: 2, // Takes more space proportionally
-                    minWidth: 150,
+                    // Width set dynamically by calculateMobileColumnWidths()
                     sorter: "string",
                     resizable: false,
                     formatter: this.createNameFormatter(),
@@ -287,8 +286,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Spread", 
                     field: "Spread", 
-                    widthGrow: 1,
-                    minWidth: 70,
+                    // Width set dynamically by calculateMobileColumnWidths()
                     sorter: spreadSorter,
                     resizable: false,
                     hozAlign: "center"
@@ -296,8 +294,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Total", 
                     field: "Total", 
-                    widthGrow: 1,
-                    minWidth: 80,
+                    // Width set dynamically by calculateMobileColumnWidths()
                     sorter: totalSorter,
                     resizable: false,
                     hozAlign: "center",
@@ -512,8 +509,9 @@ export class BasketMatchupsTable extends BaseTable {
         };
     }
 
-    // Calculate and apply widths - DESKTOP ONLY
-    // Mobile/tablet: Skip entirely and let CSS handle constraints (matches other tables)
+    // Calculate and apply widths
+    // Desktop: Reserve space for vertical scrollbar
+    // Mobile: Size table to match subtable width, with columns sized appropriately
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -526,35 +524,9 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // MOBILE/TABLET: Skip width calculations entirely - let CSS handle it
-        // This matches the behavior of basketGameOdds.js and basketPlayerPropOdds.js
+        // On mobile/tablet: Size table to match subtable width
         if (isMobile() || isTablet()) {
-            // Clear any previously set inline widths to let CSS take over
-            tableElement.style.width = '';
-            tableElement.style.minWidth = '';
-            tableElement.style.maxWidth = '';
-            
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.width = '';
-                tableContainer.style.minWidth = '';
-                tableContainer.style.maxWidth = '';
-            }
-            
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = '';
-                tableHolder.style.minWidth = '';
-                tableHolder.style.maxWidth = '';
-            }
-            
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = '';
-                tabulatorHeader.style.minWidth = '';
-            }
-            
-            console.log('Matchups: Mobile/tablet mode - width calculations skipped, CSS handles constraints');
+            this.calculateMobileColumnWidths();
             return;
         }
         
@@ -612,8 +584,10 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Calculate and apply column widths for mobile
-    // Logic: Matchup sized to content, Spread and Total split the remaining subtable width
-    // FIXED: No longer sets explicit widths on container elements - lets CSS handle constraints
+    // Logic: 
+    // - Total table width = subtable required width
+    // - Matchup column = sized to widest content in dataset
+    // - Spread and Total = 50% each of remaining space (subtableWidth - matchupWidth)
     calculateMobileColumnWidths() {
         if (!this.table) return;
         
@@ -624,7 +598,7 @@ export class BasketMatchupsTable extends BaseTable {
             // Step 1: Calculate the width needed for the Matchup column based on content
             const matchupContentWidth = this.calculateMatchupContentWidth();
             
-            // Step 2: Get the required subtable width
+            // Step 2: Get the required subtable width - this is our total table width target
             const subtableWidth = this.getSubtableRequiredWidth();
             
             // Step 3: Calculate remaining width for Spread and Total
@@ -648,35 +622,42 @@ export class BasketMatchupsTable extends BaseTable {
                 totalColumn.setWidth(spreadTotalWidth);
             }
             
-            // MOBILE FIX: Do NOT set explicit widths on table element or container
-            // Let CSS media queries handle the container constraints (width: 100%, max-width: 100vw)
-            // The tableholder will scroll horizontally if content exceeds viewport
+            // Step 5: Calculate actual total width and set table width to match
+            const totalTableWidth = matchupContentWidth + (spreadTotalWidth * 2);
             
-            // Just ensure tableholder can scroll
+            // Set explicit width on table element to match subtable width
+            tableElement.style.width = totalTableWidth + 'px';
+            tableElement.style.minWidth = totalTableWidth + 'px';
+            tableElement.style.maxWidth = totalTableWidth + 'px';
+            
+            // Set tableholder to match and enable scrolling
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
+                tableHolder.style.width = totalTableWidth + 'px';
+                tableHolder.style.minWidth = totalTableWidth + 'px';
+                tableHolder.style.maxWidth = totalTableWidth + 'px';
                 tableHolder.style.overflowX = 'auto';
                 tableHolder.style.overflowY = 'auto';
-                // Remove any explicit width constraints that might have been set
-                tableHolder.style.width = '';
-                tableHolder.style.minWidth = '';
-                tableHolder.style.maxWidth = '';
             }
             
-            // Reset table element widths to let CSS handle it
-            tableElement.style.width = '';
-            tableElement.style.minWidth = '';
-            tableElement.style.maxWidth = '';
-            
-            // Reset header widths
+            // Set header width to match
             const tabulatorHeader = tableElement.querySelector('.tabulator-header');
             if (tabulatorHeader) {
-                tabulatorHeader.style.width = '';
-                tabulatorHeader.style.minWidth = '';
+                tabulatorHeader.style.width = totalTableWidth + 'px';
+                tabulatorHeader.style.minWidth = totalTableWidth + 'px';
             }
             
-            const totalTableWidth = matchupContentWidth + (spreadTotalWidth * 2);
-            console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total content=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
+            // CRITICAL: Do NOT set fit-content on container for mobile
+            // Let the container stay at 100% width, table scrolls within it
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                // Clear any desktop-specific width settings
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
+            }
+            
+            console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total table=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
             
         } catch (error) {
             console.error('Error in Matchups calculateMobileColumnWidths:', error);
@@ -688,8 +669,11 @@ export class BasketMatchupsTable extends BaseTable {
     expandMatchupColumnToFill() {
         if (!this.table) return;
         
-        // Skip on mobile/tablet - let CSS handle it
-        if (isMobile() || isTablet()) return;
+        // On mobile, use the mobile column width calculation instead
+        if (isMobile() || isTablet()) {
+            this.calculateMobileColumnWidths();
+            return;
+        }
         
         // First, recalculate widths to ensure scrollbar space is reserved
         this.calculateAndApplyWidths();
