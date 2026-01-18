@@ -4,6 +4,7 @@
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// FIXED: Mobile subtable spacing - no longer forces SUBTABLE_MIN_WIDTH on small screens
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -11,7 +12,7 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Minimum width needed to display subtables in a single row
+// Minimum width needed to display subtables in a single row (DESKTOP ONLY)
 // DK has more columns (DDs, TDs) than FD, so needs significantly more width
 const SUBTABLE_MIN_WIDTH = 1100;
 
@@ -188,9 +189,14 @@ export class BasketPlayerDKTable extends BaseTable {
             return;
         }
         
+        // Check if we're on a small screen - CRITICAL for mobile fix
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
         // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
         // This fixes the grey/blue space issue when switching tabs
-        if (!isMobile() && !isTablet()) {
+        if (!isSmallScreen) {
             // Reset outer element widths to allow recalculation
             tableElement.style.width = 'auto';
             tableElement.style.minWidth = 'auto';
@@ -234,10 +240,11 @@ export class BasketPlayerDKTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px, isSmallScreen=${isSmallScreen}`);
             
-            // ALWAYS ensure minimum width for subtables - critical for tab switching
-            if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
+            // MOBILE FIX: Only apply SUBTABLE_MIN_WIDTH expansion on desktop
+            // On mobile/tablet, subtables wrap naturally and we don't need the extra width
+            if (!isSmallScreen && SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
                 const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
@@ -246,6 +253,25 @@ export class BasketPlayerDKTable extends BaseTable {
                 console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
             }
             
+            // On mobile/tablet, don't set explicit table widths - let it size naturally
+            if (isSmallScreen) {
+                // Clear any previously set widths to let content size naturally
+                tableElement.style.width = '';
+                tableElement.style.minWidth = '';
+                tableElement.style.maxWidth = '';
+                
+                const tableContainer = tableElement.closest('.table-container');
+                if (tableContainer) {
+                    tableContainer.style.width = '';
+                    tableContainer.style.minWidth = '';
+                    tableContainer.style.maxWidth = '';
+                }
+                
+                console.log(`DK DFS Mobile/tablet mode: table widths cleared for natural sizing`);
+                return; // Exit early for mobile
+            }
+            
+            // Desktop-only: Set explicit widths
             const SCROLLBAR_WIDTH = 17;
             const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
             
@@ -257,18 +283,15 @@ export class BasketPlayerDKTable extends BaseTable {
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
             // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
-            if (!isMobile() && !isTablet()) {
-                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-                if (tableHolder) {
-                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
-                }
-                
-                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-                if (tabulatorHeader) {
-                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
-                }
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
             
             const tableContainer = tableElement.closest('.table-container');
@@ -889,9 +912,18 @@ export class BasketPlayerDKTable extends BaseTable {
         const oppDDs = this.formatPercentage(data["Opponent DD Per"]);
         const oppTDs = this.formatPercentage(data["Opponent TD Per"]);
         
+        // Check if we're on mobile/tablet for responsive subtable layout
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        // Use tighter gap on mobile to prevent excessive Name column expansion
+        const containerGap = isSmallScreen ? '10px' : '15px';
+        const cardPadding = isSmallScreen ? '10px' : '12px';
+        
         container.innerHTML = `
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+            <div style="display: flex; flex-wrap: wrap; gap: ${containerGap}; justify-content: flex-start;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
@@ -900,7 +932,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     </div>
                 </div>
                 
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
                     <table style="font-size: 11px; border-collapse: collapse; width: 100%;">
                         <thead>
@@ -946,7 +978,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     </table>
                 </div>
                 
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Games Played:</strong> ${gamesPlayed}</div>
