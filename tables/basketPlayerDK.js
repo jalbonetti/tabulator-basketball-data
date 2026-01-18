@@ -5,7 +5,7 @@
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Mobile subtable spacing - no longer forces SUBTABLE_MIN_WIDTH on small screens
-// FIXED: Dynamic subtable width measurement - expands Name column only when needed
+// FIXED: Dynamic subtable width measurement - measures each card individually for accuracy
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -98,7 +98,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     this.scanDataForMaxWidths(data);
                     this.equalizeClusteredColumns();
                     // Measure subtable width BEFORE calculating column widths
-                    this.measureSubtableWidth(data[0]);
+                    this.measureSubtableWidth(data);
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -120,7 +120,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
                 if (data.length > 0) {
-                    this.measureSubtableWidth(data[0]);
+                    this.measureSubtableWidth(data);
                 }
                 this.calculateAndApplyWidths();
             }, 100);
@@ -128,13 +128,22 @@ export class BasketPlayerDKTable extends BaseTable {
     }
     
     // Measure the actual width needed for subtable content
-    // Creates a hidden off-screen element to measure true rendered width
-    measureSubtableWidth(sampleData) {
+    // Measures each card individually and sums them up for accuracy
+    measureSubtableWidth(data) {
         // Only measure on desktop - mobile doesn't need this
         if (isMobile() || isTablet()) {
             this._measuredSubtableWidth = null;
             return;
         }
+        
+        // Find the longest matchup string in the data for accurate measurement
+        let longestMatchup = 'Team A @ Team B, Jan 17, 10:00 PM EST';
+        data.forEach(row => {
+            const matchup = row["Matchup"];
+            if (matchup && matchup.length > longestMatchup.length) {
+                longestMatchup = matchup;
+            }
+        });
         
         // Create a hidden measurement container
         const measureContainer = document.createElement('div');
@@ -144,121 +153,104 @@ export class BasketPlayerDKTable extends BaseTable {
             left: -9999px;
             visibility: hidden;
             pointer-events: none;
-            width: auto;
-            white-space: nowrap;
         `;
         document.body.appendChild(measureContainer);
         
-        // Create the subtable content holder
-        const holderEl = document.createElement('div');
-        holderEl.style.cssText = `
-            padding: 15px 20px;
-            display: inline-flex;
-            flex-wrap: nowrap;
-            gap: 15px;
-            width: auto;
+        // Measure Card 1: Matchup Details
+        const card1 = document.createElement('div');
+        card1.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        card1.innerHTML = `
+            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Matchup Details</h4>
+            <div style="font-size: 12px;">
+                <div style="margin-bottom: 4px;"><strong>Game:</strong> ${longestMatchup}</div>
+                <div style="margin-bottom: 4px;"><strong>Spread:</strong> LAL +3.5</div>
+                <div><strong>Total:</strong> O/U 223.5</div>
+            </div>
         `;
+        measureContainer.appendChild(card1);
+        void card1.offsetWidth;
+        const card1Width = card1.getBoundingClientRect().width;
         
-        // Generate subtable content using sample data
-        this.createSubtableContentForMeasurement(holderEl, sampleData);
+        // Measure Card 2: DFS Points Makeup Table
+        const card2 = document.createElement('div');
+        card2.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        card2.innerHTML = `
+            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
+            <table style="font-size: 11px; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding: 4px 8px;"></th>
+                        <th style="padding: 4px 8px;">2Pts/FTs</th>
+                        <th style="padding: 4px 8px;">3s</th>
+                        <th style="padding: 4px 8px;">Rebs</th>
+                        <th style="padding: 4px 8px;">Asts</th>
+                        <th style="padding: 4px 8px;">Bs</th>
+                        <th style="padding: 4px 8px;">Ss</th>
+                        <th style="padding: 4px 8px;">TOs</th>
+                        <th style="padding: 4px 8px;">DDs</th>
+                        <th style="padding: 4px 8px;">TDs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 4px 8px; font-weight: 600;">Player DK Point %</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 4px 8px; font-weight: 600;">Opponent DK Point %</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                        <td style="padding: 4px 8px;">100.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+        measureContainer.appendChild(card2);
+        void card2.offsetWidth;
+        const card2Width = card2.getBoundingClientRect().width;
         
-        measureContainer.appendChild(holderEl);
+        // Measure Card 3: Games/Minutes Data
+        const card3 = document.createElement('div');
+        card3.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
+        card3.innerHTML = `
+            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
+            <div style="font-size: 12px;">
+                <div style="margin-bottom: 4px;"><strong>Games Played:</strong> 99</div>
+                <div style="margin-bottom: 4px;"><strong>Median:</strong> 99.9</div>
+                <div><strong>Average:</strong> 99.9</div>
+            </div>
+        `;
+        measureContainer.appendChild(card3);
+        void card3.offsetWidth;
+        const card3Width = card3.getBoundingClientRect().width;
         
-        // Force layout calculation
-        void measureContainer.offsetWidth;
+        // Calculate total: 3 cards + 2 gaps (15px each) + container padding (20px left + 20px right)
+        const GAP = 15;
+        const CONTAINER_PADDING = 40; // 20px left + 20px right
+        const BUFFER = 10; // Small buffer for rounding/borders
         
-        // Measure the actual width needed
-        const subtableWidth = holderEl.scrollWidth;
+        const totalSubtableWidth = Math.ceil(card1Width) + Math.ceil(card2Width) + Math.ceil(card3Width) + (GAP * 2) + CONTAINER_PADDING + BUFFER;
         
-        // Add padding for the subrow container
-        const SUBROW_PADDING = 40;
-        this._measuredSubtableWidth = subtableWidth + SUBROW_PADDING;
+        this._measuredSubtableWidth = totalSubtableWidth;
         
-        console.log(`DK DFS Measured subtable width: ${subtableWidth}px (with padding: ${this._measuredSubtableWidth}px)`);
+        console.log(`DK DFS Measured subtable widths: Card1=${Math.ceil(card1Width)}px, Card2=${Math.ceil(card2Width)}px, Card3=${Math.ceil(card3Width)}px, Total=${totalSubtableWidth}px`);
         
         // Clean up
         document.body.removeChild(measureContainer);
-    }
-    
-    // Create subtable content specifically for measurement (no wrapping)
-    createSubtableContentForMeasurement(container, data) {
-        // Use worst-case longest matchup string for measurement
-        const matchup = data["Matchup"] || 'Los Angeles Lakers @ Portland Trail Blazers, Jan 17, 10:00 PM EST';
-        const spread = data["Matchup Spread"] || 'LAL +3.5';
-        const total = this.formatMatchupTotal(data["Matchup Total"]) || 'O/U 223.5';
-        
-        const gamesPlayed = data["Player Games Played"] || '25';
-        const medianMinutes = this.formatMinutes(data["Player Median Minutes"]) || '35.0';
-        const avgMinutes = this.formatMinutes(data["Player Average Minutes"]) || '35.0';
-        
-        // Use representative percentage values for measurement (worst case width)
-        const pct = '100.0%';
-        
-        container.innerHTML = `
-            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
-                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
-                <div style="font-size: 12px; color: #333;">
-                    <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
-                    <div style="margin-bottom: 4px;"><strong>Spread:</strong> ${spread}</div>
-                    <div><strong>Total:</strong> ${total}</div>
-                </div>
-            </div>
-            
-            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
-                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
-                <table style="font-size: 11px; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">2Pts/FTs</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">3s</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Rebs</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Asts</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Bs</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Ss</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TOs</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">DDs</th>
-                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TDs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 4px 8px; font-weight: 600; color: #333;">Player DK Point %</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                        </tr>
-                        <tr style="background: #fafafa;">
-                            <td style="padding: 4px 8px; font-weight: 600; color: #333;">Opponent DK Point %</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
-                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
-                <div style="font-size: 12px; color: #333;">
-                    <div style="margin-bottom: 4px;"><strong>Games Played:</strong> ${gamesPlayed}</div>
-                    <div style="margin-bottom: 4px;"><strong>Median:</strong> ${medianMinutes}</div>
-                    <div><strong>Average:</strong> ${avgMinutes}</div>
-                </div>
-            </div>
-        `;
     }
     
     expandNameColumnToFill() {
@@ -366,13 +358,14 @@ export class BasketPlayerDKTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            // Use measured subtable width if available
-            const requiredSubtableWidth = this._measuredSubtableWidth || 1100;
+            // Use measured subtable width if available, otherwise skip expansion
+            const requiredSubtableWidth = this._measuredSubtableWidth;
             
             console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Required subtable width=${requiredSubtableWidth}px, isSmallScreen=${isSmallScreen}`);
             
             // DESKTOP ONLY: Expand Name column if needed for subtables
-            if (!isSmallScreen && requiredSubtableWidth > totalColumnWidth && nameColumn) {
+            // Only expand if we have a valid measurement and it's actually larger than current total
+            if (!isSmallScreen && requiredSubtableWidth && requiredSubtableWidth > totalColumnWidth && nameColumn) {
                 const additionalWidthNeeded = requiredSubtableWidth - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
@@ -403,7 +396,7 @@ export class BasketPlayerDKTable extends BaseTable {
             
             // Desktop: Set explicit widths
             const SCROLLBAR_WIDTH = 17;
-            const finalWidth = Math.max(totalColumnWidth, requiredSubtableWidth);
+            const finalWidth = requiredSubtableWidth ? Math.max(totalColumnWidth, requiredSubtableWidth) : totalColumnWidth;
             const totalWidthWithScrollbar = finalWidth + SCROLLBAR_WIDTH;
             
             this._calculatedTableWidth = totalWidthWithScrollbar;
@@ -444,7 +437,7 @@ export class BasketPlayerDKTable extends BaseTable {
             this.scanDataForMaxWidths(data);
             this.equalizeClusteredColumns();
             if (!this._measuredSubtableWidth) {
-                this.measureSubtableWidth(data[0]);
+                this.measureSubtableWidth(data);
             }
             this.calculateAndApplyWidths();
         }
