@@ -276,7 +276,8 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Matchup", 
                     field: "Matchup", 
-                    // Width will be set dynamically based on content
+                    widthGrow: 2, // Takes more space proportionally
+                    minWidth: 150,
                     sorter: "string",
                     resizable: false,
                     formatter: this.createNameFormatter(),
@@ -286,7 +287,8 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Spread", 
                     field: "Spread", 
-                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
+                    widthGrow: 1,
+                    minWidth: 70,
                     sorter: spreadSorter,
                     resizable: false,
                     hozAlign: "center"
@@ -294,7 +296,8 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Total", 
                     field: "Total", 
-                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
+                    widthGrow: 1,
+                    minWidth: 80,
                     sorter: totalSorter,
                     resizable: false,
                     hozAlign: "center",
@@ -509,9 +512,8 @@ export class BasketMatchupsTable extends BaseTable {
         };
     }
 
-    // Calculate and apply widths
-    // Desktop: Reserve space for vertical scrollbar
-    // Mobile: Set column widths but let CSS handle container constraints
+    // Calculate and apply widths - DESKTOP ONLY
+    // Mobile/tablet: Skip entirely and let CSS handle constraints (matches other tables)
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -524,9 +526,35 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // On mobile/tablet: Calculate column widths but don't constrain container
+        // MOBILE/TABLET: Skip width calculations entirely - let CSS handle it
+        // This matches the behavior of basketGameOdds.js and basketPlayerPropOdds.js
         if (isMobile() || isTablet()) {
-            this.calculateMobileColumnWidths();
+            // Clear any previously set inline widths to let CSS take over
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
+            
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
+            }
+            
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = '';
+                tableHolder.style.minWidth = '';
+                tableHolder.style.maxWidth = '';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = '';
+                tabulatorHeader.style.minWidth = '';
+            }
+            
+            console.log('Matchups: Mobile/tablet mode - width calculations skipped, CSS handles constraints');
             return;
         }
         
@@ -660,11 +688,8 @@ export class BasketMatchupsTable extends BaseTable {
     expandMatchupColumnToFill() {
         if (!this.table) return;
         
-        // Skip on mobile - we use different sizing logic there
-        if (isMobile() || isTablet()) {
-            this.calculateMobileColumnWidths();
-            return;
-        }
+        // Skip on mobile/tablet - let CSS handle it
+        if (isMobile() || isTablet()) return;
         
         // First, recalculate widths to ensure scrollbar space is reserved
         this.calculateAndApplyWidths();
