@@ -229,82 +229,72 @@ export class BasketMatchupsTable extends BaseTable {
             return str;
         };
         
-        // FIXED: On mobile/tablet, use fixed pixel widths instead of percentages
-        // This allows the table to size based on content/subtable width
-        // On desktop, continue using percentages for proper fill behavior
+        // Spread sorter function (shared between mobile and desktop)
+        const spreadSorter = function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const getNum = (val) => {
+                if (val === null || val === undefined || val === '' || val === '-') return -9999;
+                const str = String(val);
+                const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
+                if (match && match[1]) {
+                    return parseFloat(match[1]);
+                }
+                const numMatch = str.match(/([+-]?\d+\.?\d*)/);
+                if (numMatch && numMatch[1]) {
+                    return parseFloat(numMatch[1]);
+                }
+                return -9999;
+            };
+            return getNum(a) - getNum(b);
+        };
+        
+        // Total sorter function (shared between mobile and desktop)
+        const totalSorter = function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const getNum = (val) => {
+                if (val === null || val === undefined || val === '' || val === '-') return -1;
+                const str = String(val);
+                const match = str.match(/O\/U\s*([\d.]+)/);
+                if (match && match[1]) {
+                    return parseFloat(match[1]);
+                }
+                const num = parseFloat(str);
+                return isNaN(num) ? -1 : num;
+            };
+            return getNum(a) - getNum(b);
+        };
         
         if (isSmallScreen) {
-            // Mobile/tablet: Use minWidth only, let content drive sizing
-            // These are minimum widths - the table will expand based on subtable content
+            // Mobile/tablet: No width specified - we'll calculate and set widths after data loads
+            // based on subtable width and Matchup content width
             return [
-                // Hidden Matchup ID for sorting
                 {
                     title: "Matchup ID",
                     field: "Matchup ID",
                     visible: false,
                     sorter: "number"
                 },
-                // Matchup column - no explicit width, uses minWidth and content
                 {
                     title: "Matchup", 
                     field: "Matchup", 
-                    minWidth: 120,
+                    // Width will be set dynamically based on content
                     sorter: "string",
                     resizable: false,
                     formatter: this.createNameFormatter(),
                     hozAlign: "left",
                     cssClass: "matchup-cell"
                 },
-                // Spread column
                 {
                     title: "Spread", 
                     field: "Spread", 
-                    minWidth: 70,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        const getNum = (val) => {
-                            if (val === null || val === undefined || val === '' || val === '-') return -9999;
-                            const str = String(val);
-                            const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
-                            if (match && match[1]) {
-                                return parseFloat(match[1]);
-                            }
-                            const numMatch = str.match(/([+-]?\d+\.?\d*)/);
-                            if (numMatch && numMatch[1]) {
-                                return parseFloat(numMatch[1]);
-                            }
-                            return -9999;
-                        };
-                        
-                        const aNum = getNum(a);
-                        const bNum = getNum(b);
-                        
-                        return aNum - bNum;
-                    },
+                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
+                    sorter: spreadSorter,
                     resizable: false,
                     hozAlign: "center"
                 },
-                // Total column
                 {
                     title: "Total", 
                     field: "Total", 
-                    minWidth: 80,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        const getNum = (val) => {
-                            if (val === null || val === undefined || val === '' || val === '-') return -1;
-                            const str = String(val);
-                            const match = str.match(/O\/U\s*([\d.]+)/);
-                            if (match && match[1]) {
-                                return parseFloat(match[1]);
-                            }
-                            const num = parseFloat(str);
-                            return isNaN(num) ? -1 : num;
-                        };
-                        
-                        const aNum = getNum(a);
-                        const bNum = getNum(b);
-                        
-                        return aNum - bNum;
-                    },
+                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
+                    sorter: totalSorter,
                     resizable: false,
                     hozAlign: "center",
                     formatter: totalFormatter
@@ -317,14 +307,12 @@ export class BasketMatchupsTable extends BaseTable {
             const totalMinWidth = 100;
             
             return [
-                // Hidden Matchup ID for sorting
                 {
                     title: "Matchup ID",
                     field: "Matchup ID",
                     visible: false,
                     sorter: "number"
                 },
-                // UPDATED: Matchup column now 50% width
                 {
                     title: "Matchup", 
                     field: "Matchup", 
@@ -336,64 +324,101 @@ export class BasketMatchupsTable extends BaseTable {
                     hozAlign: "left",
                     cssClass: "matchup-cell"
                 },
-                // UPDATED: Spread column now 25% width with custom numeric sorter
                 {
                     title: "Spread", 
                     field: "Spread", 
                     width: "25%",
                     minWidth: spreadMinWidth,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        const getNum = (val) => {
-                            if (val === null || val === undefined || val === '' || val === '-') return -9999;
-                            const str = String(val);
-                            const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
-                            if (match && match[1]) {
-                                return parseFloat(match[1]);
-                            }
-                            const numMatch = str.match(/([+-]?\d+\.?\d*)/);
-                            if (numMatch && numMatch[1]) {
-                                return parseFloat(numMatch[1]);
-                            }
-                            return -9999;
-                        };
-                        
-                        const aNum = getNum(a);
-                        const bNum = getNum(b);
-                        
-                        return aNum - bNum;
-                    },
+                    sorter: spreadSorter,
                     resizable: false,
                     hozAlign: "center"
                 },
-                // UPDATED: Total column now 25% width with formatter for 1 decimal place
                 {
                     title: "Total", 
                     field: "Total", 
                     width: "25%",
                     minWidth: totalMinWidth,
-                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                        const getNum = (val) => {
-                            if (val === null || val === undefined || val === '' || val === '-') return -1;
-                            const str = String(val);
-                            const match = str.match(/O\/U\s*([\d.]+)/);
-                            if (match && match[1]) {
-                                return parseFloat(match[1]);
-                            }
-                            const num = parseFloat(str);
-                            return isNaN(num) ? -1 : num;
-                        };
-                        
-                        const aNum = getNum(a);
-                        const bNum = getNum(b);
-                        
-                        return aNum - bNum;
-                    },
+                    sorter: totalSorter,
                     resizable: false,
                     hozAlign: "center",
                     formatter: totalFormatter
                 }
             ];
         }
+    }
+
+    // Calculate the required width for the Matchup column based on content
+    // Returns the width needed to display the longest matchup string
+    calculateMatchupContentWidth() {
+        if (!this.table) return 200; // Default fallback
+        
+        const data = this.table.getData();
+        if (!data || data.length === 0) return 200;
+        
+        // Create a temporary span to measure text width
+        const measureSpan = document.createElement('span');
+        measureSpan.style.cssText = `
+            position: absolute;
+            visibility: hidden;
+            white-space: nowrap;
+            font-family: inherit;
+            font-size: inherit;
+        `;
+        document.body.appendChild(measureSpan);
+        
+        let maxWidth = 0;
+        
+        // Measure each matchup string
+        data.forEach(row => {
+            const matchup = row["Matchup"] || '';
+            measureSpan.textContent = matchup;
+            const width = measureSpan.offsetWidth;
+            if (width > maxWidth) {
+                maxWidth = width;
+            }
+        });
+        
+        document.body.removeChild(measureSpan);
+        
+        // Add padding for the expand icon (18px) and cell padding (16px total)
+        const EXPAND_ICON_WIDTH = 18;
+        const CELL_PADDING = 16;
+        
+        return maxWidth + EXPAND_ICON_WIDTH + CELL_PADDING;
+    }
+
+    // Calculate the required width for subtables
+    // This measures the actual rendered subtable width requirement
+    getSubtableRequiredWidth() {
+        // The subtable has these columns with these approximate minimum widths:
+        // Defense subtable: Pace(40) + Split(50) + 12 stat columns(35 each) = 510px minimum
+        // Player subtable: Player(120) + 12 stat columns(35 each) = 540px minimum
+        // Adding padding and borders: ~560px total
+        
+        // On mobile, the subtables use smaller fonts/padding, so we use the mobile values
+        const isSmallScreen = isMobile() || isTablet();
+        
+        if (isSmallScreen) {
+            // Mobile subtable widths (from createDefenseSubtable/createPlayersSubtable):
+            // paceMinWidth: 40px, splitMinWidth: 50px, statMinWidth: 35px (x12 = 420px)
+            // playerMinWidth: 120px, statMinWidth: 35px (x12 = 420px)
+            // Plus container padding (8px x 2 = 16px) and table padding
+            // The player subtable is typically the widest due to long player info strings
+            
+            // Actually measure if we have a rendered subtable
+            const existingSubtable = document.querySelector('#matchups-table .subtable-scroll-wrapper table');
+            if (existingSubtable) {
+                return existingSubtable.offsetWidth + 40; // Add padding buffer
+            }
+            
+            // Fallback: calculate based on known column widths
+            // Player column needs ~300px for long names like "Dyson Daniels (Q) - Starter - Full Season - 42 Games - 32.5 Mins"
+            // 12 stat columns at 35px each = 420px
+            // Total: ~720px + some padding = ~750px
+            return 560; // Conservative estimate for mobile
+        }
+        
+        return 800; // Desktop estimate
     }
 
     // Simple debounce helper
@@ -405,9 +430,9 @@ export class BasketMatchupsTable extends BaseTable {
         };
     }
 
-    // Calculate and apply widths to always reserve space for vertical scrollbar
-    // This prevents horizontal scrollbar from appearing when subtables expand
-    // UPDATED: Now handles mobile differently - removes width constraints instead of applying them
+    // Calculate and apply widths
+    // Desktop: Reserve space for vertical scrollbar
+    // Mobile: Size Matchup to content, then split remaining subtable width between Spread and Total
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -420,44 +445,15 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // On mobile/tablet: Remove all width constraints to let content drive sizing
+        // On mobile/tablet: Calculate widths based on subtable and matchup content
         if (isMobile() || isTablet()) {
-            // Clear any explicit width settings that might be forcing the table wider
-            tableElement.style.width = '';
-            tableElement.style.minWidth = '';
-            tableElement.style.maxWidth = '';
-            
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = '';
-                tableHolder.style.minWidth = '';
-                tableHolder.style.maxWidth = '';
-                tableHolder.style.overflowX = 'auto';
-                tableHolder.style.overflowY = 'auto';
-            }
-            
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = '';
-                tabulatorHeader.style.minWidth = '';
-            }
-            
-            // Remove container constraints on mobile
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.width = '';
-                tableContainer.style.minWidth = '';
-                tableContainer.style.maxWidth = '';
-            }
-            
-            console.log('Matchups: Mobile mode - removed width constraints');
+            this.calculateMobileColumnWidths();
             return;
         }
         
         // Desktop: Apply width with scrollbar reservation
         try {
             // CRITICAL: Force tableholder to always show scrollbar track
-            // This reserves space for the scrollbar even when not needed
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.overflowY = 'scroll';
@@ -474,7 +470,6 @@ export class BasketMatchupsTable extends BaseTable {
             });
             
             // ALWAYS add scrollbar width to reserve space for vertical scrollbar
-            // This prevents horizontal scrollbar from appearing when subtables expand
             const SCROLLBAR_WIDTH = 17;
             const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
             
@@ -509,13 +504,81 @@ export class BasketMatchupsTable extends BaseTable {
         }
     }
 
+    // Calculate and apply column widths for mobile
+    // Logic: Matchup sized to content, Spread and Total split the remaining subtable width
+    calculateMobileColumnWidths() {
+        if (!this.table) return;
+        
+        const tableElement = this.table.element;
+        if (!tableElement) return;
+        
+        try {
+            // Step 1: Calculate the width needed for the Matchup column based on content
+            const matchupContentWidth = this.calculateMatchupContentWidth();
+            
+            // Step 2: Get the required subtable width
+            const subtableWidth = this.getSubtableRequiredWidth();
+            
+            // Step 3: Calculate remaining width for Spread and Total
+            // Remaining = subtableWidth - matchupWidth
+            // Each gets half of remaining
+            const remainingWidth = Math.max(subtableWidth - matchupContentWidth, 140); // Minimum 140px for Spread+Total
+            const spreadTotalWidth = Math.floor(remainingWidth / 2);
+            
+            // Step 4: Apply the calculated widths to columns
+            const matchupColumn = this.table.getColumn("Matchup");
+            const spreadColumn = this.table.getColumn("Spread");
+            const totalColumn = this.table.getColumn("Total");
+            
+            if (matchupColumn) {
+                matchupColumn.setWidth(matchupContentWidth);
+            }
+            if (spreadColumn) {
+                spreadColumn.setWidth(spreadTotalWidth);
+            }
+            if (totalColumn) {
+                totalColumn.setWidth(spreadTotalWidth);
+            }
+            
+            // Step 5: Set the table width to match the subtable width
+            const totalTableWidth = matchupContentWidth + (spreadTotalWidth * 2);
+            
+            tableElement.style.width = totalTableWidth + 'px';
+            tableElement.style.minWidth = totalTableWidth + 'px';
+            tableElement.style.maxWidth = totalTableWidth + 'px';
+            
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = totalTableWidth + 'px';
+                tableHolder.style.minWidth = totalTableWidth + 'px';
+                tableHolder.style.maxWidth = totalTableWidth + 'px';
+                tableHolder.style.overflowX = 'auto';
+                tableHolder.style.overflowY = 'auto';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalTableWidth + 'px';
+                tabulatorHeader.style.minWidth = totalTableWidth + 'px';
+            }
+            
+            console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total table=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
+            
+        } catch (error) {
+            console.error('Error in Matchups calculateMobileColumnWidths:', error);
+        }
+    }
+
     // Expand Matchup column to fill remaining container width (desktop only)
     // Also called by TabManager/main.js when switching tabs or resizing
     expandMatchupColumnToFill() {
         if (!this.table) return;
         
-        // Skip on mobile - we don't want to expand columns there
-        if (isMobile() || isTablet()) return;
+        // Skip on mobile - we use different sizing logic there
+        if (isMobile() || isTablet()) {
+            this.calculateMobileColumnWidths();
+            return;
+        }
         
         // First, recalculate widths to ensure scrollbar space is reserved
         this.calculateAndApplyWidths();
@@ -1042,28 +1105,18 @@ export class BasketMatchupsTable extends BaseTable {
                     scrollbar-color: #c1c1c1 #f1f1f1;
                 }
                 
-                /* MOBILE: Constrain matchups table to prevent subtables from expanding it */
+                /* MOBILE: Constrain matchups table - let JS handle sizing */
                 @media screen and (max-width: 1024px) {
                     #matchups-table .tabulator {
-                        width: auto !important;
-                        min-width: 0 !important;
-                        max-width: 100% !important;
+                        /* Width is controlled by calculateMobileColumnWidths() */
                     }
                     
                     #matchups-table .tabulator-tableholder {
                         overflow-x: auto !important;
                         -webkit-overflow-scrolling: touch !important;
-                        width: auto !important;
-                        min-width: 0 !important;
-                    }
-                    
-                    #matchups-table .tabulator-header {
-                        width: auto !important;
-                        min-width: 0 !important;
                     }
                     
                     #matchups-table .tabulator-row {
-                        max-width: none !important;
                         overflow: visible !important;
                     }
                     
@@ -1077,13 +1130,13 @@ export class BasketMatchupsTable extends BaseTable {
                         max-width: 100% !important;
                     }
                     
-                    /* Make subtable HTML tables scroll within their container */
+                    /* Let subtables size naturally */
                     #matchups-table .subtable-scroll-wrapper > div {
-                        min-width: fit-content !important;
+                        width: fit-content !important;
                     }
                     
                     #matchups-table .subtable-scroll-wrapper table {
-                        min-width: 500px !important;
+                        width: auto !important;
                     }
                 }
             `;
