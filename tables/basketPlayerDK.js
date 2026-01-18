@@ -1,13 +1,8 @@
 // tables/basketPlayerDK.js - Basketball Player DraftKings DFS Table
 // DraftKings Daily Fantasy Sports data
-// UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
-// UPDATED: Added min/max filter to Price column
-// UPDATED: Rank columns now have conditional background colors (green/white/red)
-// FIXED: Desktop container width reset on tab switch - prevents grey/blue space
-// FIXED: Mobile no longer expands Name column for SUBTABLE_MIN_WIDTH - subtables scroll horizontally
-// FIXED: Name column minimum width from data scan is now preserved across recalculations
-// FIXED: Dynamic subtable width calculation accounts for longest matchup names
-// FIXED: Name column minimum is enforced on ALL devices (mobile included)
+// FIXED: Name column minimum is now ALWAYS enforced from data scan
+// FIXED: Subtable width and Name column minimum are calculated independently
+// FIXED: Tab switching properly preserves Name column width
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -15,17 +10,13 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Base minimum width for subtables (DESKTOP ONLY)
-// This will be dynamically increased based on actual matchup name lengths
-const BASE_SUBTABLE_MIN_WIDTH = 1100;
-
-// Subtable component approximate widths (for dynamic calculation)
-// Matchup Details box: ~280px base + matchup text
-// DFS Points Makeup table: ~550px (fixed)
-// Games/Minutes Data box: ~180px (fixed)
-// Gaps between boxes: ~30px
-const SUBTABLE_FIXED_WIDTH = 760; // DFS Points table + Games/Minutes + gaps
-const MATCHUP_BOX_PADDING = 100; // Padding, margins, "Game:", "Spread:", "Total:" labels
+// Subtable component widths for DK (has DDs/TDs columns = wider table)
+// DFS Points Makeup table: ~620px (with DDs/TDs)
+// Matchup Details box: variable based on matchup text
+// Games/Minutes Data box: ~180px
+// Gaps: ~30px
+const DK_SUBTABLE_FIXED_WIDTH = 830; // DFS Points (620) + Games/Minutes (180) + gaps (30)
+const MATCHUP_BOX_BASE_WIDTH = 120; // Base width for Matchup Details box (labels, padding)
 
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
@@ -35,7 +26,10 @@ export class BasketPlayerDKTable extends BaseTable {
         this._minDataWidths = {};
         
         // Store the calculated subtable minimum width (updated based on actual data)
-        this._calculatedSubtableMinWidth = BASE_SUBTABLE_MIN_WIDTH;
+        this._calculatedSubtableMinWidth = 0;
+        
+        // Flag to track if initial scan has been done
+        this._initialScanComplete = false;
     }
 
     initialize() {
@@ -43,16 +37,14 @@ export class BasketPlayerDKTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // Get base config and override specific settings
         const baseConfig = this.getBaseConfig();
         
         const config = {
             ...baseConfig,
-            // Optimize for large datasets
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "basic", // Use "basic" for compatibility with fitData layout
+            renderHorizontal: "basic",
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -60,10 +52,7 @@ export class BasketPlayerDKTable extends BaseTable {
             maxHeight: "600px",
             height: "600px",
             placeholder: "Loading DraftKings DFS data...",
-            
-            // fitData: columns size to content only (not full width)
             layout: "fitData",
-            
             columns: this.getColumns(isSmallScreen),
             initialSort: [
                 {column: "Player Name", dir: "asc"},
@@ -74,7 +63,6 @@ export class BasketPlayerDKTable extends BaseTable {
                 console.log(`DK DFS table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
-                // Debug: Log first row to verify data structure
                 if (data.length > 0) {
                     console.log('DEBUG - DK DFS First row sample:', {
                         'Player Name': data[0]["Player Name"],
@@ -84,14 +72,12 @@ export class BasketPlayerDKTable extends BaseTable {
                     });
                 }
                 
-                // Initialize expansion state for each row
                 data.forEach(row => {
                     if (row._expanded === undefined) {
                         row._expanded = false;
                     }
                 });
                 
-                // Remove loading indicator
                 const element = document.querySelector(this.elementId);
                 if (element) {
                     const loadingDiv = element.querySelector('.loading-indicator');
@@ -117,6 +103,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 if (rowCount > 0) {
                     const data = this.table.getData();
                     this.scanDataForMaxWidths(data);
+                    this._initialScanComplete = true;
                     this.equalizeClusteredColumns();
                     this.calculateAndApplyWidths();
                 } else {
@@ -137,18 +124,17 @@ export class BasketPlayerDKTable extends BaseTable {
                 console.log("DK DFS Data loaded event, recalculating widths...");
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
+                this._initialScanComplete = true;
                 this.equalizeClusteredColumns();
                 this.calculateAndApplyWidths();
             }, 100);
         });
     }
     
-    // Backward compatibility alias for main.js resize handler and TabManager
     expandNameColumnToFill() {
         this.forceRecalculateWidths();
     }
     
-    // Simple debounce helper
     debounce(func, wait) {
         let timeout;
         return (...args) => {
@@ -157,7 +143,6 @@ export class BasketPlayerDKTable extends BaseTable {
         };
     }
     
-    // Equalize column widths within each cluster
     equalizeClusteredColumns() {
         if (!this.table) return;
         
@@ -193,7 +178,6 @@ export class BasketPlayerDKTable extends BaseTable {
         });
     }
     
-    // Calculate and apply widths based on content and subtable requirements
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('calculateAndApplyWidths: table not ready');
@@ -208,15 +192,26 @@ export class BasketPlayerDKTable extends BaseTable {
         
         const isSmallScreen = isMobile() || isTablet();
         
-        // DESKTOP ONLY: Reset explicit widths before recalculating to allow proper shrinking
-        // This fixes the grey/blue space issue when switching tabs
+        // Get the stored minimum Name column width from data scan
+        const minNameWidth = this._minDataWidths["Player Name"] || 120;
+        
+        // CRITICAL: ALWAYS set the Name column to at least the data-scanned minimum
+        // Do this FIRST, before any other calculations
+        const nameColumn = this.table.getColumn("Player Name");
+        if (nameColumn && minNameWidth > 0) {
+            const currentNameWidth = nameColumn.getWidth();
+            if (currentNameWidth < minNameWidth) {
+                nameColumn.setWidth(minNameWidth);
+                console.log(`DK DFS: ENFORCED Name column minimum: ${currentNameWidth}px -> ${minNameWidth}px`);
+            }
+        }
+        
+        // DESKTOP ONLY: Reset and recalculate table widths
         if (!isSmallScreen) {
-            // Reset outer element widths to allow recalculation
             tableElement.style.width = 'auto';
             tableElement.style.minWidth = 'auto';
             tableElement.style.maxWidth = 'none';
             
-            // Reset internal Tabulator elements that may have cached widths
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = 'auto';
@@ -233,14 +228,13 @@ export class BasketPlayerDKTable extends BaseTable {
                 tabulatorTable.style.width = 'auto';
             }
             
-            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
             void tableElement.offsetWidth;
         }
         
         try {
+            // Recalculate total width after enforcing Name minimum
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
-            let nameColumn = null;
             let nameColumnWidth = 0;
             
             columns.forEach(col => {
@@ -248,61 +242,46 @@ export class BasketPlayerDKTable extends BaseTable {
                 const width = col.getWidth();
                 
                 if (field === "Player Name") {
-                    nameColumn = col;
                     nameColumnWidth = width;
                 }
                 totalColumnWidth += width;
             });
             
-            // CRITICAL: Ensure Name column never goes below the data-scanned minimum
-            // This applies to ALL devices (desktop, tablet, mobile)
-            const minNameWidth = this._minDataWidths["Player Name"] || 0;
-            if (nameColumn && minNameWidth > 0 && nameColumnWidth < minNameWidth) {
-                const widthDifference = minNameWidth - nameColumnWidth;
-                nameColumn.setWidth(minNameWidth);
-                nameColumnWidth = minNameWidth;
-                totalColumnWidth += widthDifference;
-                console.log(`DK DFS: Restored Name column to data minimum: ${minNameWidth}px`);
-            }
+            // Use the calculated subtable minimum width
+            const subtableMinWidth = this._calculatedSubtableMinWidth || 0;
             
-            // Use the dynamically calculated subtable minimum width
-            const subtableMinWidth = this._calculatedSubtableMinWidth;
+            console.log(`DK DFS Width calc: Total=${totalColumnWidth}px, Name=${nameColumnWidth}px (min=${minNameWidth}px), Subtable=${subtableMinWidth}px, isSmall=${isSmallScreen}`);
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${subtableMinWidth}px, isSmallScreen=${isSmallScreen}`);
-            
-            // DESKTOP ONLY: Expand Name column if subtables need more width
-            // On mobile/tablet, subtables scroll horizontally within their container, so we don't expand
+            // DESKTOP ONLY: If subtables need more width, expand Name column
             if (!isSmallScreen && subtableMinWidth > totalColumnWidth && nameColumn) {
                 const additionalWidthNeeded = subtableMinWidth - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
                 nameColumn.setWidth(newNameWidth);
                 totalColumnWidth = subtableMinWidth;
-                console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables (desktop only)`);
+                console.log(`DK DFS: Expanded Name for subtables: ${nameColumnWidth}px -> ${newNameWidth}px`);
             }
             
-            // DESKTOP ONLY: Apply explicit width constraints to table and internal elements
+            // DESKTOP ONLY: Apply table width constraints
             if (!isSmallScreen) {
                 const SCROLLBAR_WIDTH = 17;
-                const totalWidthWithScrollbar = Math.max(totalColumnWidth, subtableMinWidth) + SCROLLBAR_WIDTH;
+                const finalWidth = Math.max(totalColumnWidth, subtableMinWidth) + SCROLLBAR_WIDTH;
                 
-                // Store the calculated width for persistence across tab switches
-                this._calculatedTableWidth = totalWidthWithScrollbar;
+                this._calculatedTableWidth = finalWidth;
                 
-                tableElement.style.width = totalWidthWithScrollbar + 'px';
-                tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
-                tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+                tableElement.style.width = finalWidth + 'px';
+                tableElement.style.minWidth = finalWidth + 'px';
+                tableElement.style.maxWidth = finalWidth + 'px';
                 
-                // Also constrain internal Tabulator elements to prevent grey space
                 const tableHolder = tableElement.querySelector('.tabulator-tableholder');
                 if (tableHolder) {
-                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+                    tableHolder.style.width = finalWidth + 'px';
+                    tableHolder.style.maxWidth = finalWidth + 'px';
                 }
                 
                 const tabulatorHeader = tableElement.querySelector('.tabulator-header');
                 if (tabulatorHeader) {
-                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
+                    tabulatorHeader.style.width = finalWidth + 'px';
                 }
                 
                 const tableContainer = tableElement.closest('.table-container');
@@ -312,18 +291,16 @@ export class BasketPlayerDKTable extends BaseTable {
                     tableContainer.style.maxWidth = 'none';
                 }
                 
-                console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+                console.log(`DK DFS: Set table width to ${finalWidth}px`);
             } else {
-                // MOBILE/TABLET: Still enforce minimum Name column width via JS
-                // CSS constraints handle the overall table width
-                if (nameColumn && minNameWidth > 0) {
-                    const currentNameWidth = nameColumn.getWidth();
-                    if (currentNameWidth < minNameWidth) {
+                // MOBILE: Just ensure Name column stays at minimum
+                if (nameColumn) {
+                    const currentWidth = nameColumn.getWidth();
+                    if (currentWidth < minNameWidth) {
                         nameColumn.setWidth(minNameWidth);
-                        console.log(`DK DFS Mobile: Enforced Name column minimum: ${minNameWidth}px`);
+                        console.log(`DK DFS Mobile: Re-enforced Name minimum: ${minNameWidth}px`);
                     }
                 }
-                console.log(`DK DFS Mobile/tablet mode: relying on CSS constraints, total column width=${totalColumnWidth}px`);
             }
             
         } catch (error) {
@@ -331,20 +308,34 @@ export class BasketPlayerDKTable extends BaseTable {
         }
     }
     
-    // Force width recalculation - called by TabManager on tab switch
     forceRecalculateWidths() {
         console.log('DK DFS forceRecalculateWidths called');
-        const data = this.table ? this.table.getData() : [];
-        if (data.length > 0) {
+        
+        if (!this.table) return;
+        
+        const data = this.table.getData();
+        if (data.length === 0) return;
+        
+        // If we haven't done initial scan, do it now
+        if (!this._initialScanComplete) {
             this.scanDataForMaxWidths(data);
-            this.equalizeClusteredColumns();
-            this.calculateAndApplyWidths();
+            this._initialScanComplete = true;
         }
+        
+        // Get stored minimum and ALWAYS apply it
+        const minNameWidth = this._minDataWidths["Player Name"];
+        if (minNameWidth) {
+            const nameColumn = this.table.getColumn("Player Name");
+            if (nameColumn) {
+                nameColumn.setWidth(minNameWidth);
+                console.log(`DK DFS forceRecalculate: Set Name to stored minimum: ${minNameWidth}px`);
+            }
+        }
+        
+        this.equalizeClusteredColumns();
+        this.calculateAndApplyWidths();
     }
 
-    // Scan ALL data to find max widths needed for text columns
-    // FIXED: Now stores minimum widths that are preserved across recalculations
-    // FIXED: Also calculates required subtable width based on longest matchup name
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -361,7 +352,6 @@ export class BasketPlayerDKTable extends BaseTable {
             "Player DK Position": 0
         };
         
-        // Also track the longest matchup string for subtable width calculation
         let maxMatchupWidth = 0;
         
         data.forEach(row => {
@@ -379,7 +369,6 @@ export class BasketPlayerDKTable extends BaseTable {
                 }
             });
             
-            // Measure matchup string for subtable width calculation
             const matchup = row["Matchup"];
             if (matchup) {
                 const matchupWidth = ctx.measureText(String(matchup)).width;
@@ -389,14 +378,10 @@ export class BasketPlayerDKTable extends BaseTable {
             }
         });
         
-        // Calculate dynamic subtable minimum width based on longest matchup
-        // Matchup box width = matchup text + padding/labels
-        const matchupBoxWidth = maxMatchupWidth + MATCHUP_BOX_PADDING;
-        const calculatedSubtableWidth = SUBTABLE_FIXED_WIDTH + matchupBoxWidth;
-        
-        // Use the larger of: calculated width or base minimum
-        this._calculatedSubtableMinWidth = Math.max(calculatedSubtableWidth, BASE_SUBTABLE_MIN_WIDTH);
-        console.log(`DK DFS Calculated subtable min width: ${this._calculatedSubtableMinWidth}px (matchup text: ${Math.ceil(maxMatchupWidth)}px, matchup box: ${Math.ceil(matchupBoxWidth)}px)`);
+        // Calculate subtable minimum width
+        const matchupBoxWidth = maxMatchupWidth + MATCHUP_BOX_BASE_WIDTH;
+        this._calculatedSubtableMinWidth = DK_SUBTABLE_FIXED_WIDTH + matchupBoxWidth;
+        console.log(`DK DFS Subtable min: ${this._calculatedSubtableMinWidth}px (matchup box: ${Math.ceil(matchupBoxWidth)}px)`);
         
         const CELL_PADDING = 16;
         const EXPAND_ICON_WIDTH = 18;
@@ -412,24 +397,20 @@ export class BasketPlayerDKTable extends BaseTable {
                         requiredWidth += EXPAND_ICON_WIDTH;
                     }
                     
-                    // CRITICAL: Store this as the minimum width for this column
-                    // This value should NEVER be violated by subsequent calculations
-                    this._minDataWidths[field] = Math.ceil(requiredWidth);
+                    // Store the minimum - this is the AUTHORITATIVE value
+                    const finalWidth = Math.ceil(requiredWidth);
+                    this._minDataWidths[field] = finalWidth;
                     
-                    const currentWidth = column.getWidth();
-                    
-                    if (requiredWidth > currentWidth) {
-                        column.setWidth(Math.ceil(requiredWidth));
-                        console.log(`DK DFS Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
-                    }
+                    // Immediately apply it
+                    column.setWidth(finalWidth);
+                    console.log(`DK DFS Set ${field} to ${finalWidth}px (text: ${Math.ceil(maxWidths[field])}px)`);
                 }
             }
         });
         
-        console.log('DK DFS Max width scan complete, stored minimums:', this._minDataWidths);
+        console.log('DK DFS Scan complete. Stored minimums:', JSON.stringify(this._minDataWidths));
     }
 
-    // Custom sorter for Rank with value format "X (Y.Y)" - sorts by rank number
     rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getRankNum = (val) => {
             if (!val || val === '-') return 99999;
@@ -437,14 +418,9 @@ export class BasketPlayerDKTable extends BaseTable {
             const match = str.match(/^(\d+)/);
             return match ? parseInt(match[1], 10) : 99999;
         };
-        
-        const aNum = getRankNum(a);
-        const bNum = getRankNum(b);
-        
-        return aNum - bNum;
+        return getRankNum(a) - getRankNum(b);
     }
 
-    // Custom sorter for price values (handles $X,XXX format)
     priceSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getPriceNum = (val) => {
             if (val === null || val === undefined || val === '' || val === '-') return -1;
@@ -452,31 +428,21 @@ export class BasketPlayerDKTable extends BaseTable {
             const num = parseInt(str, 10);
             return isNaN(num) ? -1 : num;
         };
-        
-        const aNum = getPriceNum(a);
-        const bNum = getPriceNum(b);
-        
-        return aNum - bNum;
+        return getPriceNum(a) - getPriceNum(b);
     }
 
-    // Custom sorter for ratio values
     ratioSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getRatioNum = (val) => {
             if (val === null || val === undefined || val === '' || val === '-') return -99999;
             const num = parseFloat(val);
             return isNaN(num) ? -99999 : num;
         };
-        
-        const aNum = getRatioNum(a);
-        const bNum = getRatioNum(b);
-        
-        return aNum - bNum;
+        return getRatioNum(a) - getRatioNum(b);
     }
 
     getColumns(isSmallScreen = false) {
         const self = this;
         
-        // One decimal formatter
         const oneDecimalFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -485,7 +451,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Price formatter - formats as $X,XXX
         const priceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -494,7 +459,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return '$' + num.toLocaleString();
         };
 
-        // Ratio formatter - formats with 2 decimal places
         const ratioFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -503,7 +467,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return num.toFixed(2);
         };
 
-        // Split formatter - abbreviates "Full Season" and "Last 30 Days"
         const splitFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -513,7 +476,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return str;
         };
 
-        // Lineup formatter - abbreviates "(Expected)" and "(Confirmed)"
         const lineupFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -523,17 +485,13 @@ export class BasketPlayerDKTable extends BaseTable {
             return str;
         };
 
-        // Rank formatter - prepends # to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
-            
-            // Apply background color based on rank
             const bgColor = getRankBackgroundColor(value);
             if (bgColor) {
                 cell.getElement().style.backgroundColor = bgColor;
             }
-            
             return '#' + value;
         };
 
@@ -730,8 +688,6 @@ export class BasketPlayerDKTable extends BaseTable {
     }
 
     createNameFormatter() {
-        const self = this;
-        
         return (cell) => {
             const value = cell.getValue();
             if (!value) return '-';
@@ -744,7 +700,7 @@ export class BasketPlayerDKTable extends BaseTable {
             
             const icon = document.createElement('span');
             icon.className = 'expand-icon';
-            icon.style.cssText = 'margin-right: 6px; font-size: 10px; transition: transform 0.2s; color: #f97316; display: inline-flex; width: 12px;';
+            icon.style.cssText = 'margin-right: 6px; font-size: 10px; transition: transform 0.2s; color: #f97316; display: inline-flex; width: 12px; flex-shrink: 0;';
             icon.innerHTML = '▶';
             
             if (expanded) {
@@ -753,7 +709,7 @@ export class BasketPlayerDKTable extends BaseTable {
             
             const text = document.createElement('span');
             text.textContent = value;
-            text.style.cssText = 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+            text.style.cssText = 'font-weight: 500; white-space: nowrap;';
             
             container.appendChild(icon);
             container.appendChild(text);
