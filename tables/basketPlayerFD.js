@@ -1,5 +1,5 @@
-// tables/basketPlayerDK.js - Basketball Player DraftKings DFS Table
-// DraftKings Daily Fantasy Sports data
+// tables/basketPlayerFD.js - Basketball Player FanDuel DFS Table
+// FanDuel Daily Fantasy Sports data
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
@@ -12,12 +12,11 @@ import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
 // Minimum width needed to display subtables in a single row
-// DK has more columns (DDs, TDs) than FD, so needs significantly more width
-const SUBTABLE_MIN_WIDTH = 1100;
+const SUBTABLE_MIN_WIDTH = 700;
 
-export class BasketPlayerDKTable extends BaseTable {
+export class BasketPlayerFDTable extends BaseTable {
     constructor(elementId) {
-        super(elementId, 'BasketPlayerDK');
+        super(elementId, 'BasketPlayerFD');
     }
 
     initialize() {
@@ -41,7 +40,7 @@ export class BasketPlayerDKTable extends BaseTable {
             responsiveLayout: false,
             maxHeight: "600px",
             height: "600px",
-            placeholder: "Loading DraftKings DFS data...",
+            placeholder: "Loading FanDuel DFS data...",
             
             // fitData: columns size to content only (not full width)
             layout: "fitData",
@@ -53,16 +52,16 @@ export class BasketPlayerDKTable extends BaseTable {
             ],
             rowFormatter: this.createRowFormatter(),
             dataLoaded: (data) => {
-                console.log(`DK DFS table loaded ${data.length} records successfully`);
+                console.log(`FD DFS table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
                 // Debug: Log first row to verify data structure
                 if (data.length > 0) {
-                    console.log('DEBUG - DK DFS First row sample:', {
+                    console.log('DEBUG - FD DFS First row sample:', {
                         'Player Name': data[0]["Player Name"],
-                        'Player DK Position': data[0]["Player DK Position"],
-                        'Player DK Price': data[0]["Player DK Price"],
-                        'Player DK Median': data[0]["Player DK Median"]
+                        'Player FD Position': data[0]["Player FD Position"],
+                        'Player FD Price': data[0]["Player FD Price"],
+                        'Player FD Median': data[0]["Player FD Median"]
                     });
                 }
                 
@@ -83,7 +82,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 }
             },
             ajaxError: (error) => {
-                console.error("Error loading DK DFS data:", error);
+                console.error("Error loading FD DFS data:", error);
             }
         };
 
@@ -91,10 +90,10 @@ export class BasketPlayerDKTable extends BaseTable {
         this.setupRowExpansion();
         
         this.table.on("tableBuilt", () => {
-            console.log("DK DFS table built successfully");
+            console.log("FD DFS table built successfully");
             setTimeout(() => {
                 const rowCount = this.table.getDataCount();
-                console.log(`DK DFS Table has ${rowCount} rows loaded`);
+                console.log(`FD DFS Table has ${rowCount} rows loaded`);
                 
                 if (rowCount > 0) {
                     const data = this.table.getData();
@@ -116,7 +115,7 @@ export class BasketPlayerDKTable extends BaseTable {
         
         this.table.on("dataLoaded", () => {
             setTimeout(() => {
-                console.log("DK DFS Data loaded event, recalculating widths...");
+                console.log("FD DFS Data loaded event, recalculating widths...");
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
@@ -144,8 +143,8 @@ export class BasketPlayerDKTable extends BaseTable {
         if (!this.table) return;
         
         const clusters = {
-            'cluster-stats': ['Player DK Median', 'Player DK Average', 'Player DK High', 'Player DK Low'],
-            'cluster-opponent': ['Opponent DK Rank', 'Opponent Pace Rank'],
+            'cluster-stats': ['Player FD Median', 'Player FD Average', 'Player FD High', 'Player FD Low'],
+            'cluster-opponent': ['Opponent FD Rank', 'Opponent Pace Rank'],
             'cluster-ratio': ['Player Median Ratio', 'Player High Ratio']
         };
         
@@ -170,7 +169,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         column.setWidth(maxWidth);
                     }
                 });
-                console.log(`DK DFS Cluster ${clusterName}: equalized to ${maxWidth}px`);
+                console.log(`FD DFS Cluster ${clusterName}: equalized to ${maxWidth}px`);
             }
         });
     }
@@ -234,7 +233,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
             
             // ALWAYS ensure minimum width for subtables - critical for tab switching
             if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
@@ -243,7 +242,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 
                 nameColumn.setWidth(newNameWidth);
                 totalColumnWidth = SUBTABLE_MIN_WIDTH;
-                console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
             }
             
             const SCROLLBAR_WIDTH = 17;
@@ -278,7 +277,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 tableContainer.style.maxWidth = 'none';
             }
             
-            console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            console.log(`FD DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
@@ -287,7 +286,7 @@ export class BasketPlayerDKTable extends BaseTable {
     
     // Force width recalculation - called by TabManager on tab switch
     forceRecalculateWidths() {
-        console.log('DK DFS forceRecalculateWidths called');
+        console.log('FD DFS forceRecalculateWidths called');
         const data = this.table ? this.table.getData() : [];
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
@@ -300,7 +299,7 @@ export class BasketPlayerDKTable extends BaseTable {
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
-        console.log(`DK DFS Scanning ${data.length} rows for max column widths...`);
+        console.log(`FD DFS Scanning ${data.length} rows for max column widths...`);
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -310,7 +309,7 @@ export class BasketPlayerDKTable extends BaseTable {
             "Player Name": 0,
             "Lineup Status": 0,
             "Player Team": 0,
-            "Player DK Position": 0
+            "Player FD Position": 0
         };
         
         data.forEach(row => {
@@ -347,13 +346,13 @@ export class BasketPlayerDKTable extends BaseTable {
                     
                     if (requiredWidth > currentWidth) {
                         column.setWidth(Math.ceil(requiredWidth));
-                        console.log(`DK DFS Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
+                        console.log(`FD DFS Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
                     }
                 }
             }
         });
         
-        console.log('DK DFS Max width scan complete');
+        console.log('FD DFS Max width scan complete');
     }
 
     // Custom sorter for Rank with value format "X (Y.Y)" - sorts by rank number
@@ -503,7 +502,7 @@ export class BasketPlayerDKTable extends BaseTable {
             },
             {
                 title: "Position", 
-                field: "Player DK Position", 
+                field: "Player FD Position", 
                 widthGrow: 0,
                 minWidth: 60,
                 sorter: "string",
@@ -514,7 +513,7 @@ export class BasketPlayerDKTable extends BaseTable {
             },
             {
                 title: "Price", 
-                field: "Player DK Price", 
+                field: "Player FD Price", 
                 widthGrow: 0,
                 minWidth: 70,
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
@@ -543,7 +542,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     },
                     {
                         title: "Med", 
-                        field: "Player DK Median", 
+                        field: "Player FD Median", 
                         widthGrow: 0,
                         minWidth: 45,
                         sorter: "number",
@@ -554,7 +553,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     },
                     {
                         title: "Avg", 
-                        field: "Player DK Average", 
+                        field: "Player FD Average", 
                         widthGrow: 0,
                         minWidth: 45,
                         sorter: "number",
@@ -565,7 +564,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     },
                     {
                         title: "High", 
-                        field: "Player DK High", 
+                        field: "Player FD High", 
                         widthGrow: 0,
                         minWidth: 45,
                         sorter: "number",
@@ -576,7 +575,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     },
                     {
                         title: "Low", 
-                        field: "Player DK Low", 
+                        field: "Player FD Low", 
                         widthGrow: 0,
                         minWidth: 45,
                         sorter: "number",
@@ -591,8 +590,8 @@ export class BasketPlayerDKTable extends BaseTable {
                 title: "Opponent", 
                 columns: [
                     {
-                        title: "DK Pts Rank", 
-                        field: "Opponent DK Rank", 
+                        title: "FD Pts Rank", 
+                        field: "Opponent FD Rank", 
                         widthGrow: 0,
                         minWidth: 55,
                         sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
@@ -603,7 +602,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         formatter: rankFormatter,
                         cssClass: "cluster-opponent",
                         titleFormatter: function() {
-                            return "DK Pts<br>Rank";
+                            return "FD Pts<br>Rank";
                         }
                     },
                     {
@@ -729,7 +728,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         }
                     }
                     
-                    console.log(`DK DFS Row ${data._expanded ? 'expanded' : 'collapsed'}: ${data["Player Name"]}`);
+                    console.log(`FD DFS Row ${data._expanded ? 'expanded' : 'collapsed'}: ${data["Player Name"]}`);
                     
                     row.update(data);
                     
@@ -801,7 +800,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         try {
                             self.createSubtableContent(holderEl, data);
                         } catch (error) {
-                            console.error("Error creating DK DFS subtable content:", error);
+                            console.error("Error creating FD DFS subtable content:", error);
                             holderEl.innerHTML = '<div style="padding: 10px; color: red;">Error loading details</div>';
                         }
                         
@@ -869,6 +868,7 @@ export class BasketPlayerDKTable extends BaseTable {
         const medianMinutes = this.formatMinutes(data["Player Median Minutes"]);
         const avgMinutes = this.formatMinutes(data["Player Average Minutes"]);
         
+        // FanDuel doesn't have DD/TD columns in subtable
         const player2PtFT = this.formatPercentage(data["Player 2Pt/FT Per"]);
         const player3Ps = this.formatPercentage(data["Player 3Ps Per"]);
         const playerRebs = this.formatPercentage(data["Player Rebounds Per"]);
@@ -876,8 +876,6 @@ export class BasketPlayerDKTable extends BaseTable {
         const playerBlks = this.formatPercentage(data["Player Blocks Per"]);
         const playerStls = this.formatPercentage(data["Player Steals Per"]);
         const playerTOs = this.formatPercentage(data["Player Turnovers Per"]);
-        const playerDDs = this.formatPercentage(data["Player DD Per"]);
-        const playerTDs = this.formatPercentage(data["Player TD Per"]);
         
         const opp2PtFT = this.formatPercentage(data["Opponent 2Pt/FT Per"]);
         const opp3Ps = this.formatPercentage(data["Opponent 3Ps Per"]);
@@ -886,8 +884,6 @@ export class BasketPlayerDKTable extends BaseTable {
         const oppBlks = this.formatPercentage(data["Opponent Blocks Per"]);
         const oppStls = this.formatPercentage(data["Opponent Steals Per"]);
         const oppTOs = this.formatPercentage(data["Opponent Turnovers Per"]);
-        const oppDDs = this.formatPercentage(data["Opponent DD Per"]);
-        const oppTDs = this.formatPercentage(data["Opponent TD Per"]);
         
         container.innerHTML = `
             <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
@@ -913,13 +909,11 @@ export class BasketPlayerDKTable extends BaseTable {
                                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Bs</th>
                                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Ss</th>
                                 <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TOs</th>
-                                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">DDs</th>
-                                <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TDs</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="padding: 4px 8px; font-weight: 600; color: #333;">Player DK Point %</td>
+                                <td style="padding: 4px 8px; font-weight: 600; color: #333;">Player FD Point %</td>
                                 <td style="padding: 4px 8px; text-align: center;">${player2PtFT}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${player3Ps}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${playerRebs}</td>
@@ -927,11 +921,9 @@ export class BasketPlayerDKTable extends BaseTable {
                                 <td style="padding: 4px 8px; text-align: center;">${playerBlks}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${playerStls}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${playerTOs}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${playerDDs}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${playerTDs}</td>
                             </tr>
                             <tr style="background: #fafafa;">
-                                <td style="padding: 4px 8px; font-weight: 600; color: #333;">Opponent DK Point %</td>
+                                <td style="padding: 4px 8px; font-weight: 600; color: #333;">Opponent FD Point %</td>
                                 <td style="padding: 4px 8px; text-align: center;">${opp2PtFT}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${opp3Ps}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${oppRebs}</td>
@@ -939,8 +931,6 @@ export class BasketPlayerDKTable extends BaseTable {
                                 <td style="padding: 4px 8px; text-align: center;">${oppBlks}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${oppStls}</td>
                                 <td style="padding: 4px 8px; text-align: center;">${oppTOs}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppDDs}</td>
-                                <td style="padding: 4px 8px; text-align: center;">${oppTDs}</td>
                             </tr>
                         </tbody>
                     </table>
