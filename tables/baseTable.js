@@ -1,4 +1,5 @@
 // tables/baseTable.js - Base Table Class for Basketball Props (matching baseball pattern)
+// UPDATED: Added NULL row filtering to prevent empty rows from Supabase issues
 import { API_CONFIG, TEAM_NAME_MAP, isMobile, isTablet, getDeviceType } from '../shared/config.js';
 
 // Global data cache to persist between tab switches
@@ -105,6 +106,48 @@ export class BaseTable {
         this.tableConfig = this.getBaseConfig();
     }
     
+    // ============ NEW: Filter out NULL/empty rows ============
+    // This handles the Supabase issue where rows have NULL values in all columns
+    // or NULL in the primary identifier column (Player Name)
+    filterNullRows(records) {
+        if (!records || !Array.isArray(records)) {
+            return records;
+        }
+        
+        const originalCount = records.length;
+        
+        const filtered = records.filter(row => {
+            // Check 1: If Player Name (primary identifier) is NULL/empty, filter out
+            if (row["Player Name"] === null || row["Player Name"] === undefined || row["Player Name"] === '') {
+                return false;
+            }
+            
+            // Check 2: If ALL non-internal values are null/empty, filter out
+            // This catches rows that somehow have a Player Name but nothing else
+            const values = Object.entries(row)
+                .filter(([key]) => !key.startsWith('_')) // Ignore internal fields like _expanded
+                .map(([, value]) => value);
+            
+            const allNullOrEmpty = values.every(v => 
+                v === null || v === undefined || v === ''
+            );
+            
+            if (allNullOrEmpty) {
+                return false;
+            }
+            
+            return true; // Keep this row
+        });
+        
+        // Log if we filtered anything
+        if (originalCount !== filtered.length) {
+            console.warn(`⚠️ Filtered out ${originalCount - filtered.length} NULL/empty rows from ${this.endpoint}`);
+        }
+        
+        return filtered;
+    }
+    // ============ END NEW CODE ============
+    
     // Get base table configuration - this creates the full config with AJAX
     getBaseConfig() {
         const self = this;
@@ -144,23 +187,30 @@ export class BaseTable {
                 if (memoryCached) {
                     console.log(`Memory cache hit for ${self.endpoint}`);
                     self.dataLoaded = true;
-                    return memoryCached;
+                    // Filter NULL rows even from cache (in case cache has bad data)
+                    return self.filterNullRows(memoryCached);
                 }
                 
                 // Check IndexedDB cache
                 const dbCached = await cacheManager.getCachedData(cacheKey);
                 if (dbCached) {
                     console.log(`IndexedDB cache hit for ${self.endpoint}`);
-                    self.setCachedData(cacheKey, dbCached);
+                    // Filter NULL rows from IndexedDB cache too
+                    const filteredDbCache = self.filterNullRows(dbCached);
+                    self.setCachedData(cacheKey, filteredDbCache);
                     self.dataLoaded = true;
-                    return dbCached;
+                    return filteredDbCache;
                 }
                 
                 // Fetch from API
                 console.log(`No cache found for ${self.endpoint}, fetching from API...`);
-                const allRecords = await self.fetchAllRecords(url, config);
+                let allRecords = await self.fetchAllRecords(url, config);
                 
-                // Store in both caches
+                // ============ FILTER NULL ROWS BEFORE CACHING ============
+                allRecords = self.filterNullRows(allRecords);
+                // ============ END FILTER ============
+                
+                // Store in both caches (store the filtered/clean data)
                 self.setCachedData(cacheKey, allRecords);
                 await cacheManager.setCachedData(cacheKey, allRecords);
                 
