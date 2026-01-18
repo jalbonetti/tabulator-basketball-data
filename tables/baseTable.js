@@ -108,7 +108,7 @@ export class BaseTable {
     
     // ============ NEW: Filter out NULL/empty rows ============
     // This handles the Supabase issue where rows have NULL values in all columns
-    // or NULL in the primary identifier column (Player Name)
+    // or NULL in all primary identifier columns
     filterNullRows(records) {
         if (!records || !Array.isArray(records)) {
             return records;
@@ -116,14 +116,46 @@ export class BaseTable {
         
         const originalCount = records.length;
         
+        // Primary identifier fields - a row is valid if ANY of these has a value
+        // This covers all table types: player tables, matchup tables, game odds, etc.
+        const primaryIdentifierFields = [
+            "Player Name",      // Player prop tables, DFS tables, DD-TD, etc.
+            "Matchup",          // Game Odds table
+            "Game Matchup",     // Alternative Game Odds field
+            "Player Matchup",   // Player Prop Odds table
+            "Home Team",        // Matchups table alternative
+            "Away Team",        // Matchups table alternative
+            "Team",             // Generic team identifier
+        ];
+        
         const filtered = records.filter(row => {
-            // Check 1: If Player Name (primary identifier) is NULL/empty, filter out
-            if (row["Player Name"] === null || row["Player Name"] === undefined || row["Player Name"] === '') {
-                return false;
+            // Check 1: At least ONE primary identifier must have a non-null value
+            const hasValidIdentifier = primaryIdentifierFields.some(field => {
+                const value = row[field];
+                return value !== null && value !== undefined && value !== '';
+            });
+            
+            if (!hasValidIdentifier) {
+                // Before filtering out, check if ANY field has data (fallback for unknown table structures)
+                const values = Object.entries(row)
+                    .filter(([key]) => !key.startsWith('_')) // Ignore internal fields like _expanded
+                    .map(([, value]) => value);
+                
+                const hasAnyData = values.some(v => 
+                    v !== null && v !== undefined && v !== ''
+                );
+                
+                // If no primary identifier AND no data at all, filter out
+                if (!hasAnyData) {
+                    return false;
+                }
+                
+                // Has some data but no recognized identifier - keep it (might be a new table type)
+                return true;
             }
             
             // Check 2: If ALL non-internal values are null/empty, filter out
-            // This catches rows that somehow have a Player Name but nothing else
+            // This catches rows that somehow have an identifier but nothing else meaningful
             const values = Object.entries(row)
                 .filter(([key]) => !key.startsWith('_')) // Ignore internal fields like _expanded
                 .map(([, value]) => value);
