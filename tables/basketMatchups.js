@@ -12,6 +12,7 @@
 // - Defense rank cells now have conditional background colors (green/white/red)
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 // - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
+// - FIXED: Mobile vertical orientation - removed percentage widths, table now sizes to subtable content
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -228,96 +229,171 @@ export class BasketMatchupsTable extends BaseTable {
             return str;
         };
         
-        // Responsive minWidth values - smaller on mobile/tablet
-        const matchupMinWidth = isSmallScreen ? 120 : 200;
-        const spreadMinWidth = isSmallScreen ? 60 : 100;
-        const totalMinWidth = isSmallScreen ? 60 : 100;
+        // FIXED: On mobile/tablet, use fixed pixel widths instead of percentages
+        // This allows the table to size based on content/subtable width
+        // On desktop, continue using percentages for proper fill behavior
         
-        return [
-            // Hidden Matchup ID for sorting
-            {
-                title: "Matchup ID",
-                field: "Matchup ID",
-                visible: false,
-                sorter: "number"
-            },
-            // UPDATED: Matchup column now 50% width
-            {
-                title: "Matchup", 
-                field: "Matchup", 
-                width: "50%",
-                minWidth: matchupMinWidth,
-                sorter: "string",
-                resizable: false,
-                formatter: this.createNameFormatter(),
-                hozAlign: "left",
-                cssClass: "matchup-cell"
-            },
-            // UPDATED: Spread column now 25% width with custom numeric sorter
-            // Extracts numeric value from "TEAM -X.X" or "TEAM +X.X" format
-            {
-                title: "Spread", 
-                field: "Spread", 
-                width: "25%",
-                minWidth: spreadMinWidth,
-                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                    // Extract numeric value from spread format (e.g., "MIL -6.0" or "PHX +6.0")
-                    const getNum = (val) => {
-                        if (val === null || val === undefined || val === '' || val === '-') return -9999;
-                        const str = String(val);
-                        // Try to extract signed number (handles -X.X or +X.X)
-                        const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
-                        if (match && match[1]) {
-                            return parseFloat(match[1]);
-                        }
-                        // Fallback: try to find any number with optional sign
-                        const numMatch = str.match(/([+-]?\d+\.?\d*)/);
-                        if (numMatch && numMatch[1]) {
-                            return parseFloat(numMatch[1]);
-                        }
-                        return -9999;
-                    };
-                    
-                    const aNum = getNum(a);
-                    const bNum = getNum(b);
-                    
-                    return aNum - bNum;
+        if (isSmallScreen) {
+            // Mobile/tablet: Use minWidth only, let content drive sizing
+            // These are minimum widths - the table will expand based on subtable content
+            return [
+                // Hidden Matchup ID for sorting
+                {
+                    title: "Matchup ID",
+                    field: "Matchup ID",
+                    visible: false,
+                    sorter: "number"
                 },
-                resizable: false,
-                hozAlign: "center"
-            },
-            // UPDATED: Total column now 25% width with formatter for 1 decimal place
-            // Custom sorter extracts numeric value from "O/U XXX.X" format
-            {
-                title: "Total", 
-                field: "Total", 
-                width: "25%",
-                minWidth: totalMinWidth,
-                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
-                    // Extract numeric value from O/U format
-                    const getNum = (val) => {
-                        if (val === null || val === undefined || val === '' || val === '-') return -1;
-                        const str = String(val);
-                        // Try to extract number after "O/U"
-                        const match = str.match(/O\/U\s*([\d.]+)/);
-                        if (match && match[1]) {
-                            return parseFloat(match[1]);
-                        }
-                        // Fallback: try to parse as number directly
-                        const num = parseFloat(str);
-                        return isNaN(num) ? -1 : num;
-                    };
-                    
-                    const aNum = getNum(a);
-                    const bNum = getNum(b);
-                    
-                    return aNum - bNum;
+                // Matchup column - no explicit width, uses minWidth and content
+                {
+                    title: "Matchup", 
+                    field: "Matchup", 
+                    minWidth: 120,
+                    sorter: "string",
+                    resizable: false,
+                    formatter: this.createNameFormatter(),
+                    hozAlign: "left",
+                    cssClass: "matchup-cell"
                 },
-                resizable: false,
-                hozAlign: "center",
-                formatter: totalFormatter
-            }
-        ];
+                // Spread column
+                {
+                    title: "Spread", 
+                    field: "Spread", 
+                    minWidth: 70,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        const getNum = (val) => {
+                            if (val === null || val === undefined || val === '' || val === '-') return -9999;
+                            const str = String(val);
+                            const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
+                            if (match && match[1]) {
+                                return parseFloat(match[1]);
+                            }
+                            const numMatch = str.match(/([+-]?\d+\.?\d*)/);
+                            if (numMatch && numMatch[1]) {
+                                return parseFloat(numMatch[1]);
+                            }
+                            return -9999;
+                        };
+                        
+                        const aNum = getNum(a);
+                        const bNum = getNum(b);
+                        
+                        return aNum - bNum;
+                    },
+                    resizable: false,
+                    hozAlign: "center"
+                },
+                // Total column
+                {
+                    title: "Total", 
+                    field: "Total", 
+                    minWidth: 80,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        const getNum = (val) => {
+                            if (val === null || val === undefined || val === '' || val === '-') return -1;
+                            const str = String(val);
+                            const match = str.match(/O\/U\s*([\d.]+)/);
+                            if (match && match[1]) {
+                                return parseFloat(match[1]);
+                            }
+                            const num = parseFloat(str);
+                            return isNaN(num) ? -1 : num;
+                        };
+                        
+                        const aNum = getNum(a);
+                        const bNum = getNum(b);
+                        
+                        return aNum - bNum;
+                    },
+                    resizable: false,
+                    hozAlign: "center",
+                    formatter: totalFormatter
+                }
+            ];
+        } else {
+            // Desktop: Use percentage widths for proper fill behavior
+            const matchupMinWidth = 200;
+            const spreadMinWidth = 100;
+            const totalMinWidth = 100;
+            
+            return [
+                // Hidden Matchup ID for sorting
+                {
+                    title: "Matchup ID",
+                    field: "Matchup ID",
+                    visible: false,
+                    sorter: "number"
+                },
+                // UPDATED: Matchup column now 50% width
+                {
+                    title: "Matchup", 
+                    field: "Matchup", 
+                    width: "50%",
+                    minWidth: matchupMinWidth,
+                    sorter: "string",
+                    resizable: false,
+                    formatter: this.createNameFormatter(),
+                    hozAlign: "left",
+                    cssClass: "matchup-cell"
+                },
+                // UPDATED: Spread column now 25% width with custom numeric sorter
+                {
+                    title: "Spread", 
+                    field: "Spread", 
+                    width: "25%",
+                    minWidth: spreadMinWidth,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        const getNum = (val) => {
+                            if (val === null || val === undefined || val === '' || val === '-') return -9999;
+                            const str = String(val);
+                            const match = str.match(/([+-]?\d+\.?\d*)\s*$/);
+                            if (match && match[1]) {
+                                return parseFloat(match[1]);
+                            }
+                            const numMatch = str.match(/([+-]?\d+\.?\d*)/);
+                            if (numMatch && numMatch[1]) {
+                                return parseFloat(numMatch[1]);
+                            }
+                            return -9999;
+                        };
+                        
+                        const aNum = getNum(a);
+                        const bNum = getNum(b);
+                        
+                        return aNum - bNum;
+                    },
+                    resizable: false,
+                    hozAlign: "center"
+                },
+                // UPDATED: Total column now 25% width with formatter for 1 decimal place
+                {
+                    title: "Total", 
+                    field: "Total", 
+                    width: "25%",
+                    minWidth: totalMinWidth,
+                    sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                        const getNum = (val) => {
+                            if (val === null || val === undefined || val === '' || val === '-') return -1;
+                            const str = String(val);
+                            const match = str.match(/O\/U\s*([\d.]+)/);
+                            if (match && match[1]) {
+                                return parseFloat(match[1]);
+                            }
+                            const num = parseFloat(str);
+                            return isNaN(num) ? -1 : num;
+                        };
+                        
+                        const aNum = getNum(a);
+                        const bNum = getNum(b);
+                        
+                        return aNum - bNum;
+                    },
+                    resizable: false,
+                    hozAlign: "center",
+                    formatter: totalFormatter
+                }
+            ];
+        }
     }
 
     // Simple debounce helper
@@ -331,6 +407,7 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Calculate and apply widths to always reserve space for vertical scrollbar
     // This prevents horizontal scrollbar from appearing when subtables expand
+    // UPDATED: Now handles mobile differently - removes width constraints instead of applying them
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -343,11 +420,41 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // Only apply on desktop
+        // On mobile/tablet: Remove all width constraints to let content drive sizing
         if (isMobile() || isTablet()) {
+            // Clear any explicit width settings that might be forcing the table wider
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
+            
+            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+            if (tableHolder) {
+                tableHolder.style.width = '';
+                tableHolder.style.minWidth = '';
+                tableHolder.style.maxWidth = '';
+                tableHolder.style.overflowX = 'auto';
+                tableHolder.style.overflowY = 'auto';
+            }
+            
+            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = '';
+                tabulatorHeader.style.minWidth = '';
+            }
+            
+            // Remove container constraints on mobile
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
+            }
+            
+            console.log('Matchups: Mobile mode - removed width constraints');
             return;
         }
         
+        // Desktop: Apply width with scrollbar reservation
         try {
             // CRITICAL: Force tableholder to always show scrollbar track
             // This reserves space for the scrollbar even when not needed
@@ -406,6 +513,9 @@ export class BasketMatchupsTable extends BaseTable {
     // Also called by TabManager/main.js when switching tabs or resizing
     expandMatchupColumnToFill() {
         if (!this.table) return;
+        
+        // Skip on mobile - we don't want to expand columns there
+        if (isMobile() || isTablet()) return;
         
         // First, recalculate widths to ensure scrollbar space is reserved
         this.calculateAndApplyWidths();
@@ -935,7 +1045,7 @@ export class BasketMatchupsTable extends BaseTable {
                 /* MOBILE: Constrain matchups table to prevent subtables from expanding it */
                 @media screen and (max-width: 1024px) {
                     #matchups-table .tabulator {
-                        width: 100% !important;
+                        width: auto !important;
                         min-width: 0 !important;
                         max-width: 100% !important;
                     }
@@ -943,10 +1053,17 @@ export class BasketMatchupsTable extends BaseTable {
                     #matchups-table .tabulator-tableholder {
                         overflow-x: auto !important;
                         -webkit-overflow-scrolling: touch !important;
+                        width: auto !important;
+                        min-width: 0 !important;
+                    }
+                    
+                    #matchups-table .tabulator-header {
+                        width: auto !important;
+                        min-width: 0 !important;
                     }
                     
                     #matchups-table .tabulator-row {
-                        max-width: 100% !important;
+                        max-width: none !important;
                         overflow: visible !important;
                     }
                     
