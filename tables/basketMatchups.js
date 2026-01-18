@@ -524,14 +524,8 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // Log device detection for debugging
-        const width = window.innerWidth;
-        const mobile = isMobile();
-        const tablet = isTablet();
-        console.log(`Matchups: Device detection - innerWidth=${width}, isMobile=${mobile}, isTablet=${tablet}`);
-        
         // On mobile/tablet: Size table to match subtable width
-        if (mobile || tablet) {
+        if (isMobile() || isTablet()) {
             this.calculateMobileColumnWidths();
             return;
         }
@@ -574,12 +568,12 @@ export class BasketMatchupsTable extends BaseTable {
                 tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
             
-            // Also constrain the table container - use setProperty for consistency
+            // Also constrain the table container
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
-                tableContainer.style.setProperty('width', 'fit-content', 'important');
-                tableContainer.style.setProperty('min-width', 'auto', 'important');
-                tableContainer.style.setProperty('max-width', 'none', 'important');
+                tableContainer.style.width = 'fit-content';
+                tableContainer.style.minWidth = 'auto';
+                tableContainer.style.maxWidth = 'none';
             }
             
             console.log(`Matchups: Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
