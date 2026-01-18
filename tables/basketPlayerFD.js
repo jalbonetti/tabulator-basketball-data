@@ -4,6 +4,8 @@
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// FIXED: Mobile no longer expands Name column for SUBTABLE_MIN_WIDTH - subtables scroll horizontally
+// FIXED: Name column minimum width from data scan is now preserved across recalculations
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -11,12 +13,15 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Minimum width needed to display subtables in a single row
+// Minimum width needed to display subtables in a single row (DESKTOP ONLY)
 const SUBTABLE_MIN_WIDTH = 700;
 
 export class BasketPlayerFDTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerFD');
+        
+        // Store minimum column widths from data scan - these should NEVER be violated
+        this._minDataWidths = {};
     }
 
     initialize() {
@@ -187,9 +192,11 @@ export class BasketPlayerFDTable extends BaseTable {
             return;
         }
         
-        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
+        const isSmallScreen = isMobile() || isTablet();
+        
+        // DESKTOP ONLY: Reset explicit widths before recalculating to allow proper shrinking
         // This fixes the grey/blue space issue when switching tabs
-        if (!isMobile() && !isTablet()) {
+        if (!isSmallScreen) {
             // Reset outer element widths to allow recalculation
             tableElement.style.width = 'auto';
             tableElement.style.minWidth = 'auto';
@@ -233,31 +240,42 @@ export class BasketPlayerFDTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            // CRITICAL: Ensure Name column never goes below the data-scanned minimum
+            const minNameWidth = this._minDataWidths["Player Name"] || 0;
+            if (nameColumn && minNameWidth > 0 && nameColumnWidth < minNameWidth) {
+                const widthDifference = minNameWidth - nameColumnWidth;
+                nameColumn.setWidth(minNameWidth);
+                nameColumnWidth = minNameWidth;
+                totalColumnWidth += widthDifference;
+                console.log(`FD DFS: Restored Name column to data minimum: ${minNameWidth}px`);
+            }
             
-            // ALWAYS ensure minimum width for subtables - critical for tab switching
-            if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
+            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px, isSmallScreen=${isSmallScreen}`);
+            
+            // DESKTOP ONLY: Expand Name column if subtables need more width
+            // On mobile/tablet, subtables scroll horizontally within their container, so we don't expand
+            if (!isSmallScreen && SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
                 const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
                 nameColumn.setWidth(newNameWidth);
                 totalColumnWidth = SUBTABLE_MIN_WIDTH;
-                console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables (desktop only)`);
             }
             
-            const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
-            
-            // Store the calculated width for persistence across tab switches
-            this._calculatedTableWidth = totalWidthWithScrollbar;
-            
-            tableElement.style.width = totalWidthWithScrollbar + 'px';
-            tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
-            tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
-            
-            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
-            if (!isMobile() && !isTablet()) {
+            // DESKTOP ONLY: Apply explicit width constraints to table and internal elements
+            if (!isSmallScreen) {
+                const SCROLLBAR_WIDTH = 17;
+                const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
+                
+                // Store the calculated width for persistence across tab switches
+                this._calculatedTableWidth = totalWidthWithScrollbar;
+                
+                tableElement.style.width = totalWidthWithScrollbar + 'px';
+                tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
+                tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
+                
+                // Also constrain internal Tabulator elements to prevent grey space
                 const tableHolder = tableElement.querySelector('.tabulator-tableholder');
                 if (tableHolder) {
                     tableHolder.style.width = totalWidthWithScrollbar + 'px';
@@ -268,16 +286,20 @@ export class BasketPlayerFDTable extends BaseTable {
                 if (tabulatorHeader) {
                     tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
                 }
+                
+                const tableContainer = tableElement.closest('.table-container');
+                if (tableContainer) {
+                    tableContainer.style.width = 'fit-content';
+                    tableContainer.style.minWidth = 'auto';
+                    tableContainer.style.maxWidth = 'none';
+                }
+                
+                console.log(`FD DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            } else {
+                // MOBILE/TABLET: Let CSS handle the constraints, don't set explicit pixel widths
+                // The CSS rules with min-width:0 and max-width:100% will constrain properly
+                console.log(`FD DFS Mobile/tablet mode: relying on CSS constraints, total column width=${totalColumnWidth}px`);
             }
-            
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.width = 'fit-content';
-                tableContainer.style.minWidth = 'auto';
-                tableContainer.style.maxWidth = 'none';
-            }
-            
-            console.log(`FD DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
@@ -296,6 +318,7 @@ export class BasketPlayerFDTable extends BaseTable {
     }
 
     // Scan ALL data to find max widths needed for text columns
+    // FIXED: Now stores minimum widths that are preserved across recalculations
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -342,6 +365,10 @@ export class BasketPlayerFDTable extends BaseTable {
                         requiredWidth += EXPAND_ICON_WIDTH;
                     }
                     
+                    // CRITICAL: Store this as the minimum width for this column
+                    // This value should NEVER be violated by subsequent calculations
+                    this._minDataWidths[field] = Math.ceil(requiredWidth);
+                    
                     const currentWidth = column.getWidth();
                     
                     if (requiredWidth > currentWidth) {
@@ -352,7 +379,7 @@ export class BasketPlayerFDTable extends BaseTable {
             }
         });
         
-        console.log('FD DFS Max width scan complete');
+        console.log('FD DFS Max width scan complete, stored minimums:', this._minDataWidths);
     }
 
     // Custom sorter for Rank with value format "X (Y.Y)" - sorts by rank number
