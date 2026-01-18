@@ -229,7 +229,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         
         // UPDATED: Ensure minimum width for Player Matchup accounts for longest possible matchup
         // "Los Angeles Clippers @ Los Angeles Lakers" is the longest possible
-        const longestMatchup = "Los Angeles Clippers @ Los Angeles Lakers";
+        const longestMatchup = "Minnesota Timberwolves @ Oklahoma City Thunder";
         const longestMatchupWidth = ctx.measureText(longestMatchup).width;
         if (longestMatchupWidth > maxWidths["Player Matchup"]) {
             maxWidths["Player Matchup"] = longestMatchupWidth;
