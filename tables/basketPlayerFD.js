@@ -4,6 +4,8 @@
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// FIXED: Mobile subtable spacing - no longer forces min width on small screens
+// FIXED: Measure subtable width from actual rendered content after first expansion
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -11,12 +13,11 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Minimum width needed to display subtables in a single row
-const SUBTABLE_MIN_WIDTH = 700;
-
 export class BasketPlayerFDTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerFD');
+        this._subtableWidthMeasured = false;
+        this._measuredSubtableWidth = null;
     }
 
     initialize() {
@@ -33,7 +34,7 @@ export class BasketPlayerFDTable extends BaseTable {
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "basic", // Use "basic" for compatibility with fitData layout
+            renderHorizontal: "basic",
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -55,7 +56,6 @@ export class BasketPlayerFDTable extends BaseTable {
                 console.log(`FD DFS table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
-                // Debug: Log first row to verify data structure
                 if (data.length > 0) {
                     console.log('DEBUG - FD DFS First row sample:', {
                         'Player Name': data[0]["Player Name"],
@@ -65,14 +65,12 @@ export class BasketPlayerFDTable extends BaseTable {
                     });
                 }
                 
-                // Initialize expansion state for each row
                 data.forEach(row => {
                     if (row._expanded === undefined) {
                         row._expanded = false;
                     }
                 });
                 
-                // Remove loading indicator
                 const element = document.querySelector(this.elementId);
                 if (element) {
                     const loadingDiv = element.querySelector('.loading-indicator');
@@ -99,6 +97,12 @@ export class BasketPlayerFDTable extends BaseTable {
                     const data = this.table.getData();
                     this.scanDataForMaxWidths(data);
                     this.equalizeClusteredColumns();
+                    
+                    // On desktop, do initial measurement by temporarily expanding first row
+                    if (!isMobile() && !isTablet()) {
+                        this.measureSubtableWidthFromFirstRow(data);
+                    }
+                    
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -119,9 +123,84 @@ export class BasketPlayerFDTable extends BaseTable {
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
+                
+                // Re-measure on data load if not yet measured
+                if (!isMobile() && !isTablet() && !this._subtableWidthMeasured) {
+                    this.measureSubtableWidthFromFirstRow(data);
+                }
+                
                 this.calculateAndApplyWidths();
             }, 100);
         });
+    }
+    
+    // Measure subtable width by temporarily creating and measuring subtable content
+    measureSubtableWidthFromFirstRow(data) {
+        if (this._subtableWidthMeasured || !data || data.length === 0) return;
+        
+        const sampleRow = data[0];
+        
+        // Find the longest matchup in the dataset for accurate measurement
+        let longestMatchup = sampleRow["Matchup"] || '';
+        data.forEach(row => {
+            if (row["Matchup"] && row["Matchup"].length > longestMatchup.length) {
+                longestMatchup = row["Matchup"];
+            }
+        });
+        
+        // Create measurement container that's in the document but invisible
+        const measureContainer = document.createElement('div');
+        measureContainer.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            visibility: hidden;
+            pointer-events: none;
+            z-index: -1;
+        `;
+        document.body.appendChild(measureContainer);
+        
+        // Create a subrow container exactly as we do in createRowFormatter
+        const holderEl = document.createElement('div');
+        holderEl.style.cssText = `
+            padding: 15px 20px;
+            display: block;
+        `;
+        
+        // Create subtable content with longest matchup
+        const testData = { ...sampleRow, "Matchup": longestMatchup };
+        this.createSubtableContent(holderEl, testData);
+        
+        measureContainer.appendChild(holderEl);
+        
+        // Force layout
+        void measureContainer.offsetWidth;
+        
+        // Find the flex container inside and measure its scrollWidth
+        const flexContainer = holderEl.querySelector('div');
+        if (flexContainer) {
+            // Temporarily set nowrap to measure single-row width
+            const originalWrap = flexContainer.style.flexWrap;
+            flexContainer.style.flexWrap = 'nowrap';
+            
+            // Force reflow
+            void flexContainer.offsetWidth;
+            
+            // Measure the actual content width needed for single row
+            const contentWidth = flexContainer.scrollWidth;
+            
+            // Restore
+            flexContainer.style.flexWrap = originalWrap;
+            
+            // Add container padding (20px left + 20px right)
+            this._measuredSubtableWidth = contentWidth + 40;
+            this._subtableWidthMeasured = true;
+            
+            console.log(`FD DFS Measured subtable content width: ${contentWidth}px, with padding: ${this._measuredSubtableWidth}px`);
+        }
+        
+        // Cleanup
+        document.body.removeChild(measureContainer);
     }
     
     // Backward compatibility alias for main.js resize handler and TabManager
@@ -187,34 +266,50 @@ export class BasketPlayerFDTable extends BaseTable {
             return;
         }
         
-        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
-        // This fixes the grey/blue space issue when switching tabs
-        if (!isMobile() && !isTablet()) {
-            // Reset outer element widths to allow recalculation
-            tableElement.style.width = 'auto';
-            tableElement.style.minWidth = 'auto';
-            tableElement.style.maxWidth = 'none';
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        // MOBILE: Clear widths and exit early - let content size naturally
+        if (isSmallScreen) {
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
             
-            // Reset internal Tabulator elements that may have cached widths
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = 'auto';
-                tableHolder.style.maxWidth = 'none';
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
             }
             
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = 'auto';
-            }
-            
-            const tabulatorTable = tableElement.querySelector('.tabulator-table');
-            if (tabulatorTable) {
-                tabulatorTable.style.width = 'auto';
-            }
-            
-            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
-            void tableElement.offsetWidth;
+            console.log(`FD DFS Mobile/tablet mode: table widths cleared for natural sizing`);
+            return;
         }
+        
+        // DESKTOP: Reset explicit widths before recalculating
+        tableElement.style.width = 'auto';
+        tableElement.style.minWidth = 'auto';
+        tableElement.style.maxWidth = 'none';
+        
+        const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+        if (tableHolder) {
+            tableHolder.style.width = 'auto';
+            tableHolder.style.maxWidth = 'none';
+        }
+        
+        const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+        if (tabulatorHeader) {
+            tabulatorHeader.style.width = 'auto';
+        }
+        
+        const tabulatorTable = tableElement.querySelector('.tabulator-table');
+        if (tabulatorTable) {
+            tabulatorTable.style.width = 'auto';
+        }
+        
+        // Force reflow
+        void tableElement.offsetWidth;
         
         try {
             const columns = this.table.getColumns();
@@ -233,41 +328,39 @@ export class BasketPlayerFDTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px`);
+            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Measured subtable=${this._measuredSubtableWidth}px`);
             
-            // ALWAYS ensure minimum width for subtables - critical for tab switching
-            if (SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
-                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
+            // If we have a measured subtable width and it's larger than current total, expand Name column
+            if (this._measuredSubtableWidth && this._measuredSubtableWidth > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = this._measuredSubtableWidth - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
-                nameColumn.setWidth(newNameWidth);
-                totalColumnWidth = SUBTABLE_MIN_WIDTH;
-                console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                // Only increase, never decrease
+                if (newNameWidth > nameColumnWidth) {
+                    nameColumn.setWidth(newNameWidth);
+                    totalColumnWidth = this._measuredSubtableWidth;
+                    console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                }
             }
             
+            // Desktop: Set explicit widths
             const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
+            const finalWidth = this._measuredSubtableWidth ? Math.max(totalColumnWidth, this._measuredSubtableWidth) : totalColumnWidth;
+            const totalWidthWithScrollbar = finalWidth + SCROLLBAR_WIDTH;
             
-            // Store the calculated width for persistence across tab switches
             this._calculatedTableWidth = totalWidthWithScrollbar;
             
             tableElement.style.width = totalWidthWithScrollbar + 'px';
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
-            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
-            if (!isMobile() && !isTablet()) {
-                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-                if (tableHolder) {
-                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
-                }
-                
-                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-                if (tabulatorHeader) {
-                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
-                }
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
             
             const tableContainer = tableElement.closest('.table-container');
@@ -291,6 +384,12 @@ export class BasketPlayerFDTable extends BaseTable {
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
             this.equalizeClusteredColumns();
+            
+            // Re-measure if not yet done
+            if (!isMobile() && !isTablet() && !this._subtableWidthMeasured) {
+                this.measureSubtableWidthFromFirstRow(data);
+            }
+            
             this.calculateAndApplyWidths();
         }
     }
@@ -364,10 +463,7 @@ export class BasketPlayerFDTable extends BaseTable {
             return match ? parseInt(match[1], 10) : 99999;
         };
         
-        const aNum = getRankNum(a);
-        const bNum = getRankNum(b);
-        
-        return aNum - bNum;
+        return getRankNum(a) - getRankNum(b);
     }
 
     // Custom sorter for price values (handles $X,XXX format)
@@ -379,10 +475,7 @@ export class BasketPlayerFDTable extends BaseTable {
             return isNaN(num) ? -1 : num;
         };
         
-        const aNum = getPriceNum(a);
-        const bNum = getPriceNum(b);
-        
-        return aNum - bNum;
+        return getPriceNum(a) - getPriceNum(b);
     }
 
     // Custom sorter for ratio values
@@ -393,16 +486,12 @@ export class BasketPlayerFDTable extends BaseTable {
             return isNaN(num) ? -99999 : num;
         };
         
-        const aNum = getRatioNum(a);
-        const bNum = getRatioNum(b);
-        
-        return aNum - bNum;
+        return getRatioNum(a) - getRatioNum(b);
     }
 
     getColumns(isSmallScreen = false) {
         const self = this;
         
-        // One decimal formatter
         const oneDecimalFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -411,7 +500,6 @@ export class BasketPlayerFDTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Price formatter - formats as $X,XXX
         const priceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -420,7 +508,6 @@ export class BasketPlayerFDTable extends BaseTable {
             return '$' + num.toLocaleString();
         };
 
-        // Ratio formatter - formats with 2 decimal places
         const ratioFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -429,7 +516,6 @@ export class BasketPlayerFDTable extends BaseTable {
             return num.toFixed(2);
         };
 
-        // Split formatter - abbreviates "Full Season" and "Last 30 Days"
         const splitFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -439,7 +525,6 @@ export class BasketPlayerFDTable extends BaseTable {
             return str;
         };
 
-        // Lineup formatter - abbreviates "(Expected)" and "(Confirmed)"
         const lineupFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -449,12 +534,10 @@ export class BasketPlayerFDTable extends BaseTable {
             return str;
         };
 
-        // Rank formatter - prepends # to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
             
-            // Apply background color based on rank
             const bgColor = getRankBackgroundColor(value);
             if (bgColor) {
                 cell.getElement().style.backgroundColor = bgColor;
@@ -885,9 +968,16 @@ export class BasketPlayerFDTable extends BaseTable {
         const oppStls = this.formatPercentage(data["Opponent Steals Per"]);
         const oppTOs = this.formatPercentage(data["Opponent Turnovers Per"]);
         
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        const containerGap = isSmallScreen ? '10px' : '15px';
+        const cardPadding = isSmallScreen ? '10px' : '12px';
+        
         container.innerHTML = `
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start;">
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+            <div style="display: flex; flex-wrap: wrap; gap: ${containerGap}; justify-content: flex-start;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
@@ -896,7 +986,7 @@ export class BasketPlayerFDTable extends BaseTable {
                     </div>
                 </div>
                 
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
                     <table style="font-size: 11px; border-collapse: collapse; width: 100%;">
                         <thead>
@@ -936,7 +1026,7 @@ export class BasketPlayerFDTable extends BaseTable {
                     </table>
                 </div>
                 
-                <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content;">
+                <div style="background: white; padding: ${cardPadding}; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; min-width: fit-content; flex-shrink: 0;">
                     <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
                     <div style="font-size: 12px; color: #333;">
                         <div style="margin-bottom: 4px;"><strong>Games Played:</strong> ${gamesPlayed}</div>
