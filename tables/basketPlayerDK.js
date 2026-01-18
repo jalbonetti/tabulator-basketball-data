@@ -4,8 +4,8 @@
 // UPDATED: Added min/max filter to Price column
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
-// FIXED: Mobile subtable spacing - no longer forces SUBTABLE_MIN_WIDTH on small screens
-// FIXED: Dynamic subtable width measurement - measures each card individually for accuracy
+// FIXED: Mobile subtable spacing - no longer forces min width on small screens
+// FIXED: Removed over-aggressive subtable measurement - columns size naturally
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -16,8 +16,6 @@ import { getRankBackgroundColor } from '../shared/utils.js';
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerDK');
-        // Cache for measured subtable width - calculated once on data load
-        this._measuredSubtableWidth = null;
     }
 
     initialize() {
@@ -97,8 +95,6 @@ export class BasketPlayerDKTable extends BaseTable {
                     const data = this.table.getData();
                     this.scanDataForMaxWidths(data);
                     this.equalizeClusteredColumns();
-                    // Measure subtable width BEFORE calculating column widths
-                    this.measureSubtableWidth(data);
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -119,138 +115,9 @@ export class BasketPlayerDKTable extends BaseTable {
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
-                if (data.length > 0) {
-                    this.measureSubtableWidth(data);
-                }
                 this.calculateAndApplyWidths();
             }, 100);
         });
-    }
-    
-    // Measure the actual width needed for subtable content
-    // Measures each card individually and sums them up for accuracy
-    measureSubtableWidth(data) {
-        // Only measure on desktop - mobile doesn't need this
-        if (isMobile() || isTablet()) {
-            this._measuredSubtableWidth = null;
-            return;
-        }
-        
-        // Find the longest matchup string in the data for accurate measurement
-        let longestMatchup = 'Team A @ Team B, Jan 17, 10:00 PM EST';
-        data.forEach(row => {
-            const matchup = row["Matchup"];
-            if (matchup && matchup.length > longestMatchup.length) {
-                longestMatchup = matchup;
-            }
-        });
-        
-        // Create a hidden measurement container
-        const measureContainer = document.createElement('div');
-        measureContainer.style.cssText = `
-            position: absolute;
-            top: -9999px;
-            left: -9999px;
-            visibility: hidden;
-            pointer-events: none;
-        `;
-        document.body.appendChild(measureContainer);
-        
-        // Measure Card 1: Matchup Details
-        const card1 = document.createElement('div');
-        card1.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
-        card1.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Matchup Details</h4>
-            <div style="font-size: 12px;">
-                <div style="margin-bottom: 4px;"><strong>Game:</strong> ${longestMatchup}</div>
-                <div style="margin-bottom: 4px;"><strong>Spread:</strong> LAL +3.5</div>
-                <div><strong>Total:</strong> O/U 223.5</div>
-            </div>
-        `;
-        measureContainer.appendChild(card1);
-        void card1.offsetWidth;
-        const card1Width = card1.getBoundingClientRect().width;
-        
-        // Measure Card 2: DFS Points Makeup Table
-        const card2 = document.createElement('div');
-        card2.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
-        card2.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
-            <table style="font-size: 11px; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th style="padding: 4px 8px;"></th>
-                        <th style="padding: 4px 8px;">2Pts/FTs</th>
-                        <th style="padding: 4px 8px;">3s</th>
-                        <th style="padding: 4px 8px;">Rebs</th>
-                        <th style="padding: 4px 8px;">Asts</th>
-                        <th style="padding: 4px 8px;">Bs</th>
-                        <th style="padding: 4px 8px;">Ss</th>
-                        <th style="padding: 4px 8px;">TOs</th>
-                        <th style="padding: 4px 8px;">DDs</th>
-                        <th style="padding: 4px 8px;">TDs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="padding: 4px 8px; font-weight: 600;">Player DK Point %</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 4px 8px; font-weight: 600;">Opponent DK Point %</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                        <td style="padding: 4px 8px;">100.0%</td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
-        measureContainer.appendChild(card2);
-        void card2.offsetWidth;
-        const card2Width = card2.getBoundingClientRect().width;
-        
-        // Measure Card 3: Games/Minutes Data
-        const card3 = document.createElement('div');
-        card3.style.cssText = 'display: inline-block; padding: 12px; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;';
-        card3.innerHTML = `
-            <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
-            <div style="font-size: 12px;">
-                <div style="margin-bottom: 4px;"><strong>Games Played:</strong> 99</div>
-                <div style="margin-bottom: 4px;"><strong>Median:</strong> 99.9</div>
-                <div><strong>Average:</strong> 99.9</div>
-            </div>
-        `;
-        measureContainer.appendChild(card3);
-        void card3.offsetWidth;
-        const card3Width = card3.getBoundingClientRect().width;
-        
-        // Calculate total: 3 cards + 2 gaps (15px each) + container padding (20px left + 20px right)
-        const GAP = 15;
-        const CONTAINER_PADDING = 40; // 20px left + 20px right
-        const BUFFER = 10; // Small buffer for rounding/borders
-        
-        const totalSubtableWidth = Math.ceil(card1Width) + Math.ceil(card2Width) + Math.ceil(card3Width) + (GAP * 2) + CONTAINER_PADDING + BUFFER;
-        
-        this._measuredSubtableWidth = totalSubtableWidth;
-        
-        console.log(`DK DFS Measured subtable widths: Card1=${Math.ceil(card1Width)}px, Card2=${Math.ceil(card2Width)}px, Card3=${Math.ceil(card3Width)}px, Total=${totalSubtableWidth}px`);
-        
-        // Clean up
-        document.body.removeChild(measureContainer);
     }
     
     expandNameColumnToFill() {
@@ -316,88 +183,61 @@ export class BasketPlayerDKTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // DESKTOP: Reset explicit widths before recalculating
-        if (!isSmallScreen) {
-            tableElement.style.width = 'auto';
-            tableElement.style.minWidth = 'auto';
-            tableElement.style.maxWidth = 'none';
+        // MOBILE: Clear widths and exit early - let content size naturally
+        if (isSmallScreen) {
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
             
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = 'auto';
-                tableHolder.style.maxWidth = 'none';
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
             }
             
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = 'auto';
-            }
-            
-            const tabulatorTable = tableElement.querySelector('.tabulator-table');
-            if (tabulatorTable) {
-                tabulatorTable.style.width = 'auto';
-            }
-            
-            void tableElement.offsetWidth;
+            console.log(`DK DFS Mobile/tablet mode: table widths cleared for natural sizing`);
+            return;
         }
+        
+        // DESKTOP: Reset explicit widths before recalculating
+        tableElement.style.width = 'auto';
+        tableElement.style.minWidth = 'auto';
+        tableElement.style.maxWidth = 'none';
+        
+        const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+        if (tableHolder) {
+            tableHolder.style.width = 'auto';
+            tableHolder.style.maxWidth = 'none';
+        }
+        
+        const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+        if (tabulatorHeader) {
+            tabulatorHeader.style.width = 'auto';
+        }
+        
+        const tabulatorTable = tableElement.querySelector('.tabulator-table');
+        if (tabulatorTable) {
+            tabulatorTable.style.width = 'auto';
+        }
+        
+        // Force reflow
+        void tableElement.offsetWidth;
         
         try {
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
-            let nameColumn = null;
-            let nameColumnWidth = 0;
             
             columns.forEach(col => {
-                const field = col.getField();
-                const width = col.getWidth();
-                
-                if (field === "Player Name") {
-                    nameColumn = col;
-                    nameColumnWidth = width;
-                }
-                totalColumnWidth += width;
+                totalColumnWidth += col.getWidth();
             });
             
-            // Use measured subtable width if available, otherwise skip expansion
-            const requiredSubtableWidth = this._measuredSubtableWidth;
+            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px`);
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Required subtable width=${requiredSubtableWidth}px, isSmallScreen=${isSmallScreen}`);
-            
-            // DESKTOP ONLY: Expand Name column if needed for subtables
-            // Only expand if we have a valid measurement and it's actually larger than current total
-            if (!isSmallScreen && requiredSubtableWidth && requiredSubtableWidth > totalColumnWidth && nameColumn) {
-                const additionalWidthNeeded = requiredSubtableWidth - totalColumnWidth;
-                const newNameWidth = nameColumnWidth + additionalWidthNeeded;
-                
-                // ONLY INCREASE Name column width, never decrease
-                if (newNameWidth > nameColumnWidth) {
-                    nameColumn.setWidth(newNameWidth);
-                    totalColumnWidth = requiredSubtableWidth;
-                    console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
-                }
-            }
-            
-            // MOBILE: Clear widths and exit early
-            if (isSmallScreen) {
-                tableElement.style.width = '';
-                tableElement.style.minWidth = '';
-                tableElement.style.maxWidth = '';
-                
-                const tableContainer = tableElement.closest('.table-container');
-                if (tableContainer) {
-                    tableContainer.style.width = '';
-                    tableContainer.style.minWidth = '';
-                    tableContainer.style.maxWidth = '';
-                }
-                
-                console.log(`DK DFS Mobile/tablet mode: table widths cleared for natural sizing`);
-                return;
-            }
-            
-            // Desktop: Set explicit widths
+            // Desktop: Set explicit widths based on actual column widths
+            // No artificial expansion - let columns determine the width
             const SCROLLBAR_WIDTH = 17;
-            const finalWidth = requiredSubtableWidth ? Math.max(totalColumnWidth, requiredSubtableWidth) : totalColumnWidth;
-            const totalWidthWithScrollbar = finalWidth + SCROLLBAR_WIDTH;
+            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
             
             this._calculatedTableWidth = totalWidthWithScrollbar;
             
@@ -405,13 +245,11 @@ export class BasketPlayerDKTable extends BaseTable {
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = totalWidthWithScrollbar + 'px';
                 tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
             }
             
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
             if (tabulatorHeader) {
                 tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
@@ -423,7 +261,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 tableContainer.style.maxWidth = 'none';
             }
             
-            console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px, required: ${requiredSubtableWidth}px, scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
@@ -436,9 +274,6 @@ export class BasketPlayerDKTable extends BaseTable {
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
             this.equalizeClusteredColumns();
-            if (!this._measuredSubtableWidth) {
-                this.measureSubtableWidth(data);
-            }
             this.calculateAndApplyWidths();
         }
     }
