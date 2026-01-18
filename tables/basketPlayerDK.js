@@ -5,7 +5,7 @@
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Mobile subtable spacing - no longer forces min width on small screens
-// FIXED: Removed over-aggressive subtable measurement - columns size naturally
+// FIXED: Measure subtable width from actual rendered content after first expansion
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -16,6 +16,8 @@ import { getRankBackgroundColor } from '../shared/utils.js';
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerDK');
+        this._subtableWidthMeasured = false;
+        this._measuredSubtableWidth = null;
     }
 
     initialize() {
@@ -95,6 +97,12 @@ export class BasketPlayerDKTable extends BaseTable {
                     const data = this.table.getData();
                     this.scanDataForMaxWidths(data);
                     this.equalizeClusteredColumns();
+                    
+                    // On desktop, do initial measurement by temporarily expanding first row
+                    if (!isMobile() && !isTablet()) {
+                        this.measureSubtableWidthFromFirstRow(data);
+                    }
+                    
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -115,9 +123,84 @@ export class BasketPlayerDKTable extends BaseTable {
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
+                
+                // Re-measure on data load if not yet measured
+                if (!isMobile() && !isTablet() && !this._subtableWidthMeasured) {
+                    this.measureSubtableWidthFromFirstRow(data);
+                }
+                
                 this.calculateAndApplyWidths();
             }, 100);
         });
+    }
+    
+    // Measure subtable width by temporarily creating and measuring subtable content
+    measureSubtableWidthFromFirstRow(data) {
+        if (this._subtableWidthMeasured || !data || data.length === 0) return;
+        
+        const sampleRow = data[0];
+        
+        // Find the longest matchup in the dataset for accurate measurement
+        let longestMatchup = sampleRow["Matchup"] || '';
+        data.forEach(row => {
+            if (row["Matchup"] && row["Matchup"].length > longestMatchup.length) {
+                longestMatchup = row["Matchup"];
+            }
+        });
+        
+        // Create measurement container that's in the document but invisible
+        const measureContainer = document.createElement('div');
+        measureContainer.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            visibility: hidden;
+            pointer-events: none;
+            z-index: -1;
+        `;
+        document.body.appendChild(measureContainer);
+        
+        // Create a subrow container exactly as we do in createRowFormatter
+        const holderEl = document.createElement('div');
+        holderEl.style.cssText = `
+            padding: 15px 20px;
+            display: block;
+        `;
+        
+        // Create subtable content with longest matchup
+        const testData = { ...sampleRow, "Matchup": longestMatchup };
+        this.createSubtableContent(holderEl, testData);
+        
+        measureContainer.appendChild(holderEl);
+        
+        // Force layout
+        void measureContainer.offsetWidth;
+        
+        // Find the flex container inside and measure its scrollWidth
+        const flexContainer = holderEl.querySelector('div');
+        if (flexContainer) {
+            // Temporarily set nowrap to measure single-row width
+            const originalWrap = flexContainer.style.flexWrap;
+            flexContainer.style.flexWrap = 'nowrap';
+            
+            // Force reflow
+            void flexContainer.offsetWidth;
+            
+            // Measure the actual content width needed for single row
+            const contentWidth = flexContainer.scrollWidth;
+            
+            // Restore
+            flexContainer.style.flexWrap = originalWrap;
+            
+            // Add container padding (20px left + 20px right)
+            this._measuredSubtableWidth = contentWidth + 40;
+            this._subtableWidthMeasured = true;
+            
+            console.log(`DK DFS Measured subtable content width: ${contentWidth}px, with padding: ${this._measuredSubtableWidth}px`);
+        }
+        
+        // Cleanup
+        document.body.removeChild(measureContainer);
     }
     
     expandNameColumnToFill() {
@@ -227,17 +310,39 @@ export class BasketPlayerDKTable extends BaseTable {
         try {
             const columns = this.table.getColumns();
             let totalColumnWidth = 0;
+            let nameColumn = null;
+            let nameColumnWidth = 0;
             
             columns.forEach(col => {
-                totalColumnWidth += col.getWidth();
+                const field = col.getField();
+                const width = col.getWidth();
+                
+                if (field === "Player Name") {
+                    nameColumn = col;
+                    nameColumnWidth = width;
+                }
+                totalColumnWidth += width;
             });
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px`);
+            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Measured subtable=${this._measuredSubtableWidth}px`);
             
-            // Desktop: Set explicit widths based on actual column widths
-            // No artificial expansion - let columns determine the width
+            // If we have a measured subtable width and it's larger than current total, expand Name column
+            if (this._measuredSubtableWidth && this._measuredSubtableWidth > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = this._measuredSubtableWidth - totalColumnWidth;
+                const newNameWidth = nameColumnWidth + additionalWidthNeeded;
+                
+                // Only increase, never decrease
+                if (newNameWidth > nameColumnWidth) {
+                    nameColumn.setWidth(newNameWidth);
+                    totalColumnWidth = this._measuredSubtableWidth;
+                    console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                }
+            }
+            
+            // Desktop: Set explicit widths
             const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = totalColumnWidth + SCROLLBAR_WIDTH;
+            const finalWidth = this._measuredSubtableWidth ? Math.max(totalColumnWidth, this._measuredSubtableWidth) : totalColumnWidth;
+            const totalWidthWithScrollbar = finalWidth + SCROLLBAR_WIDTH;
             
             this._calculatedTableWidth = totalWidthWithScrollbar;
             
@@ -274,6 +379,12 @@ export class BasketPlayerDKTable extends BaseTable {
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
             this.equalizeClusteredColumns();
+            
+            // Re-measure if not yet done
+            if (!isMobile() && !isTablet() && !this._subtableWidthMeasured) {
+                this.measureSubtableWidthFromFirstRow(data);
+            }
+            
             this.calculateAndApplyWidths();
         }
     }
