@@ -13,7 +13,6 @@
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 // - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
 // - FIXED: Mobile vertical orientation - removed percentage widths, table now sizes to subtable content
-// - FIXED: Mobile grey void space - no longer sets explicit widths on container elements on mobile
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -276,7 +275,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Matchup", 
                     field: "Matchup", 
-                    // Width set dynamically by calculateMobileColumnWidths()
+                    // Width will be set dynamically based on content
                     sorter: "string",
                     resizable: false,
                     formatter: this.createNameFormatter(),
@@ -286,7 +285,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Spread", 
                     field: "Spread", 
-                    // Width set dynamically by calculateMobileColumnWidths()
+                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
                     sorter: spreadSorter,
                     resizable: false,
                     hozAlign: "center"
@@ -294,7 +293,7 @@ export class BasketMatchupsTable extends BaseTable {
                 {
                     title: "Total", 
                     field: "Total", 
-                    // Width set dynamically by calculateMobileColumnWidths()
+                    // Width will be set dynamically: (subtableWidth - matchupWidth) / 2
                     sorter: totalSorter,
                     resizable: false,
                     hozAlign: "center",
@@ -511,7 +510,7 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Calculate and apply widths
     // Desktop: Reserve space for vertical scrollbar
-    // Mobile: Size table to match subtable width, with columns sized appropriately
+    // Mobile: Size Matchup to content, then split remaining subtable width between Spread and Total
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('Matchups calculateAndApplyWidths: table not ready');
@@ -524,7 +523,7 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
-        // On mobile/tablet: Size table to match subtable width
+        // On mobile/tablet: Calculate widths based on subtable and matchup content
         if (isMobile() || isTablet()) {
             this.calculateMobileColumnWidths();
             return;
@@ -584,10 +583,7 @@ export class BasketMatchupsTable extends BaseTable {
     }
 
     // Calculate and apply column widths for mobile
-    // Logic: 
-    // - Total table width = subtable required width
-    // - Matchup column = sized to widest content in dataset
-    // - Spread and Total = 50% each of remaining space (subtableWidth - matchupWidth)
+    // Logic: Matchup sized to content, Spread and Total split the remaining subtable width
     calculateMobileColumnWidths() {
         if (!this.table) return;
         
@@ -598,7 +594,7 @@ export class BasketMatchupsTable extends BaseTable {
             // Step 1: Calculate the width needed for the Matchup column based on content
             const matchupContentWidth = this.calculateMatchupContentWidth();
             
-            // Step 2: Get the required subtable width - this is our total table width target
+            // Step 2: Get the required subtable width
             const subtableWidth = this.getSubtableRequiredWidth();
             
             // Step 3: Calculate remaining width for Spread and Total
@@ -622,15 +618,13 @@ export class BasketMatchupsTable extends BaseTable {
                 totalColumn.setWidth(spreadTotalWidth);
             }
             
-            // Step 5: Calculate actual total width and set table width to match
+            // Step 5: Set the table width to match the subtable width
             const totalTableWidth = matchupContentWidth + (spreadTotalWidth * 2);
             
-            // Set explicit width on table element to match subtable width
             tableElement.style.width = totalTableWidth + 'px';
             tableElement.style.minWidth = totalTableWidth + 'px';
             tableElement.style.maxWidth = totalTableWidth + 'px';
             
-            // Set tableholder to match and enable scrolling
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = totalTableWidth + 'px';
@@ -640,30 +634,10 @@ export class BasketMatchupsTable extends BaseTable {
                 tableHolder.style.overflowY = 'auto';
             }
             
-            // Set header width to match
             const tabulatorHeader = tableElement.querySelector('.tabulator-header');
             if (tabulatorHeader) {
                 tabulatorHeader.style.width = totalTableWidth + 'px';
                 tabulatorHeader.style.minWidth = totalTableWidth + 'px';
-            }
-            
-            // CRITICAL: Force container to shrink to fit table content on mobile
-            // Use setProperty with 'important' to override TabManager's width: 100%
-            const tableContainer = tableElement.closest('.table-container');
-            if (tableContainer) {
-                tableContainer.style.setProperty('width', 'fit-content', 'important');
-                tableContainer.style.setProperty('min-width', 'auto', 'important');
-                tableContainer.style.setProperty('max-width', 'none', 'important');
-                tableContainer.style.setProperty('background', 'transparent', 'important');
-                tableContainer.style.setProperty('background-color', 'transparent', 'important');
-            }
-            
-            // Also fix table wrapper
-            const tableWrapper = tableElement.closest('.table-wrapper');
-            if (tableWrapper) {
-                tableWrapper.style.setProperty('width', 'fit-content', 'important');
-                tableWrapper.style.setProperty('background', 'transparent', 'important');
-                tableWrapper.style.setProperty('background-color', 'transparent', 'important');
             }
             
             console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total table=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
@@ -678,7 +652,7 @@ export class BasketMatchupsTable extends BaseTable {
     expandMatchupColumnToFill() {
         if (!this.table) return;
         
-        // On mobile, use the mobile column width calculation instead
+        // Skip on mobile - we use different sizing logic there
         if (isMobile() || isTablet()) {
             this.calculateMobileColumnWidths();
             return;
@@ -1441,7 +1415,7 @@ export class BasketMatchupsTable extends BaseTable {
             return container;
         }
         
-        // UPDATED: New sorting logic
+// UPDATED: New sorting logic
         // Injured players (Lineup="Injury") now have single rows with Split="Full Season"
         // Sort: Active players first (Starters before Bench, alphabetically within each, Full Season before Last 30 Days)
         // Then Out players, then OFS players at very bottom (alphabetically within each)
