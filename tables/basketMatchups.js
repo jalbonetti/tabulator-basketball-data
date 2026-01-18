@@ -648,10 +648,10 @@ export class BasketMatchupsTable extends BaseTable {
             }
             
             // CRITICAL: Do NOT set fit-content on container for mobile
-            // Let the container stay at 100% width, table scrolls within it
+            // Let the CSS handle container sizing (fit-content in tableStyles.js)
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
-                // Clear any desktop-specific width settings
+                // Clear any desktop-specific width settings - CSS handles mobile
                 tableContainer.style.width = '';
                 tableContainer.style.minWidth = '';
                 tableContainer.style.maxWidth = '';
