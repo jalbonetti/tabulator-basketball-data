@@ -647,14 +647,25 @@ export class BasketMatchupsTable extends BaseTable {
                 tabulatorHeader.style.minWidth = totalTableWidth + 'px';
             }
             
-            // CRITICAL: Do NOT set fit-content on container for mobile
-            // Let the CSS handle container sizing (fit-content in tableStyles.js)
+            // CRITICAL: Force container to shrink to fit table content on mobile
+            // This eliminates the extra space to the right of the table
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
-                // Clear any desktop-specific width settings - CSS handles mobile
-                tableContainer.style.width = '';
+                // Force container to match table width exactly
+                tableContainer.style.width = 'fit-content';
                 tableContainer.style.minWidth = '';
                 tableContainer.style.maxWidth = '';
+                // Force transparent background on mobile (overrides CSS grey)
+                tableContainer.style.background = 'transparent';
+                tableContainer.style.backgroundColor = 'transparent';
+            }
+            
+            // Also fix table wrapper
+            const tableWrapper = tableElement.closest('.table-wrapper');
+            if (tableWrapper) {
+                tableWrapper.style.width = 'fit-content';
+                tableWrapper.style.background = 'transparent';
+                tableWrapper.style.backgroundColor = 'transparent';
             }
             
             console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total table=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
