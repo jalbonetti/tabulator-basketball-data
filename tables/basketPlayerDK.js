@@ -5,6 +5,7 @@
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Mobile subtable spacing - no longer forces SUBTABLE_MIN_WIDTH on small screens
+// FIXED: Dynamic subtable width measurement - expands Name column only when needed
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -12,13 +13,11 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Minimum width needed to display subtables in a single row (DESKTOP ONLY)
-// DK has more columns (DDs, TDs) than FD, so needs significantly more width
-const SUBTABLE_MIN_WIDTH = 1100;
-
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerDK');
+        // Cache for measured subtable width - calculated once on data load
+        this._measuredSubtableWidth = null;
     }
 
     initialize() {
@@ -35,7 +34,7 @@ export class BasketPlayerDKTable extends BaseTable {
             virtualDom: true,
             virtualDomBuffer: 500,
             renderVertical: "virtual",
-            renderHorizontal: "basic", // Use "basic" for compatibility with fitData layout
+            renderHorizontal: "basic",
             pagination: false,
             paginationSize: false,
             layoutColumnsOnNewData: false,
@@ -57,7 +56,6 @@ export class BasketPlayerDKTable extends BaseTable {
                 console.log(`DK DFS table loaded ${data.length} records successfully`);
                 this.dataLoaded = true;
                 
-                // Debug: Log first row to verify data structure
                 if (data.length > 0) {
                     console.log('DEBUG - DK DFS First row sample:', {
                         'Player Name': data[0]["Player Name"],
@@ -67,14 +65,12 @@ export class BasketPlayerDKTable extends BaseTable {
                     });
                 }
                 
-                // Initialize expansion state for each row
                 data.forEach(row => {
                     if (row._expanded === undefined) {
                         row._expanded = false;
                     }
                 });
                 
-                // Remove loading indicator
                 const element = document.querySelector(this.elementId);
                 if (element) {
                     const loadingDiv = element.querySelector('.loading-indicator');
@@ -101,6 +97,8 @@ export class BasketPlayerDKTable extends BaseTable {
                     const data = this.table.getData();
                     this.scanDataForMaxWidths(data);
                     this.equalizeClusteredColumns();
+                    // Measure subtable width BEFORE calculating column widths
+                    this.measureSubtableWidth(data[0]);
                     this.calculateAndApplyWidths();
                 } else {
                     console.log('No data yet, width calculation deferred');
@@ -121,17 +119,152 @@ export class BasketPlayerDKTable extends BaseTable {
                 const data = this.table.getData();
                 this.scanDataForMaxWidths(data);
                 this.equalizeClusteredColumns();
+                if (data.length > 0) {
+                    this.measureSubtableWidth(data[0]);
+                }
                 this.calculateAndApplyWidths();
             }, 100);
         });
     }
     
-    // Backward compatibility alias for main.js resize handler and TabManager
+    // Measure the actual width needed for subtable content
+    // Creates a hidden off-screen element to measure true rendered width
+    measureSubtableWidth(sampleData) {
+        // Only measure on desktop - mobile doesn't need this
+        if (isMobile() || isTablet()) {
+            this._measuredSubtableWidth = null;
+            return;
+        }
+        
+        // Create a hidden measurement container
+        const measureContainer = document.createElement('div');
+        measureContainer.style.cssText = `
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+            pointer-events: none;
+            width: auto;
+            white-space: nowrap;
+        `;
+        document.body.appendChild(measureContainer);
+        
+        // Create the subtable content holder
+        const holderEl = document.createElement('div');
+        holderEl.style.cssText = `
+            padding: 15px 20px;
+            display: inline-flex;
+            flex-wrap: nowrap;
+            gap: 15px;
+            width: auto;
+        `;
+        
+        // Generate subtable content using sample data
+        this.createSubtableContentForMeasurement(holderEl, sampleData);
+        
+        measureContainer.appendChild(holderEl);
+        
+        // Force layout calculation
+        void measureContainer.offsetWidth;
+        
+        // Measure the actual width needed
+        const subtableWidth = holderEl.scrollWidth;
+        
+        // Add padding for the subrow container
+        const SUBROW_PADDING = 40;
+        this._measuredSubtableWidth = subtableWidth + SUBROW_PADDING;
+        
+        console.log(`DK DFS Measured subtable width: ${subtableWidth}px (with padding: ${this._measuredSubtableWidth}px)`);
+        
+        // Clean up
+        document.body.removeChild(measureContainer);
+    }
+    
+    // Create subtable content specifically for measurement (no wrapping)
+    createSubtableContentForMeasurement(container, data) {
+        // Use worst-case longest matchup string for measurement
+        const matchup = data["Matchup"] || 'Los Angeles Lakers @ Portland Trail Blazers, Jan 17, 10:00 PM EST';
+        const spread = data["Matchup Spread"] || 'LAL +3.5';
+        const total = this.formatMatchupTotal(data["Matchup Total"]) || 'O/U 223.5';
+        
+        const gamesPlayed = data["Player Games Played"] || '25';
+        const medianMinutes = this.formatMinutes(data["Player Median Minutes"]) || '35.0';
+        const avgMinutes = this.formatMinutes(data["Player Average Minutes"]) || '35.0';
+        
+        // Use representative percentage values for measurement (worst case width)
+        const pct = '100.0%';
+        
+        container.innerHTML = `
+            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
+                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Matchup Details</h4>
+                <div style="font-size: 12px; color: #333;">
+                    <div style="margin-bottom: 4px;"><strong>Game:</strong> ${matchup}</div>
+                    <div style="margin-bottom: 4px;"><strong>Spread:</strong> ${spread}</div>
+                    <div><strong>Total:</strong> ${total}</div>
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
+                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Player and Opponent DFS Points Makeup</h4>
+                <table style="font-size: 11px; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 4px 8px; text-align: left; border-bottom: 1px solid #ddd;"></th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">2Pts/FTs</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">3s</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Rebs</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Asts</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Bs</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">Ss</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TOs</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">DDs</th>
+                            <th style="padding: 4px 8px; text-align: center; border-bottom: 1px solid #ddd;">TDs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 4px 8px; font-weight: 600; color: #333;">Player DK Point %</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                        </tr>
+                        <tr style="background: #fafafa;">
+                            <td style="padding: 4px 8px; font-weight: 600; color: #333;">Opponent DK Point %</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                            <td style="padding: 4px 8px; text-align: center;">${pct}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: inline-block; white-space: nowrap; flex-shrink: 0;">
+                <h4 style="margin: 0 0 8px 0; color: #f97316; font-size: 13px; font-weight: 600;">Games/Minutes Data</h4>
+                <div style="font-size: 12px; color: #333;">
+                    <div style="margin-bottom: 4px;"><strong>Games Played:</strong> ${gamesPlayed}</div>
+                    <div style="margin-bottom: 4px;"><strong>Median:</strong> ${medianMinutes}</div>
+                    <div><strong>Average:</strong> ${avgMinutes}</div>
+                </div>
+            </div>
+        `;
+    }
+    
     expandNameColumnToFill() {
         this.forceRecalculateWidths();
     }
     
-    // Simple debounce helper
     debounce(func, wait) {
         let timeout;
         return (...args) => {
@@ -140,7 +273,6 @@ export class BasketPlayerDKTable extends BaseTable {
         };
     }
     
-    // Equalize column widths within each cluster
     equalizeClusteredColumns() {
         if (!this.table) return;
         
@@ -176,7 +308,6 @@ export class BasketPlayerDKTable extends BaseTable {
         });
     }
     
-    // Calculate and apply widths based on content and subtable requirements
     calculateAndApplyWidths() {
         if (!this.table) {
             console.log('calculateAndApplyWidths: table not ready');
@@ -189,20 +320,16 @@ export class BasketPlayerDKTable extends BaseTable {
             return;
         }
         
-        // Check if we're on a small screen - CRITICAL for mobile fix
         const mobile = isMobile();
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
-        // This fixes the grey/blue space issue when switching tabs
+        // DESKTOP: Reset explicit widths before recalculating
         if (!isSmallScreen) {
-            // Reset outer element widths to allow recalculation
             tableElement.style.width = 'auto';
             tableElement.style.minWidth = 'auto';
             tableElement.style.maxWidth = 'none';
             
-            // Reset internal Tabulator elements that may have cached widths
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = 'auto';
@@ -219,7 +346,6 @@ export class BasketPlayerDKTable extends BaseTable {
                 tabulatorTable.style.width = 'auto';
             }
             
-            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
             void tableElement.offsetWidth;
         }
         
@@ -240,22 +366,26 @@ export class BasketPlayerDKTable extends BaseTable {
                 totalColumnWidth += width;
             });
             
-            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px, isSmallScreen=${isSmallScreen}`);
+            // Use measured subtable width if available
+            const requiredSubtableWidth = this._measuredSubtableWidth || 1100;
             
-            // MOBILE FIX: Only apply SUBTABLE_MIN_WIDTH expansion on desktop
-            // On mobile/tablet, subtables wrap naturally and we don't need the extra width
-            if (!isSmallScreen && SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
-                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
+            console.log(`DK DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Required subtable width=${requiredSubtableWidth}px, isSmallScreen=${isSmallScreen}`);
+            
+            // DESKTOP ONLY: Expand Name column if needed for subtables
+            if (!isSmallScreen && requiredSubtableWidth > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = requiredSubtableWidth - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
-                nameColumn.setWidth(newNameWidth);
-                totalColumnWidth = SUBTABLE_MIN_WIDTH;
-                console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                // ONLY INCREASE Name column width, never decrease
+                if (newNameWidth > nameColumnWidth) {
+                    nameColumn.setWidth(newNameWidth);
+                    totalColumnWidth = requiredSubtableWidth;
+                    console.log(`DK DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables`);
+                }
             }
             
-            // On mobile/tablet, don't set explicit table widths - let it size naturally
+            // MOBILE: Clear widths and exit early
             if (isSmallScreen) {
-                // Clear any previously set widths to let content size naturally
                 tableElement.style.width = '';
                 tableElement.style.minWidth = '';
                 tableElement.style.maxWidth = '';
@@ -268,21 +398,20 @@ export class BasketPlayerDKTable extends BaseTable {
                 }
                 
                 console.log(`DK DFS Mobile/tablet mode: table widths cleared for natural sizing`);
-                return; // Exit early for mobile
+                return;
             }
             
-            // Desktop-only: Set explicit widths
+            // Desktop: Set explicit widths
             const SCROLLBAR_WIDTH = 17;
-            const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
+            const finalWidth = Math.max(totalColumnWidth, requiredSubtableWidth);
+            const totalWidthWithScrollbar = finalWidth + SCROLLBAR_WIDTH;
             
-            // Store the calculated width for persistence across tab switches
             this._calculatedTableWidth = totalWidthWithScrollbar;
             
             tableElement.style.width = totalWidthWithScrollbar + 'px';
             tableElement.style.minWidth = totalWidthWithScrollbar + 'px';
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
-            // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             if (tableHolder) {
                 tableHolder.style.width = totalWidthWithScrollbar + 'px';
@@ -301,25 +430,26 @@ export class BasketPlayerDKTable extends BaseTable {
                 tableContainer.style.maxWidth = 'none';
             }
             
-            console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
+            console.log(`DK DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px, required: ${requiredSubtableWidth}px, scrollbar: ${SCROLLBAR_WIDTH}px)`);
             
         } catch (error) {
             console.error('Error in calculateAndApplyWidths:', error);
         }
     }
     
-    // Force width recalculation - called by TabManager on tab switch
     forceRecalculateWidths() {
         console.log('DK DFS forceRecalculateWidths called');
         const data = this.table ? this.table.getData() : [];
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
             this.equalizeClusteredColumns();
+            if (!this._measuredSubtableWidth) {
+                this.measureSubtableWidth(data[0]);
+            }
             this.calculateAndApplyWidths();
         }
     }
 
-    // Scan ALL data to find max widths needed for text columns
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -379,7 +509,6 @@ export class BasketPlayerDKTable extends BaseTable {
         console.log('DK DFS Max width scan complete');
     }
 
-    // Custom sorter for Rank with value format "X (Y.Y)" - sorts by rank number
     rankWithValueSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getRankNum = (val) => {
             if (!val || val === '-') return 99999;
@@ -388,13 +517,9 @@ export class BasketPlayerDKTable extends BaseTable {
             return match ? parseInt(match[1], 10) : 99999;
         };
         
-        const aNum = getRankNum(a);
-        const bNum = getRankNum(b);
-        
-        return aNum - bNum;
+        return getRankNum(a) - getRankNum(b);
     }
 
-    // Custom sorter for price values (handles $X,XXX format)
     priceSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getPriceNum = (val) => {
             if (val === null || val === undefined || val === '' || val === '-') return -1;
@@ -403,13 +528,9 @@ export class BasketPlayerDKTable extends BaseTable {
             return isNaN(num) ? -1 : num;
         };
         
-        const aNum = getPriceNum(a);
-        const bNum = getPriceNum(b);
-        
-        return aNum - bNum;
+        return getPriceNum(a) - getPriceNum(b);
     }
 
-    // Custom sorter for ratio values
     ratioSorter(a, b, aRow, bRow, column, dir, sorterParams) {
         const getRatioNum = (val) => {
             if (val === null || val === undefined || val === '' || val === '-') return -99999;
@@ -417,16 +538,12 @@ export class BasketPlayerDKTable extends BaseTable {
             return isNaN(num) ? -99999 : num;
         };
         
-        const aNum = getRatioNum(a);
-        const bNum = getRatioNum(b);
-        
-        return aNum - bNum;
+        return getRatioNum(a) - getRatioNum(b);
     }
 
     getColumns(isSmallScreen = false) {
         const self = this;
         
-        // One decimal formatter
         const oneDecimalFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -435,7 +552,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Price formatter - formats as $X,XXX
         const priceFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -444,7 +560,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return '$' + num.toLocaleString();
         };
 
-        // Ratio formatter - formats with 2 decimal places
         const ratioFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -453,7 +568,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return num.toFixed(2);
         };
 
-        // Split formatter - abbreviates "Full Season" and "Last 30 Days"
         const splitFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -463,7 +577,6 @@ export class BasketPlayerDKTable extends BaseTable {
             return str;
         };
 
-        // Lineup formatter - abbreviates "(Expected)" and "(Confirmed)"
         const lineupFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
@@ -473,12 +586,10 @@ export class BasketPlayerDKTable extends BaseTable {
             return str;
         };
 
-        // Rank formatter - prepends # to rank values and applies background color
         const rankFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '' || value === '-') return '-';
             
-            // Apply background color based on rank
             const bgColor = getRankBackgroundColor(value);
             if (bgColor) {
                 cell.getElement().style.backgroundColor = bgColor;
@@ -912,12 +1023,10 @@ export class BasketPlayerDKTable extends BaseTable {
         const oppDDs = this.formatPercentage(data["Opponent DD Per"]);
         const oppTDs = this.formatPercentage(data["Opponent TD Per"]);
         
-        // Check if we're on mobile/tablet for responsive subtable layout
         const mobile = isMobile();
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
-        // Use tighter gap on mobile to prevent excessive Name column expansion
         const containerGap = isSmallScreen ? '10px' : '15px';
         const cardPadding = isSmallScreen ? '10px' : '12px';
         
