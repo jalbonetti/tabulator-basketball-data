@@ -648,24 +648,22 @@ export class BasketMatchupsTable extends BaseTable {
             }
             
             // CRITICAL: Force container to shrink to fit table content on mobile
-            // This eliminates the extra space to the right of the table
+            // Use setProperty with 'important' to override TabManager's width: 100%
             const tableContainer = tableElement.closest('.table-container');
             if (tableContainer) {
-                // Force container to match table width exactly
-                tableContainer.style.width = 'fit-content';
-                tableContainer.style.minWidth = '';
-                tableContainer.style.maxWidth = '';
-                // Force transparent background on mobile (overrides CSS grey)
-                tableContainer.style.background = 'transparent';
-                tableContainer.style.backgroundColor = 'transparent';
+                tableContainer.style.setProperty('width', 'fit-content', 'important');
+                tableContainer.style.setProperty('min-width', 'auto', 'important');
+                tableContainer.style.setProperty('max-width', 'none', 'important');
+                tableContainer.style.setProperty('background', 'transparent', 'important');
+                tableContainer.style.setProperty('background-color', 'transparent', 'important');
             }
             
             // Also fix table wrapper
             const tableWrapper = tableElement.closest('.table-wrapper');
             if (tableWrapper) {
-                tableWrapper.style.width = 'fit-content';
-                tableWrapper.style.background = 'transparent';
-                tableWrapper.style.backgroundColor = 'transparent';
+                tableWrapper.style.setProperty('width', 'fit-content', 'important');
+                tableWrapper.style.setProperty('background', 'transparent', 'important');
+                tableWrapper.style.setProperty('background-color', 'transparent', 'important');
             }
             
             console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Total table=${totalTableWidth}px (subtable target=${subtableWidth}px)`);
