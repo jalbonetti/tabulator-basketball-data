@@ -6,6 +6,8 @@
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Mobile no longer expands Name column for SUBTABLE_MIN_WIDTH - subtables scroll horizontally
 // FIXED: Name column minimum width from data scan is now preserved across recalculations
+// FIXED: Dynamic subtable width calculation accounts for longest matchup names
+// FIXED: Name column minimum is enforced on ALL devices (mobile included)
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -13,8 +15,17 @@ import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFi
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
 
-// Minimum width needed to display subtables in a single row (DESKTOP ONLY)
-const SUBTABLE_MIN_WIDTH = 700;
+// Base minimum width for subtables (DESKTOP ONLY)
+// This will be dynamically increased based on actual matchup name lengths
+const BASE_SUBTABLE_MIN_WIDTH = 700;
+
+// Subtable component approximate widths (for dynamic calculation)
+// Matchup Details box: ~280px base + matchup text
+// DFS Points Makeup table: ~450px (fixed - FD has fewer columns than DK)
+// Games/Minutes Data box: ~180px (fixed)
+// Gaps between boxes: ~30px
+const SUBTABLE_FIXED_WIDTH = 660; // DFS Points table + Games/Minutes + gaps
+const MATCHUP_BOX_PADDING = 100; // Padding, margins, "Game:", "Spread:", "Total:" labels
 
 export class BasketPlayerFDTable extends BaseTable {
     constructor(elementId) {
@@ -22,6 +33,9 @@ export class BasketPlayerFDTable extends BaseTable {
         
         // Store minimum column widths from data scan - these should NEVER be violated
         this._minDataWidths = {};
+        
+        // Store the calculated subtable minimum width (updated based on actual data)
+        this._calculatedSubtableMinWidth = BASE_SUBTABLE_MIN_WIDTH;
     }
 
     initialize() {
@@ -241,6 +255,7 @@ export class BasketPlayerFDTable extends BaseTable {
             });
             
             // CRITICAL: Ensure Name column never goes below the data-scanned minimum
+            // This applies to ALL devices (desktop, tablet, mobile)
             const minNameWidth = this._minDataWidths["Player Name"] || 0;
             if (nameColumn && minNameWidth > 0 && nameColumnWidth < minNameWidth) {
                 const widthDifference = minNameWidth - nameColumnWidth;
@@ -250,23 +265,26 @@ export class BasketPlayerFDTable extends BaseTable {
                 console.log(`FD DFS: Restored Name column to data minimum: ${minNameWidth}px`);
             }
             
-            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${SUBTABLE_MIN_WIDTH}px, isSmallScreen=${isSmallScreen}`);
+            // Use the dynamically calculated subtable minimum width
+            const subtableMinWidth = this._calculatedSubtableMinWidth;
+            
+            console.log(`FD DFS Width calculation: Total columns=${totalColumnWidth}px, Name=${nameColumnWidth}px, Subtable Min=${subtableMinWidth}px, isSmallScreen=${isSmallScreen}`);
             
             // DESKTOP ONLY: Expand Name column if subtables need more width
             // On mobile/tablet, subtables scroll horizontally within their container, so we don't expand
-            if (!isSmallScreen && SUBTABLE_MIN_WIDTH > totalColumnWidth && nameColumn) {
-                const additionalWidthNeeded = SUBTABLE_MIN_WIDTH - totalColumnWidth;
+            if (!isSmallScreen && subtableMinWidth > totalColumnWidth && nameColumn) {
+                const additionalWidthNeeded = subtableMinWidth - totalColumnWidth;
                 const newNameWidth = nameColumnWidth + additionalWidthNeeded;
                 
                 nameColumn.setWidth(newNameWidth);
-                totalColumnWidth = SUBTABLE_MIN_WIDTH;
+                totalColumnWidth = subtableMinWidth;
                 console.log(`FD DFS Expanded Name column from ${nameColumnWidth}px to ${newNameWidth}px to accommodate subtables (desktop only)`);
             }
             
             // DESKTOP ONLY: Apply explicit width constraints to table and internal elements
             if (!isSmallScreen) {
                 const SCROLLBAR_WIDTH = 17;
-                const totalWidthWithScrollbar = Math.max(totalColumnWidth, SUBTABLE_MIN_WIDTH) + SCROLLBAR_WIDTH;
+                const totalWidthWithScrollbar = Math.max(totalColumnWidth, subtableMinWidth) + SCROLLBAR_WIDTH;
                 
                 // Store the calculated width for persistence across tab switches
                 this._calculatedTableWidth = totalWidthWithScrollbar;
@@ -296,8 +314,15 @@ export class BasketPlayerFDTable extends BaseTable {
                 
                 console.log(`FD DFS Set table width to ${totalWidthWithScrollbar}px (columns: ${totalColumnWidth}px + scrollbar: ${SCROLLBAR_WIDTH}px)`);
             } else {
-                // MOBILE/TABLET: Let CSS handle the constraints, don't set explicit pixel widths
-                // The CSS rules with min-width:0 and max-width:100% will constrain properly
+                // MOBILE/TABLET: Still enforce minimum Name column width via JS
+                // CSS constraints handle the overall table width
+                if (nameColumn && minNameWidth > 0) {
+                    const currentNameWidth = nameColumn.getWidth();
+                    if (currentNameWidth < minNameWidth) {
+                        nameColumn.setWidth(minNameWidth);
+                        console.log(`FD DFS Mobile: Enforced Name column minimum: ${minNameWidth}px`);
+                    }
+                }
                 console.log(`FD DFS Mobile/tablet mode: relying on CSS constraints, total column width=${totalColumnWidth}px`);
             }
             
@@ -319,6 +344,7 @@ export class BasketPlayerFDTable extends BaseTable {
 
     // Scan ALL data to find max widths needed for text columns
     // FIXED: Now stores minimum widths that are preserved across recalculations
+    // FIXED: Also calculates required subtable width based on longest matchup name
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -335,6 +361,9 @@ export class BasketPlayerFDTable extends BaseTable {
             "Player FD Position": 0
         };
         
+        // Also track the longest matchup string for subtable width calculation
+        let maxMatchupWidth = 0;
+        
         data.forEach(row => {
             Object.keys(maxWidths).forEach(field => {
                 let value = row[field];
@@ -349,7 +378,25 @@ export class BasketPlayerFDTable extends BaseTable {
                     }
                 }
             });
+            
+            // Measure matchup string for subtable width calculation
+            const matchup = row["Matchup"];
+            if (matchup) {
+                const matchupWidth = ctx.measureText(String(matchup)).width;
+                if (matchupWidth > maxMatchupWidth) {
+                    maxMatchupWidth = matchupWidth;
+                }
+            }
         });
+        
+        // Calculate dynamic subtable minimum width based on longest matchup
+        // Matchup box width = matchup text + padding/labels
+        const matchupBoxWidth = maxMatchupWidth + MATCHUP_BOX_PADDING;
+        const calculatedSubtableWidth = SUBTABLE_FIXED_WIDTH + matchupBoxWidth;
+        
+        // Use the larger of: calculated width or base minimum
+        this._calculatedSubtableMinWidth = Math.max(calculatedSubtableWidth, BASE_SUBTABLE_MIN_WIDTH);
+        console.log(`FD DFS Calculated subtable min width: ${this._calculatedSubtableMinWidth}px (matchup text: ${Math.ceil(maxMatchupWidth)}px, matchup box: ${Math.ceil(matchupBoxWidth)}px)`);
         
         const CELL_PADDING = 16;
         const EXPAND_ICON_WIDTH = 18;
