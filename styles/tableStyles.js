@@ -13,7 +13,6 @@
 // - FIXED: Mobile subtable layout - reduced gap/padding for single-line display
 // - FIXED: Mobile frozen columns - constrain tabulator width so scroll happens at tableholder level
 // - FIXED: Desktop grey background fills empty space to right of table (consistent across all tables)
-// - FIXED: Mobile container uses fit-content to prevent extra space beyond table content
 
 import { isMobile, isTablet, getDeviceScale } from '../shared/config.js';
 
@@ -381,31 +380,30 @@ function injectMinimalStyles() {
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
            The scroll must happen at tableholder level for position:sticky to work.
-           On mobile, container uses fit-content so it matches table width exactly.
-           No extra space beyond table content.
+           On mobile, we constrain BOTH container AND tabulator width so 
+           tableholder becomes the scroll container.
+           
+           KEY INSIGHT: The tabulator element was expanding to fit content,
+           which meant tableholder also expanded and had nothing to scroll.
+           By setting min-width:0 and max-width:100% on tabulator, we force
+           it to stay within container bounds.
            ===================================================== */
         
         @media screen and (max-width: 1024px) {
-            /* Container shrinks to fit table content - no extra space */
+            /* Constrain container to viewport width on mobile/tablet */
             .table-container {
-                width: fit-content !important;
-                max-width: none !important;
-                overflow-x: visible !important;
-                background: transparent !important;
+                width: 100% !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
             }
             
-            /* Table wrapper also shrinks to fit */
-            .table-wrapper {
-                width: fit-content !important;
-                max-width: none !important;
-                background: transparent !important;
-            }
-            
-            /* Tabulator sizes to its content */
+            /* CRITICAL: Constrain tabulator to container width */
+            /* min-width:0 prevents flexbox from expanding it */
+            /* max-width:100% keeps it within container bounds */
             .table-container .tabulator {
-                width: auto !important;
+                width: 100% !important;
                 min-width: 0 !important;
-                max-width: none !important;
+                max-width: 100% !important;
             }
             
             /* Ensure tableholder is the scroll container */
@@ -473,7 +471,6 @@ function injectFullStyles() {
            Mobile subtable compact layout
            Mobile frozen column support
            Desktop grey background for empty space
-           Mobile container fit-content (no extra space)
            =================================== */
         
         /* GLOBAL FONT SIZE - Responsive */
@@ -954,31 +951,30 @@ function injectFullStyles() {
         /* =====================================================
            MOBILE FROZEN COLUMN FIX
            The scroll must happen at tableholder level for position:sticky to work.
-           On mobile, container uses fit-content so it matches table width exactly.
-           No extra space beyond table content.
+           On mobile, we constrain BOTH container AND tabulator width so 
+           tableholder becomes the scroll container.
+           
+           KEY INSIGHT: The tabulator element was expanding to fit content,
+           which meant tableholder also expanded and had nothing to scroll.
+           By setting min-width:0 and max-width:100% on tabulator, we force
+           it to stay within container bounds.
            ===================================================== */
         
         @media screen and (max-width: 1024px) {
-            /* Container shrinks to fit table content - no extra space */
+            /* Constrain container to viewport width on mobile/tablet */
             .table-container {
-                width: fit-content !important;
-                max-width: none !important;
-                overflow-x: visible !important;
-                background: transparent !important;
+                width: 100% !important;
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
             }
             
-            /* Table wrapper also shrinks to fit */
-            .table-wrapper {
-                width: fit-content !important;
-                max-width: none !important;
-                background: transparent !important;
-            }
-            
-            /* Tabulator sizes to its content */
+            /* CRITICAL: Constrain tabulator to container width */
+            /* min-width:0 prevents flexbox from expanding it */
+            /* max-width:100% keeps it within container bounds */
             .table-container .tabulator {
-                width: auto !important;
+                width: 100% !important;
                 min-width: 0 !important;
-                max-width: none !important;
+                max-width: 100% !important;
             }
             
             /* Ensure tableholder is the scroll container */
