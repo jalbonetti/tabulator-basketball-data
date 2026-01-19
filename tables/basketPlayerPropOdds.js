@@ -223,7 +223,6 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
         // Track max widths for text columns (excluding Player Name which uses fixed min)
         const maxWidths = {
@@ -237,6 +236,33 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Best Odds": 0,
             "Player Best Odds Books": 0
         };
+        
+        // First measure header widths (use header font weight)
+        ctx.font = '600 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+        const HEADER_PADDING = 16;
+        const SORT_ICON_WIDTH = 16; // Space for sort indicator
+        
+        // Map field names to their display titles for header measurement
+        const fieldToTitle = {
+            "Player Matchup": "Matchup",
+            "Player Team": "Team",
+            "Player Prop Type": "Prop",
+            "Player Over/Under": "O/U",
+            "Player Book": "Book",
+            "Player Prop Odds": "Book Odds",
+            "Player Median Odds": "Median Odds",
+            "Player Best Odds": "Best Odds",
+            "Player Best Odds Books": "Best Books"
+        };
+        
+        Object.keys(maxWidths).forEach(field => {
+            const title = fieldToTitle[field] || field;
+            const headerWidth = ctx.measureText(title).width + HEADER_PADDING + SORT_ICON_WIDTH;
+            maxWidths[field] = headerWidth;
+        });
+        
+        // Now measure data widths (use data font weight)
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
         data.forEach(row => {
             Object.keys(maxWidths).forEach(field => {
