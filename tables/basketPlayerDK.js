@@ -6,12 +6,23 @@
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Mobile subtable spacing - no longer forces min width on small screens
 // FIXED: Measure subtable width from actual rendered content after first expansion
+// FIXED: Player Name, Lineup, and Split columns now use fixed minimum widths
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
 import { getRankBackgroundColor } from '../shared/utils.js';
+
+// Minimum width for Player Name column based on longest realistic name + status indicator
+// "Yanic Konan Niederhauser (Q)" is about the longest we'll see
+const NAME_COLUMN_MIN_WIDTH = 205;
+
+// Minimum width for Lineup column to fit "Starter (Conf)"
+const LINEUP_COLUMN_MIN_WIDTH = 85;
+
+// Minimum width for Split column to fit "L30 Days"
+const SPLIT_COLUMN_MIN_WIDTH = 62;
 
 export class BasketPlayerDKTable extends BaseTable {
     constructor(elementId) {
@@ -104,6 +115,7 @@ export class BasketPlayerDKTable extends BaseTable {
                     }
                     
                     this.calculateAndApplyWidths();
+                    this.ensureNameColumnWidth();
                 } else {
                     console.log('No data yet, width calculation deferred');
                 }
@@ -113,6 +125,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 if (this.table && this.table.getDataCount() > 0) {
                     this.equalizeClusteredColumns();
                     this.calculateAndApplyWidths();
+                    this.ensureNameColumnWidth();
                 }
             }, 250));
         });
@@ -130,8 +143,39 @@ export class BasketPlayerDKTable extends BaseTable {
                 }
                 
                 this.calculateAndApplyWidths();
+                this.ensureNameColumnWidth();
             }, 100);
         });
+        
+        // Ensure Name column width after any render (handles tab switching, filtering)
+        this.table.on("renderComplete", () => {
+            // Recalculate widths after render (handles tab switching) - desktop only
+            if (!isMobile() && !isTablet()) {
+                setTimeout(() => {
+                    this.calculateAndApplyWidths();
+                }, 100);
+            }
+            
+            // Always ensure Name column meets minimum width
+            setTimeout(() => {
+                this.ensureNameColumnWidth();
+            }, 50);
+        });
+    }
+    
+    // Ensure Name column has its minimum required width
+    // Uses fixed minimum based on longest realistic name "Yanic Konan Niederhauser (Q)"
+    ensureNameColumnWidth() {
+        if (!this.table) return;
+        
+        const nameColumn = this.table.getColumn("Player Name");
+        if (nameColumn) {
+            const currentWidth = nameColumn.getWidth();
+            if (currentWidth < NAME_COLUMN_MIN_WIDTH) {
+                console.log(`DK DFS: Setting Name column from ${currentWidth}px to ${NAME_COLUMN_MIN_WIDTH}px`);
+                nameColumn.setWidth(NAME_COLUMN_MIN_WIDTH);
+            }
+        }
     }
     
     // Measure subtable width by temporarily creating and measuring subtable content
@@ -279,6 +323,9 @@ export class BasketPlayerDKTable extends BaseTable {
                 tableContainer.style.maxWidth = '';
             }
             
+            // Ensure Name column maintains minimum width on mobile
+            this.ensureNameColumnWidth();
+            
             console.log(`DK DFS Mobile/tablet mode: table widths cleared for natural sizing`);
             return;
         }
@@ -387,8 +434,13 @@ export class BasketPlayerDKTable extends BaseTable {
             
             this.calculateAndApplyWidths();
         }
+        
+        // Always ensure minimum Name width is applied
+        this.ensureNameColumnWidth();
     }
 
+    // Scan ALL data to find max widths needed for text columns
+    // Note: Player Name uses fixed NAME_COLUMN_MIN_WIDTH constant instead of calculation
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -398,8 +450,8 @@ export class BasketPlayerDKTable extends BaseTable {
         const ctx = canvas.getContext('2d');
         ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
+        // Track max widths for text columns (excluding Player Name which uses fixed min)
         const maxWidths = {
-            "Player Name": 0,
             "Lineup Status": 0,
             "Player Team": 0,
             "Player DK Position": 0
@@ -422,28 +474,22 @@ export class BasketPlayerDKTable extends BaseTable {
         });
         
         const CELL_PADDING = 16;
-        const EXPAND_ICON_WIDTH = 18;
-        const BUFFER = 10;
+        const BUFFER = 8;
         
+        // Apply widths to non-Name columns
         Object.keys(maxWidths).forEach(field => {
             if (maxWidths[field] > 0) {
                 const column = this.table.getColumn(field);
                 if (column) {
-                    let requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
-                    
-                    if (field === "Player Name") {
-                        requiredWidth += EXPAND_ICON_WIDTH;
-                    }
-                    
-                    const currentWidth = column.getWidth();
-                    
-                    if (requiredWidth > currentWidth) {
-                        column.setWidth(Math.ceil(requiredWidth));
-                        console.log(`DK DFS Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
-                    }
+                    const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
+                    column.setWidth(Math.ceil(requiredWidth));
+                    console.log(`DK DFS Set ${field} to ${Math.ceil(requiredWidth)}px`);
                 }
             }
         });
+        
+        // Ensure Name column has fixed minimum width
+        this.ensureNameColumnWidth();
         
         console.log('DK DFS Max width scan complete');
     }
@@ -543,7 +589,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 field: "Player Name", 
                 frozen: true,
                 widthGrow: 0,
-                minWidth: 120,
+                minWidth: NAME_COLUMN_MIN_WIDTH, // Fixed minimum for "Yanic Konan Niederhauser (Q)"
                 sorter: "string", 
                 headerFilter: true,
                 resizable: false,
@@ -566,7 +612,7 @@ export class BasketPlayerDKTable extends BaseTable {
                 title: "Lineup", 
                 field: "Lineup Status", 
                 widthGrow: 0,
-                minWidth: 70,
+                minWidth: LINEUP_COLUMN_MIN_WIDTH, // Fixed minimum for "Starter (Conf)"
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
@@ -608,7 +654,7 @@ export class BasketPlayerDKTable extends BaseTable {
                         title: "Split", 
                         field: "Split", 
                         widthGrow: 0,
-                        minWidth: 55,
+                        minWidth: SPLIT_COLUMN_MIN_WIDTH, // Fixed minimum for "L30 Days"
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
                         hozAlign: "center",
