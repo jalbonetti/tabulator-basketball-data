@@ -13,6 +13,7 @@
 // - Fixed parseMatchup to handle text month date formats (e.g., "Jan 5")
 // - FIXED: Desktop scrollbar space reservation - prevents horizontal scrollbar when subtables expand
 // - FIXED: Mobile vertical orientation - removed percentage widths, table now sizes to subtable content
+// - FIXED: Mobile subtable font size changed from 9px to 10px to match other tables
 
 import { BaseTable } from './baseTable.js';
 import { isMobile, isTablet } from '../shared/config.js';
@@ -406,7 +407,7 @@ export class BasketMatchupsTable extends BaseTable {
             // PLAYER SUBTABLE:
             // - Player column: 120px min-width (but content is much wider!)
             //   Actual content like "Dyson Daniels (Q) - Starter - Full Season - 42 Games - 32.5 Mins"
-            //   At 9px font, this is roughly 350-400px
+            //   At 10px font, this is roughly 350-400px
             // - 12 stat columns: 35px each = 420px
             // - Cell padding: ~84px
             // - Container padding: 24px
@@ -446,7 +447,7 @@ export class BasketMatchupsTable extends BaseTable {
         // If we don't have player data cached yet, use a reasonable default
         if (!this.playersDataCache || this.playersDataCache.size === 0) {
             // Default based on typical long player names
-            // "Shai Gilgeous-Alexander - Starter - Full Season - 42 Games - 35.5 Mins" ≈ 380px at 9px font
+            // "Shai Gilgeous-Alexander - Starter - Full Season - 42 Games - 35.5 Mins" ≈ 380px at 10px font
             return 320;
         }
         
@@ -456,7 +457,7 @@ export class BasketMatchupsTable extends BaseTable {
             position: absolute;
             visibility: hidden;
             white-space: nowrap;
-            font-size: 9px;
+            font-size: 10px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         `;
         document.body.appendChild(measureSpan);
@@ -1283,6 +1284,7 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Create defense subtable - UPDATED with # prefix on prop ranks and background colors
     // FIXED: Responsive min-widths for mobile
+    // FIXED: Mobile font size changed from 9px to 10px to match other tables
     createDefenseSubtable(defenseData, title) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -1317,7 +1319,8 @@ export class BasketMatchupsTable extends BaseTable {
         const splitMinWidth = isSmallScreen ? '50px' : '70px';
         const statMinWidth = isSmallScreen ? '35px' : '50px';
         const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
-        const fontSize = isSmallScreen ? '9px' : '11px';
+        // FIXED: Changed from 9px to 10px on mobile to match other tables
+        const fontSize = isSmallScreen ? '10px' : '11px';
         
         // Base cell style for data cells
         const baseCellStyle = `padding: ${cellPadding}; text-align: center;`;
@@ -1397,6 +1400,7 @@ export class BasketMatchupsTable extends BaseTable {
 
     // Create players subtable - UPDATED for new injured player handling
     // FIXED: Responsive min-widths for mobile
+    // FIXED: Mobile font size changed from 9px to 10px to match other tables
     createPlayersSubtable(playerData, title, homeAway) {
         const container = document.createElement('div');
         container.style.cssText = 'background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
@@ -1483,7 +1487,8 @@ export class BasketMatchupsTable extends BaseTable {
         const playerMinWidth = isSmallScreen ? '120px' : '200px';
         const statMinWidth = isSmallScreen ? '35px' : '50px';
         const cellPadding = isSmallScreen ? '2px 4px' : '4px 8px';
-        const fontSize = isSmallScreen ? '9px' : '11px';
+        // FIXED: Changed from 9px to 10px on mobile to match other tables
+        const fontSize = isSmallScreen ? '10px' : '11px';
         
         // Create table
         const table = document.createElement('table');
