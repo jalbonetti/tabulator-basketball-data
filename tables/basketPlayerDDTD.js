@@ -4,6 +4,7 @@
 // UPDATED: Left-justified with content-based width, scanDataForMaxWidths for proper column sizing
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
+// FIXED: Player Name, Lineup, and Split columns now use fixed minimum widths
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -13,6 +14,16 @@ import { getRankBackgroundColor } from '../shared/utils.js';
 
 // Minimum width needed to display subtables in a single row
 const SUBTABLE_MIN_WIDTH = 550;
+
+// Minimum width for Player Name column based on longest realistic name + status indicator
+// "Yanic Konan Niederhauser (Q)" is about the longest we'll see
+const NAME_COLUMN_MIN_WIDTH = 205;
+
+// Minimum width for Lineup column to fit "Starter (Conf)"
+const LINEUP_COLUMN_MIN_WIDTH = 85;
+
+// Minimum width for Split column to fit "L30 Days"
+const SPLIT_COLUMN_MIN_WIDTH = 62;
 
 export class BasketPlayerDDTDTable extends BaseTable {
     constructor(elementId) {
@@ -109,6 +120,8 @@ export class BasketPlayerDDTDTable extends BaseTable {
                     this.equalizeClusteredColumns();
                     // Finally calculate total width
                     this.calculateAndApplyWidths();
+                    // Ensure Name column width is correct after all calculations
+                    this.ensureNameColumnWidth();
                 } else {
                     console.log('No data yet, width calculation deferred');
                 }
@@ -119,6 +132,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 if (this.table && this.table.getDataCount() > 0) {
                     this.equalizeClusteredColumns();
                     this.calculateAndApplyWidths();
+                    this.ensureNameColumnWidth();
                 }
             }, 250));
         });
@@ -134,13 +148,59 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 this.equalizeClusteredColumns();
                 // Finally calculate total width
                 this.calculateAndApplyWidths();
+                // Ensure Name column width is correct after all calculations
+                this.ensureNameColumnWidth();
             }, 100);
         });
+        
+        // Ensure Name column width after any render (handles tab switching, filtering)
+        this.table.on("renderComplete", () => {
+            // Recalculate widths after render (handles tab switching) - desktop only
+            if (!isMobile() && !isTablet()) {
+                setTimeout(() => {
+                    this.calculateAndApplyWidths();
+                }, 100);
+            }
+            
+            // Always ensure Name column meets minimum width
+            setTimeout(() => {
+                this.ensureNameColumnWidth();
+            }, 50);
+        });
+    }
+    
+    // Ensure Name column has its minimum required width
+    // Uses fixed minimum based on longest realistic name "Yanic Konan Niederhauser (Q)"
+    ensureNameColumnWidth() {
+        if (!this.table) return;
+        
+        const nameColumn = this.table.getColumn("Player Name");
+        if (nameColumn) {
+            const currentWidth = nameColumn.getWidth();
+            if (currentWidth < NAME_COLUMN_MIN_WIDTH) {
+                console.log(`DD-TD: Setting Name column from ${currentWidth}px to ${NAME_COLUMN_MIN_WIDTH}px`);
+                nameColumn.setWidth(NAME_COLUMN_MIN_WIDTH);
+            }
+        }
     }
     
     // Backward compatibility alias for main.js resize handler
     expandNameColumnToFill() {
         this.calculateAndApplyWidths();
+    }
+    
+    // Force width recalculation - called by TabManager on tab switch
+    forceRecalculateWidths() {
+        console.log('DD-TD forceRecalculateWidths called');
+        const data = this.table ? this.table.getData() : [];
+        if (data.length > 0) {
+            this.scanDataForMaxWidths(data);
+            this.equalizeClusteredColumns();
+            this.calculateAndApplyWidths();
+        }
+        
+        // Always ensure minimum Name width is applied
+        this.ensureNameColumnWidth();
     }
     
     // Simple debounce helper
@@ -206,34 +266,57 @@ export class BasketPlayerDDTDTable extends BaseTable {
             return;
         }
         
+        // Check for mobile/tablet
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        // MOBILE/TABLET: Clear container widths but preserve Name column minimum
+        if (isSmallScreen) {
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
+            
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
+            }
+            
+            // Ensure Name column maintains minimum width on mobile
+            this.ensureNameColumnWidth();
+            
+            console.log(`DD-TD Mobile/tablet mode: container widths cleared, Name column preserved`);
+            return;
+        }
+        
         // DESKTOP FIX: Reset explicit widths before recalculating to allow proper shrinking
         // This fixes the grey/blue space issue when switching tabs
-        if (!isMobile() && !isTablet()) {
-            // Reset outer element widths to allow recalculation
-            tableElement.style.width = 'auto';
-            tableElement.style.minWidth = 'auto';
-            tableElement.style.maxWidth = 'none';
-            
-            // Reset internal Tabulator elements that may have cached widths
-            const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-            if (tableHolder) {
-                tableHolder.style.width = 'auto';
-                tableHolder.style.maxWidth = 'none';
-            }
-            
-            const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-            if (tabulatorHeader) {
-                tabulatorHeader.style.width = 'auto';
-            }
-            
-            const tabulatorTable = tableElement.querySelector('.tabulator-table');
-            if (tabulatorTable) {
-                tabulatorTable.style.width = 'auto';
-            }
-            
-            // CRITICAL: Force a browser reflow so layout recalculates before we read widths
-            void tableElement.offsetWidth;
+        // Reset outer element widths to allow recalculation
+        tableElement.style.width = 'auto';
+        tableElement.style.minWidth = 'auto';
+        tableElement.style.maxWidth = 'none';
+        
+        // Reset internal Tabulator elements that may have cached widths
+        const tableHolder = tableElement.querySelector('.tabulator-tableholder');
+        if (tableHolder) {
+            tableHolder.style.width = 'auto';
+            tableHolder.style.maxWidth = 'none';
         }
+        
+        const tabulatorHeader = tableElement.querySelector('.tabulator-header');
+        if (tabulatorHeader) {
+            tabulatorHeader.style.width = 'auto';
+        }
+        
+        const tabulatorTable = tableElement.querySelector('.tabulator-table');
+        if (tabulatorTable) {
+            tabulatorTable.style.width = 'auto';
+        }
+        
+        // CRITICAL: Force a browser reflow so layout recalculates before we read widths
+        void tableElement.offsetWidth;
         
         try {
             // Get all columns and calculate total width
@@ -275,18 +358,13 @@ export class BasketPlayerDDTDTable extends BaseTable {
             tableElement.style.maxWidth = totalWidthWithScrollbar + 'px';
             
             // CRITICAL FIX: Also constrain internal Tabulator elements to prevent grey space
-            // BUT ONLY ON DESKTOP - mobile needs tableholder to remain unconstrained for horizontal scroll
-            if (!isMobile() && !isTablet()) {
-                const tableHolder = tableElement.querySelector('.tabulator-tableholder');
-                if (tableHolder) {
-                    tableHolder.style.width = totalWidthWithScrollbar + 'px';
-                    tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
-                }
-                
-                const tabulatorHeader = tableElement.querySelector('.tabulator-header');
-                if (tabulatorHeader) {
-                    tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
-                }
+            if (tableHolder) {
+                tableHolder.style.width = totalWidthWithScrollbar + 'px';
+                tableHolder.style.maxWidth = totalWidthWithScrollbar + 'px';
+            }
+            
+            if (tabulatorHeader) {
+                tabulatorHeader.style.width = totalWidthWithScrollbar + 'px';
             }
             
             // Also constrain the table container
@@ -306,6 +384,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
 
     // Scan ALL data to find max widths needed for text columns
     // This ensures columns are properly sized even with virtual scrolling
+    // Note: Player Name uses fixed NAME_COLUMN_MIN_WIDTH constant instead of calculation
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -314,11 +393,10 @@ export class BasketPlayerDDTDTable extends BaseTable {
         // Create a hidden canvas for text measurement
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Match table font
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
-        // Track max widths for text columns
+        // Track max widths for text columns (excluding Player Name which uses fixed min)
         const maxWidths = {
-            "Player Name": 0,
             "Lineup Status": 0,
             "Player Prop": 0,
             "Player Team": 0
@@ -342,33 +420,23 @@ export class BasketPlayerDDTDTable extends BaseTable {
             });
         });
         
-        // Add padding for cell padding, expand icon (for Name), and some buffer
-        const CELL_PADDING = 16; // 8px on each side
-        const EXPAND_ICON_WIDTH = 18; // For the ▶ icon and margin
-        const BUFFER = 10; // Extra safety buffer
+        const CELL_PADDING = 16;
+        const BUFFER = 8;
         
-        // Apply minimum widths to columns
+        // Apply widths to non-Name columns
         Object.keys(maxWidths).forEach(field => {
             if (maxWidths[field] > 0) {
                 const column = this.table.getColumn(field);
                 if (column) {
-                    let requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
-                    
-                    // Add expand icon width for Name column
-                    if (field === "Player Name") {
-                        requiredWidth += EXPAND_ICON_WIDTH;
-                    }
-                    
-                    const currentWidth = column.getWidth();
-                    
-                    // Only expand, never shrink
-                    if (requiredWidth > currentWidth) {
-                        column.setWidth(Math.ceil(requiredWidth));
-                        console.log(`DD-TD Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
-                    }
+                    const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
+                    column.setWidth(Math.ceil(requiredWidth));
+                    console.log(`DD-TD Set ${field} to ${Math.ceil(requiredWidth)}px`);
                 }
             }
         });
+        
+        // Ensure Name column has fixed minimum width
+        this.ensureNameColumnWidth();
         
         console.log('DD-TD Max width scan complete');
     }
@@ -498,7 +566,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
 
         return [
             // =====================================================
-            // NAME COLUMN - widthGrow:0 means size to content only
+            // NAME COLUMN - Uses fixed minimum width based on longest realistic name
             // Frozen on mobile/tablet for horizontal scrolling
             // Standalone header (no parent group)
             // =====================================================
@@ -507,7 +575,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 field: "Player Name", 
                 frozen: true,
                 widthGrow: 0,
-                minWidth: 120,
+                minWidth: NAME_COLUMN_MIN_WIDTH, // Fixed minimum for "Yanic Konan Niederhauser (Q)"
                 sorter: "string", 
                 headerFilter: true,
                 resizable: false,
@@ -539,7 +607,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
                 title: "Lineup", 
                 field: "Lineup Status", 
                 widthGrow: 0,
-                minWidth: 70,
+                minWidth: LINEUP_COLUMN_MIN_WIDTH, // Fixed minimum for "Starter (Conf)"
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
@@ -574,7 +642,7 @@ export class BasketPlayerDDTDTable extends BaseTable {
                         title: "Split", 
                         field: "Split", 
                         widthGrow: 0,
-                        minWidth: 55,
+                        minWidth: SPLIT_COLUMN_MIN_WIDTH, // Fixed minimum for "L30 Days"
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
                         hozAlign: "center",
