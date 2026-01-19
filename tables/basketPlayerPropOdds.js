@@ -7,6 +7,7 @@
 // FIXED: All 3 odds columns (Book, Median, Best) now equalize to same width
 // FIXED: Best Books column now properly expands for long multi-book values
 // FIXED: Player Name column now uses fixed minimum width
+// FIXED: Best Books column now properly expands on mobile/tablet devices
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -133,18 +134,19 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         this.table.on("tableBuilt", () => {
             console.log("Player Prop Odds table built");
             
-            // Desktop-specific width calculations
-            if (!isMobile() && !isTablet()) {
-                setTimeout(() => {
-                    const data = this.table ? this.table.getData() : [];
-                    if (data.length > 0) {
-                        this.scanDataForMaxWidths(data);
+            // Width calculations for all devices
+            setTimeout(() => {
+                const data = this.table ? this.table.getData() : [];
+                if (data.length > 0) {
+                    this.scanDataForMaxWidths(data);
+                    // Desktop-specific: equalize odds columns and calculate container widths
+                    if (!isMobile() && !isTablet()) {
                         this.equalizeClusteredColumns();
                         this.calculateAndApplyWidths();
-                        this.ensureNameColumnWidth();
                     }
-                }, 100);
-            }
+                    this.ensureNameColumnWidth();
+                }
+            }, 100);
         });
         
         this.table.on("renderComplete", () => {
@@ -201,8 +203,11 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         const data = this.table ? this.table.getData() : [];
         if (data.length > 0) {
             this.scanDataForMaxWidths(data);
-            this.equalizeClusteredColumns();
-            this.calculateAndApplyWidths();
+            // Desktop-specific operations
+            if (!isMobile() && !isTablet()) {
+                this.equalizeClusteredColumns();
+                this.calculateAndApplyWidths();
+            }
         }
         
         // Always ensure minimum Name width is applied
@@ -212,12 +217,14 @@ export class BasketPlayerPropOddsTable extends BaseTable {
     // Scan ALL data to find max widths needed for text columns
     // UPDATED: Properly measures full team names for desktop display
     // FIXED: Now includes odds columns and Best Books for proper width measurement
+    // FIXED: Best Books column is now scanned on ALL devices (mobile/tablet/desktop)
     // Note: Player Name uses fixed NAME_COLUMN_MIN_WIDTH constant instead of calculation
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
-        // Skip on mobile/tablet since we use abbreviated matchups
-        if (isMobile() || isTablet()) return;
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
         
         console.log(`Player Prop Odds Scanning ${data.length} rows for max column widths...`);
         
@@ -225,17 +232,22 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         const ctx = canvas.getContext('2d');
         
         // Track max widths for text columns (excluding Player Name which uses fixed min)
+        // FIXED: Always include Best Books for all devices
         const maxWidths = {
-            "Player Matchup": 0,
-            "Player Team": 0,
-            "Player Prop Type": 0,
-            "Player Over/Under": 0,
-            "Player Book": 0,
-            "Player Prop Odds": 0,
-            "Player Median Odds": 0,
-            "Player Best Odds": 0,
-            "Player Best Odds Books": 0
+            "Player Best Odds Books": 0  // Always scan on all devices
         };
+        
+        // Only scan these additional columns on desktop
+        if (!isSmallScreen) {
+            maxWidths["Player Matchup"] = 0;
+            maxWidths["Player Team"] = 0;
+            maxWidths["Player Prop Type"] = 0;
+            maxWidths["Player Over/Under"] = 0;
+            maxWidths["Player Book"] = 0;
+            maxWidths["Player Prop Odds"] = 0;
+            maxWidths["Player Median Odds"] = 0;
+            maxWidths["Player Best Odds"] = 0;
+        }
         
         // First measure header widths (use header font weight)
         ctx.font = '600 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
@@ -285,25 +297,31 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         });
         
         // UPDATED: Ensure minimum width for Player Matchup accounts for longest possible matchup
-        // "Los Angeles Clippers @ Los Angeles Lakers" is the longest possible
-        const longestMatchup = "Minnesota Timberwolves @ Oklahoma City Thunder";
-        const longestMatchupWidth = ctx.measureText(longestMatchup).width;
-        if (longestMatchupWidth > maxWidths["Player Matchup"]) {
-            maxWidths["Player Matchup"] = longestMatchupWidth;
-            console.log(`Player Prop Odds: Using minimum matchup width for "${longestMatchup}": ${Math.ceil(longestMatchupWidth)}px`);
+        // Only applies on desktop (mobile uses abbreviated names)
+        if (!isSmallScreen) {
+            const longestMatchup = "Minnesota Timberwolves @ Oklahoma City Thunder";
+            const longestMatchupWidth = ctx.measureText(longestMatchup).width;
+            if (longestMatchupWidth > maxWidths["Player Matchup"]) {
+                maxWidths["Player Matchup"] = longestMatchupWidth;
+                console.log(`Player Prop Odds: Using minimum matchup width for "${longestMatchup}": ${Math.ceil(longestMatchupWidth)}px`);
+            }
         }
         
         const CELL_PADDING = 16;
         const BUFFER = 8;
         
-        // Apply widths to non-Name columns
+        // Apply widths to scanned columns
         Object.keys(maxWidths).forEach(field => {
             if (maxWidths[field] > 0) {
                 const column = this.table.getColumn(field);
                 if (column) {
                     const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
-                    column.setWidth(Math.ceil(requiredWidth));
-                    console.log(`Player Prop Odds Set ${field} to ${Math.ceil(requiredWidth)}px`);
+                    const currentWidth = column.getWidth();
+                    // Only expand if needed (don't shrink)
+                    if (requiredWidth > currentWidth) {
+                        column.setWidth(Math.ceil(requiredWidth));
+                        console.log(`Player Prop Odds Set ${field} to ${Math.ceil(requiredWidth)}px (was ${currentWidth}px)`);
+                    }
                 }
             }
         });
