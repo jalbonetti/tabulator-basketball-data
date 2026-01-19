@@ -118,15 +118,17 @@ export class BaseTable {
         
         // Primary identifier fields - a row is valid if ANY of these has a value
         // This covers all table types: player tables, matchup tables, game odds, etc.
-        const primaryIdentifierFields = [
-            "Player Name",      // Player prop tables, DFS tables, DD-TD, etc.
-            "Matchup",          // Game Odds table
-            "Game Matchup",     // Alternative Game Odds field
-            "Player Matchup",   // Player Prop Odds table
-            "Home Team",        // Matchups table alternative
-            "Away Team",        // Matchups table alternative
-            "Team",             // Generic team identifier
-        ];
+const primaryIdentifierFields = [
+    "Player Name",      // Player prop tables, DFS tables, DD-TD, etc.
+    "Player",           // Generic player identifier
+    "Player Team",      // Player team field
+    "Matchup",          // Game Odds table
+    "Game Matchup",     // Alternative Game Odds field
+    "Player Matchup",   // Player Prop Odds table
+    "Home Team",        // Matchups table alternative
+    "Away Team",        // Matchups table alternative
+    "Team",             // Generic team identifier
+];
         
         const filtered = records.filter(row => {
             // Check 1: At least ONE primary identifier must have a non-null value
