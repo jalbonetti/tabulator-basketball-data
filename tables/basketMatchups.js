@@ -108,6 +108,10 @@ export class BasketMatchupsTable extends BaseTable {
         const tablet = isTablet();
         const isSmallScreen = mobile || tablet;
         
+        // CRITICAL: Inject mobile CSS overrides BEFORE table is created
+        // This ensures the styles are in place before any width calculations
+        this.injectMobileStyles();
+        
         const config = {
             ...this.tableConfig,
             virtualDom: false, // Disable for proper subtable rendering
@@ -501,6 +505,88 @@ export class BasketMatchupsTable extends BaseTable {
         return Math.max(maxWidth + CELL_PADDING, MIN_PLAYER_WIDTH);
     }
 
+    // Inject mobile-specific CSS styles to override any JS-set widths
+    // Called during initialize() BEFORE table is created
+    injectMobileStyles() {
+        if (document.getElementById('matchups-mobile-styles')) {
+            return; // Already injected
+        }
+        
+        const style = document.createElement('style');
+        style.id = 'matchups-mobile-styles';
+        style.textContent = `
+            /* MOBILE: Constrain matchups table container to viewport
+               Use high specificity and !important to override any JS inline styles
+               This CSS is injected before the table is created to ensure it takes effect */
+            @media screen and (max-width: 1024px) {
+                /* Target the specific matchups container by ID */
+                #matchups-table.table-container,
+                .table-container#matchups-table,
+                #matchups-table {
+                    width: 100% !important;
+                    max-width: 100vw !important;
+                    min-width: 0 !important;
+                    background: transparent !important;
+                    overflow-x: hidden !important;
+                }
+                
+                /* Constrain tabulator inside matchups container */
+                #matchups-table .tabulator,
+                #matchups-table.table-container .tabulator {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    background: transparent !important;
+                }
+                
+                /* Tableholder is the scroll container - DO NOT constrain its width */
+                #matchups-table .tabulator-tableholder,
+                #matchups-table.table-container .tabulator-tableholder {
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    background: transparent !important;
+                    /* Let tableholder expand to content width for scrolling */
+                    width: auto !important;
+                    min-width: auto !important;
+                    max-width: none !important;
+                }
+                
+                /* Header should follow content width */
+                #matchups-table .tabulator-header,
+                #matchups-table.table-container .tabulator-header {
+                    width: auto !important;
+                    min-width: auto !important;
+                    max-width: none !important;
+                }
+                
+                #matchups-table .tabulator-row {
+                    overflow: visible !important;
+                }
+                
+                #matchups-table .subrow-container {
+                    max-width: 100% !important;
+                    overflow-x: auto !important;
+                }
+                
+                #matchups-table .subtable-scroll-wrapper {
+                    overflow-x: auto !important;
+                    max-width: 100% !important;
+                }
+                
+                /* Let subtables size naturally */
+                #matchups-table .subtable-scroll-wrapper > div {
+                    width: fit-content !important;
+                }
+                
+                #matchups-table .subtable-scroll-wrapper table {
+                    width: auto !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        console.log('Matchups: Mobile CSS styles injected');
+    }
+
     // Simple debounce helper
     debounce(func, wait) {
         let timeout;
@@ -525,8 +611,12 @@ export class BasketMatchupsTable extends BaseTable {
             return;
         }
         
+        // Check screen width directly for most reliable detection
+        const screenWidth = window.innerWidth;
+        const isSmallScreen = screenWidth <= 1024;
+        
         // On mobile/tablet: Calculate widths based on subtable and matchup content
-        if (isMobile() || isTablet()) {
+        if (isSmallScreen) {
             this.calculateMobileColumnWidths();
             return;
         }
@@ -595,6 +685,9 @@ export class BasketMatchupsTable extends BaseTable {
         const tableElement = this.table.element;
         if (!tableElement) return;
         
+        const screenWidth = window.innerWidth;
+        console.log(`Matchups Mobile: Screen width detected as ${screenWidth}px`);
+        
         try {
             // Step 1: Calculate the width needed for the Matchup column based on content
             const matchupContentWidth = this.calculateMatchupContentWidth();
@@ -653,10 +746,12 @@ export class BasketMatchupsTable extends BaseTable {
                 tableContainer.style.width = '';
                 tableContainer.style.minWidth = '';
                 tableContainer.style.maxWidth = '';
+                // Ensure no grey background on mobile
+                tableContainer.style.background = 'transparent';
             }
             
             const totalTableWidth = matchupContentWidth + (spreadTotalWidth * 2);
-            console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Content width=${totalTableWidth}px (container constrained by CSS)`);
+            console.log(`Matchups Mobile: Matchup=${matchupContentWidth}px, Spread/Total=${spreadTotalWidth}px each, Content width=${totalTableWidth}px (container constrained by CSS, screen=${screenWidth}px)`);
             
         } catch (error) {
             console.error('Error in Matchups calculateMobileColumnWidths:', error);
@@ -1206,10 +1301,12 @@ export class BasketMatchupsTable extends BaseTable {
                     scrollbar-color: #c1c1c1 #f1f1f1;
                 }
                 
-                /* MOBILE: Constrain matchups table container to viewport */
+                /* MOBILE: Constrain matchups table container to viewport
+                   Use high specificity and !important to override any JS inline styles */
                 @media screen and (max-width: 1024px) {
-                    /* CRITICAL: Remove grey background on mobile - container should not expand */
-                    #matchups-table.table-container {
+                    /* Target the specific matchups container by ID */
+                    #matchups-table.table-container,
+                    .table-container#matchups-table {
                         width: 100% !important;
                         max-width: 100vw !important;
                         min-width: 0 !important;
@@ -1217,8 +1314,9 @@ export class BasketMatchupsTable extends BaseTable {
                         overflow-x: hidden !important;
                     }
                     
-                    /* Constrain tabulator to container */
-                    #matchups-table .tabulator {
+                    /* Constrain tabulator inside matchups container */
+                    #matchups-table .tabulator,
+                    #matchups-table.table-container .tabulator {
                         width: 100% !important;
                         max-width: 100% !important;
                         min-width: 0 !important;
@@ -1226,10 +1324,20 @@ export class BasketMatchupsTable extends BaseTable {
                     }
                     
                     /* Tableholder is the scroll container */
-                    #matchups-table .tabulator-tableholder {
+                    #matchups-table .tabulator-tableholder,
+                    #matchups-table.table-container .tabulator-tableholder {
                         overflow-x: auto !important;
                         -webkit-overflow-scrolling: touch !important;
                         background: transparent !important;
+                        width: auto !important;
+                        max-width: none !important;
+                    }
+                    
+                    /* Header should not have explicit width */
+                    #matchups-table .tabulator-header,
+                    #matchups-table.table-container .tabulator-header {
+                        width: auto !important;
+                        min-width: auto !important;
                     }
                     
                     #matchups-table .tabulator-row {
