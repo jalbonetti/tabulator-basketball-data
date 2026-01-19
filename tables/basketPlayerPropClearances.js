@@ -30,6 +30,12 @@ const SUBTABLE_MIN_WIDTH = 550;
 // Measured: ~155px text + 20px padding + 20px expand icon + 8px buffer = ~203px
 const NAME_COLUMN_MIN_WIDTH = 205;
 
+// Minimum width for Lineup column to fit "Starter (Conf)"
+const LINEUP_COLUMN_MIN_WIDTH = 85;
+
+// Minimum width for Split column to fit "L30 Days"
+const SPLIT_COLUMN_MIN_WIDTH = 62;
+
 export class BasketPlayerPropClearancesTable extends BaseTable {
     constructor(elementId) {
         super(elementId, 'BasketPlayerPropClearances');
@@ -634,7 +640,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 title: "Lineup", 
                 field: "Lineup Status", 
                 widthGrow: 0,
-                minWidth: 70,
+                minWidth: LINEUP_COLUMN_MIN_WIDTH, // Fixed minimum for "Starter (Conf)"
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
@@ -685,7 +691,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                         title: "Split", 
                         field: "Split", 
                         widthGrow: 0,
-                        minWidth: 55,
+                        minWidth: SPLIT_COLUMN_MIN_WIDTH, // Fixed minimum for "L30 Days"
                         headerFilter: createCustomMultiSelect,
                         resizable: false,
                         hozAlign: "center",
