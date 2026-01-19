@@ -6,11 +6,16 @@
 // UPDATED: Desktop properly sizes for longest team names like "Los Angeles Clippers"
 // FIXED: All 3 odds columns (Book, Median, Best) now equalize to same width
 // FIXED: Best Books column now properly expands for long multi-book values
+// FIXED: Player Name column now uses fixed minimum width
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
 import { isMobile, isTablet } from '../shared/config.js';
+
+// Minimum width for Player Name column based on longest realistic name + status indicator
+// "Yanic Konan Niederhauser (Q)" is about the longest we'll see
+const NAME_COLUMN_MIN_WIDTH = 205;
 
 export class BasketPlayerPropOddsTable extends BaseTable {
     constructor(elementId) {
@@ -136,6 +141,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                         this.scanDataForMaxWidths(data);
                         this.equalizeClusteredColumns();
                         this.calculateAndApplyWidths();
+                        this.ensureNameColumnWidth();
                     }
                 }, 100);
             }
@@ -148,14 +154,35 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                     this.calculateAndApplyWidths();
                 }, 100);
             }
+            
+            // Always ensure Name column meets minimum width
+            setTimeout(() => {
+                this.ensureNameColumnWidth();
+            }, 50);
         });
         
         // Handle window resize - recalculate widths (desktop only)
         window.addEventListener('resize', this.debounce(() => {
             if (this.table && this.table.getDataCount() > 0 && !isMobile() && !isTablet()) {
                 this.calculateAndApplyWidths();
+                this.ensureNameColumnWidth();
             }
         }, 250));
+    }
+
+    // Ensure Name column has its minimum required width
+    // Uses fixed minimum based on longest realistic name "Yanic Konan Niederhauser (Q)"
+    ensureNameColumnWidth() {
+        if (!this.table) return;
+        
+        const nameColumn = this.table.getColumn("Player Name");
+        if (nameColumn) {
+            const currentWidth = nameColumn.getWidth();
+            if (currentWidth < NAME_COLUMN_MIN_WIDTH) {
+                console.log(`Player Prop Odds: Setting Name column from ${currentWidth}px to ${NAME_COLUMN_MIN_WIDTH}px`);
+                nameColumn.setWidth(NAME_COLUMN_MIN_WIDTH);
+            }
+        }
     }
 
     // Debounce helper
@@ -177,11 +204,15 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             this.equalizeClusteredColumns();
             this.calculateAndApplyWidths();
         }
+        
+        // Always ensure minimum Name width is applied
+        this.ensureNameColumnWidth();
     }
 
     // Scan ALL data to find max widths needed for text columns
     // UPDATED: Properly measures full team names for desktop display
     // FIXED: Now includes odds columns and Best Books for proper width measurement
+    // Note: Player Name uses fixed NAME_COLUMN_MIN_WIDTH constant instead of calculation
     scanDataForMaxWidths(data) {
         if (!data || data.length === 0 || !this.table) return;
         
@@ -194,8 +225,8 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         const ctx = canvas.getContext('2d');
         ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
+        // Track max widths for text columns (excluding Player Name which uses fixed min)
         const maxWidths = {
-            "Player Name": 0,
             "Player Matchup": 0,
             "Player Team": 0,
             "Player Prop Type": 0,
@@ -237,22 +268,22 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         }
         
         const CELL_PADDING = 16;
-        const BUFFER = 10;
+        const BUFFER = 8;
         
+        // Apply widths to non-Name columns
         Object.keys(maxWidths).forEach(field => {
             if (maxWidths[field] > 0) {
                 const column = this.table.getColumn(field);
                 if (column) {
                     const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
-                    const currentWidth = column.getWidth();
-                    
-                    if (requiredWidth > currentWidth) {
-                        column.setWidth(Math.ceil(requiredWidth));
-                        console.log(`Player Prop Odds Expanded ${field} from ${currentWidth}px to ${Math.ceil(requiredWidth)}px (text: ${Math.ceil(maxWidths[field])}px)`);
-                    }
+                    column.setWidth(Math.ceil(requiredWidth));
+                    console.log(`Player Prop Odds Set ${field} to ${Math.ceil(requiredWidth)}px`);
                 }
             }
         });
+        
+        // Ensure Name column has fixed minimum width
+        this.ensureNameColumnWidth();
         
         console.log('Player Prop Odds Max width scan complete');
     }
@@ -322,7 +353,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 field: "Player Name", 
                 frozen: true,
                 widthGrow: 0,
-                minWidth: 120,
+                minWidth: NAME_COLUMN_MIN_WIDTH, // Fixed minimum for "Yanic Konan Niederhauser (Q)"
                 sorter: "string", 
                 headerFilter: true,
                 resizable: false,
@@ -508,8 +539,33 @@ export class BasketPlayerPropOddsTable extends BaseTable {
     calculateAndApplyWidths() {
         if (!this.table) return;
         
-        // Skip on mobile/tablet
-        if (isMobile() || isTablet()) return;
+        const tableElement = this.table.element;
+        if (!tableElement) return;
+        
+        // Check for mobile/tablet
+        const mobile = isMobile();
+        const tablet = isTablet();
+        const isSmallScreen = mobile || tablet;
+        
+        // MOBILE/TABLET: Clear container widths but preserve Name column minimum
+        if (isSmallScreen) {
+            tableElement.style.width = '';
+            tableElement.style.minWidth = '';
+            tableElement.style.maxWidth = '';
+            
+            const tableContainer = tableElement.closest('.table-container');
+            if (tableContainer) {
+                tableContainer.style.width = '';
+                tableContainer.style.minWidth = '';
+                tableContainer.style.maxWidth = '';
+            }
+            
+            // Ensure Name column maintains minimum width on mobile
+            this.ensureNameColumnWidth();
+            
+            console.log(`Player Prop Odds Mobile/tablet mode: container widths cleared, Name column preserved`);
+            return;
+        }
         
         try {
             const columns = this.table.getColumns();
@@ -521,7 +577,6 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 }
             });
             
-            const tableElement = this.table.element;
             const tableHolder = tableElement.querySelector('.tabulator-tableholder');
             
             // Add scrollbar width buffer for desktop
