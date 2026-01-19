@@ -408,7 +408,6 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // Create a hidden canvas for text measurement
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
         // Track max widths for text columns (excluding Player Name which uses fixed min)
         const maxWidths = {
@@ -416,6 +415,27 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
             "Player Prop": 0,
             "Player Team": 0
         };
+        
+        // First measure header widths (use header font weight)
+        ctx.font = '600 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
+        const HEADER_PADDING = 16;
+        const SORT_ICON_WIDTH = 16; // Space for sort indicator
+        
+        // Map field names to their display titles for header measurement
+        const fieldToTitle = {
+            "Lineup Status": "Lineup",
+            "Player Prop": "Prop",
+            "Player Team": "Team"
+        };
+        
+        Object.keys(maxWidths).forEach(field => {
+            const title = fieldToTitle[field] || field;
+            const headerWidth = ctx.measureText(title).width + HEADER_PADDING + SORT_ICON_WIDTH;
+            maxWidths[field] = headerWidth;
+        });
+        
+        // Now measure data widths (use data font weight)
+        ctx.font = '500 12px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
         
         // Scan all data to find longest values
         data.forEach(row => {
@@ -447,7 +467,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
                 if (column) {
                     const requiredWidth = maxWidths[field] + CELL_PADDING + BUFFER;
                     column.setWidth(Math.ceil(requiredWidth));
-                    console.log(`Set ${field} to ${Math.ceil(requiredWidth)}px`);
+                    console.log(`Prop Clearances Set ${field} to ${Math.ceil(requiredWidth)}px`);
                 }
             }
         });
@@ -455,7 +475,7 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // Ensure Name column has fixed minimum width
         this.ensureNameColumnWidth();
         
-        console.log('Max width scan complete');
+        console.log('Prop Clearances Max width scan complete');
     }
 
     // Custom sorter for Games format "X/Y" - sorts by first number
