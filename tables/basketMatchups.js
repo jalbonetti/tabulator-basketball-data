@@ -1152,17 +1152,25 @@ export class BasketMatchupsTable extends BaseTable {
                 });
             }
             
-            // Fetch player data
-            const playerData = await this.fetchFromEndpoint(this.ENDPOINTS.PLAYERS);
-            if (playerData && playerData.length > 0) {
-                playerData.forEach(row => {
-                    const matchupId = row["Matchup ID"];
-                    if (!this.playersDataCache.has(matchupId)) {
-                        this.playersDataCache.set(matchupId, []);
-                    }
-                    this.playersDataCache.get(matchupId).push(row);
-                });
-            }
+// Fetch player data
+const playerData = await this.fetchFromEndpoint(this.ENDPOINTS.PLAYERS);
+console.log('DEBUG: Raw player data fetched:', playerData?.length, 'records');
+console.log('DEBUG: Sample player record:', playerData?.[0]);
+
+if (playerData && playerData.length > 0) {
+    playerData.forEach(row => {
+        const matchupId = row["Matchup ID"];
+        console.log('DEBUG: Processing player for Matchup ID:', matchupId, 'Team:', row["Team"], 'Player:', row["Player"]);
+        if (!this.playersDataCache.has(matchupId)) {
+            this.playersDataCache.set(matchupId, []);
+        }
+        this.playersDataCache.get(matchupId).push(row);
+    });
+    console.log('DEBUG: Players cache size after population:', this.playersDataCache.size);
+    console.log('DEBUG: Players cache keys:', [...this.playersDataCache.keys()]);
+} else {
+    console.log('DEBUG: No player data returned or empty array!');
+}
             
             // Mark cache as ready
             this.subtableDataReady = true;
