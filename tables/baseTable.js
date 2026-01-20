@@ -4,7 +4,7 @@ import { API_CONFIG, TEAM_NAME_MAP, isMobile, isTablet, getDeviceType } from '..
 
 // Global data cache to persist between tab switches
 const dataCache = new Map();
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // IndexedDB for persistent caching
 const DB_NAME = 'BasketballTabulatorCache';
