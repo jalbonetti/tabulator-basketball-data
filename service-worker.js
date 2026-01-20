@@ -1,17 +1,17 @@
 // service-worker.js - Advanced caching for Basketball Tabulator tables
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAMES = {
     static: `basketball-static-${CACHE_VERSION}`,
     api: `basketball-api-${CACHE_VERSION}`,
     runtime: `basketball-runtime-${CACHE_VERSION}`
 };
 
-// API endpoints with their cache durations (15 minutes)
+// API endpoints with their cache durations (5 minutes)
 const API_CACHE_CONFIG = {
-    'BasketPlayerPropClearances': 15 * 60 * 1000,
+    'BasketPlayerPropClearances': 5 * 60 * 1000,
     // Add more basketball endpoints here as you create them
-    // 'BasketTeamStats': 15 * 60 * 1000,
-    // 'BasketMatchups': 15 * 60 * 1000,
+    // 'BasketTeamStats': 5 * 60 * 1000,
+    // 'BasketMatchups': 5 * 60 * 1000,
 };
 
 // Install event - cache static assets
@@ -83,7 +83,7 @@ async function handleAPIRequest(request) {
     const url = new URL(request.url);
     
     // Determine cache duration based on endpoint
-    let cacheDuration = 15 * 60 * 1000; // Default 15 minutes
+    let cacheDuration = 5 * 60 * 1000; // Default 5 minutes
     for (const [endpoint, duration] of Object.entries(API_CACHE_CONFIG)) {
         if (url.pathname.includes(endpoint)) {
             cacheDuration = duration;
