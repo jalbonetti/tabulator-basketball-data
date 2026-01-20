@@ -7,8 +7,8 @@ export const CONFIG = {
     
     // Cache Configuration
     CACHE_ENABLED: true,
-    CACHE_TTL: 15 * 60 * 1000, // 15 minutes in milliseconds
-    CACHE_VERSION: '1.0.0',
+    CACHE_TTL: 5 * 60 * 1000, // 5 minutes in milliseconds
+    CACHE_VERSION: '1.0.1',
     
     // API Configuration
     API_CONFIG: {
@@ -20,7 +20,7 @@ export const CONFIG = {
             "Prefer": "return=representation,count=exact",
             "Accept": "application/json",
             "Accept-Profile": "public",
-            "Cache-Control": "public, max-age=900"
+            "Cache-Control": "public, max-age=300"
         },
         fetchConfig: {
             pageSize: 1000,
