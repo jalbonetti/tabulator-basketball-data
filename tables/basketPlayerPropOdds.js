@@ -8,15 +8,22 @@
 // FIXED: Best Books column now properly expands for long multi-book values
 // FIXED: Player Name column now uses fixed minimum width
 // FIXED: Best Books column now properly expands on mobile/tablet devices
+// ADDED: EV % and Quarter Kelly % columns with bankroll input
+// ADDED: Prop abbreviations matching Player Prop Clearances table
+// UPDATED: Default sort by EV % descending
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
+import { createBankrollInput, bankrollFilterFunction, getBankrollValue } from '../components/bankrollInput.js';
 import { isMobile, isTablet } from '../shared/config.js';
 
 // Minimum width for Player Name column based on longest realistic name + status indicator
 // "Yanic Konan Niederhauser (Q)" is about the longest we'll see
 const NAME_COLUMN_MIN_WIDTH = 205;
+
+// Minimum width for EV% and Kelly% columns - should fit percentage values and bankroll amounts
+const EV_KELLY_COLUMN_MIN_WIDTH = 65;
 
 export class BasketPlayerPropOddsTable extends BaseTable {
     constructor(elementId) {
@@ -57,6 +64,27 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             'Utah Jazz': 'UTA',
             'Washington Wizards': 'WAS'
         };
+        
+        // Prop type abbreviation mapping
+        // Used in dropdown filter AND table display
+        this.propAbbrevMap = {
+            '3-Pointers': '3-Pt',
+            'Points + Assists': 'P+A',
+            'Points + Rebounds': 'P+R',
+            'Points + Rebounds + Assists': 'P+R+A',
+            'Rebounds + Assists': 'R+A',
+            'Blocks + Steals': 'B+S'
+        };
+        
+        // Reverse mapping for dropdown display (abbreviated in dropdown too, except 3-Pointers)
+        this.propDropdownMap = {
+            'Points + Assists': 'P+A',
+            'Points + Rebounds': 'P+R',
+            'Points + Rebounds + Assists': 'P+R+A',
+            'Rebounds + Assists': 'R+A',
+            'Blocks + Steals': 'B+S'
+            // Note: 3-Pointers stays as "3-Pointers" in dropdown but "3-Pt" in table
+        };
     }
 
     // Convert full team names in matchup string to abbreviations
@@ -72,6 +100,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         });
         
         return abbreviated;
+    }
+
+    // Abbreviate prop type for table display
+    abbreviateProp(prop) {
+        if (!prop) return '-';
+        return this.propAbbrevMap[prop] || prop;
     }
 
     initialize() {
@@ -100,8 +134,9 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
+            // UPDATED: Default sort by EV % descending (highest first)
             initialSort: [
-                {column: "Player Name", dir: "asc"}
+                {column: "EV %", dir: "desc"}
             ],
             dataLoaded: (data) => {
                 console.log(`Player Prop Odds table loaded ${data.length} records successfully`);
@@ -111,7 +146,9 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                     console.log('DEBUG - Player Prop Odds First row sample:', {
                         'Player Name': data[0]["Player Name"],
                         'Player Matchup': data[0]["Player Matchup"],
-                        'Player Team': data[0]["Player Team"]
+                        'Player Team': data[0]["Player Team"],
+                        'EV %': data[0]["EV %"],
+                        'Quarter Kelly %': data[0]["Quarter Kelly %"]
                     });
                 }
                 
@@ -247,6 +284,8 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             maxWidths["Player Prop Odds"] = 0;
             maxWidths["Player Median Odds"] = 0;
             maxWidths["Player Best Odds"] = 0;
+            maxWidths["EV %"] = 0;
+            maxWidths["Quarter Kelly %"] = 0;
         }
         
         // First measure header widths (use header font weight)
@@ -264,7 +303,9 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Prop Odds": "Book Odds",
             "Player Median Odds": "Median Odds",
             "Player Best Odds": "Best Odds",
-            "Player Best Odds Books": "Best Books"
+            "Player Best Odds Books": "Best Books",
+            "EV %": "EV %",
+            "Quarter Kelly %": "1/4 Kelly"
         };
         
         Object.keys(maxWidths).forEach(field => {
@@ -287,6 +328,20 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                         if (!isNaN(num)) {
                             displayValue = num > 0 ? `+${num}` : `${num}`;
                         }
+                    }
+                    // For EV% and Kelly%, format as percentage for measurement
+                    if (field === 'EV %' || field === 'Quarter Kelly %') {
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            // Measure both % format and potential $ format (for Kelly with bankroll)
+                            const pctDisplay = (num * 100).toFixed(1) + '%';
+                            const moneyDisplay = '$99999.99'; // Max expected monetary display
+                            displayValue = pctDisplay.length > moneyDisplay.length ? pctDisplay : moneyDisplay;
+                        }
+                    }
+                    // For Prop Type, use abbreviated version for measurement
+                    if (field === 'Player Prop Type') {
+                        displayValue = this.abbreviateProp(value);
                     }
                     const textWidth = ctx.measureText(displayValue).width;
                     if (textWidth > maxWidths[field]) {
@@ -356,6 +411,17 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         return aNum - bNum;
     }
 
+    // Custom sorter for percentage values (stored as decimals)
+    percentSorter(a, b, aRow, bRow, column, dir, sorterParams) {
+        const getNum = (val) => {
+            if (val === null || val === undefined || val === '' || val === '-') return -99999;
+            const num = parseFloat(val);
+            return isNaN(num) ? -99999 : num;
+        };
+        
+        return getNum(a) - getNum(b);
+    }
+
     getColumns(isSmallScreen = false) {
         const self = this;
         
@@ -389,6 +455,47 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             
             // On desktop, show full names
             return value;
+        };
+
+        // Prop formatter - abbreviates prop types for table display
+        const propFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '-';
+            return self.abbreviateProp(value);
+        };
+
+        // EV % formatter - converts decimal to percentage
+        const evFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
+            const pct = num * 100;
+            // Always show 0 before decimal if < 1, max 1 trailing decimal
+            return pct.toFixed(1) + '%';
+        };
+
+        // Quarter Kelly % formatter - converts decimal to percentage OR monetary amount
+        const kellyFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            
+            // Check if bankroll is set
+            const bankroll = getBankrollValue('Quarter Kelly %');
+            
+            if (bankroll > 0) {
+                // Convert to monetary amount: Kelly % * bankroll
+                const amount = num * bankroll;
+                // Format as currency with 2 decimal places
+                return '$' + amount.toFixed(2);
+            } else {
+                // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
+                const pct = num * 100;
+                return pct.toFixed(1) + '%';
+            }
         };
 
         return [
@@ -428,11 +535,20 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 title: "Prop", 
                 field: "Player Prop Type", 
                 widthGrow: 0,
-                minWidth: 60,
+                minWidth: 60, // Sized to fit "Rebounds" (longest non-abbreviated prop)
                 sorter: "string", 
                 headerFilter: createCustomMultiSelect,
+                headerFilterParams: {
+                    // Custom display mapping for dropdown
+                    valuesLookup: function(cell) {
+                        const values = cell.getTable().getData().map(row => row["Player Prop Type"]);
+                        const unique = [...new Set(values)].filter(v => v !== null && v !== undefined && v !== '');
+                        return unique.sort();
+                    }
+                },
                 resizable: false,
-                hozAlign: "center"
+                hozAlign: "center",
+                formatter: propFormatter
             },
             {
                 title: "O/U", 
@@ -521,21 +637,53 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 sorter: "string",
                 resizable: false,
                 hozAlign: "center"
+            },
+            // NEW: EV % column
+            {
+                title: "EV %", 
+                field: "EV %", 
+                widthGrow: 0,
+                minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    return self.percentSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                },
+                headerFilter: createMinMaxFilter,
+                headerFilterFunc: minMaxFilterFunction,
+                headerFilterLiveFilter: false,
+                resizable: false,
+                formatter: evFormatter,
+                hozAlign: "center",
+                cssClass: "cluster-ev-kelly"
+            },
+            // NEW: Quarter Kelly % column with bankroll input
+            {
+                title: "1/4 Kelly", 
+                field: "Quarter Kelly %", 
+                widthGrow: 0,
+                minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    return self.percentSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                },
+                headerFilter: createBankrollInput,
+                headerFilterFunc: bankrollFilterFunction,
+                headerFilterLiveFilter: false,
+                resizable: false,
+                formatter: kellyFormatter,
+                hozAlign: "center",
+                cssClass: "cluster-ev-kelly"
             }
         ];
     }
 
-    // Equalize column widths for clustered columns (odds columns)
+    // Equalize column widths for clustered columns (odds columns and EV/Kelly columns)
     // FIXED: All three odds columns (Book Odds, Median Odds, Best Odds) now equalize to the same width
+    // ADDED: EV % and Quarter Kelly % columns equalize to same width
     // Width is based on the maximum of: data width OR header text width
     equalizeClusteredColumns() {
         if (!this.table) return;
         
         // Skip on mobile/tablet
         if (isMobile() || isTablet()) return;
-        
-        // Group all 3 odds columns together - they should all be the same width
-        const oddsCluster = ['Player Prop Odds', 'Player Median Odds', 'Player Best Odds'];
         
         // Measure header widths to include in calculation
         const canvas = document.createElement('canvas');
@@ -545,37 +693,70 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         const CELL_PADDING = 16;
         const SORT_ICON_WIDTH = 20; // Space for sort icon
         
-        let maxWidth = 0;
+        // Group 1: Odds columns
+        const oddsCluster = ['Player Prop Odds', 'Player Median Odds', 'Player Best Odds'];
+        let maxOddsWidth = 0;
         
         oddsCluster.forEach(field => {
             const column = this.table.getColumn(field);
             if (column) {
-                // Get current column width (based on data)
                 const dataWidth = column.getWidth();
-                if (dataWidth > maxWidth) {
-                    maxWidth = dataWidth;
+                if (dataWidth > maxOddsWidth) {
+                    maxOddsWidth = dataWidth;
                 }
                 
-                // Also measure header text width
                 const headerTitle = column.getDefinition().title;
                 if (headerTitle) {
                     const headerTextWidth = ctx.measureText(headerTitle).width;
                     const headerRequiredWidth = headerTextWidth + CELL_PADDING + SORT_ICON_WIDTH;
-                    if (headerRequiredWidth > maxWidth) {
-                        maxWidth = headerRequiredWidth;
+                    if (headerRequiredWidth > maxOddsWidth) {
+                        maxOddsWidth = headerRequiredWidth;
                     }
                 }
             }
         });
         
-        if (maxWidth > 0) {
+        if (maxOddsWidth > 0) {
             oddsCluster.forEach(field => {
                 const column = this.table.getColumn(field);
                 if (column) {
-                    column.setWidth(Math.ceil(maxWidth));
+                    column.setWidth(Math.ceil(maxOddsWidth));
                 }
             });
-            console.log(`Player Prop Odds: Equalized odds columns to ${Math.ceil(maxWidth)}px`);
+            console.log(`Player Prop Odds: Equalized odds columns to ${Math.ceil(maxOddsWidth)}px`);
+        }
+        
+        // Group 2: EV and Kelly columns
+        const evKellyCluster = ['EV %', 'Quarter Kelly %'];
+        let maxEvKellyWidth = EV_KELLY_COLUMN_MIN_WIDTH; // Start with minimum
+        
+        evKellyCluster.forEach(field => {
+            const column = this.table.getColumn(field);
+            if (column) {
+                const dataWidth = column.getWidth();
+                if (dataWidth > maxEvKellyWidth) {
+                    maxEvKellyWidth = dataWidth;
+                }
+                
+                const headerTitle = column.getDefinition().title;
+                if (headerTitle) {
+                    const headerTextWidth = ctx.measureText(headerTitle).width;
+                    const headerRequiredWidth = headerTextWidth + CELL_PADDING + SORT_ICON_WIDTH;
+                    if (headerRequiredWidth > maxEvKellyWidth) {
+                        maxEvKellyWidth = headerRequiredWidth;
+                    }
+                }
+            }
+        });
+        
+        if (maxEvKellyWidth > 0) {
+            evKellyCluster.forEach(field => {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    column.setWidth(Math.ceil(maxEvKellyWidth));
+                }
+            });
+            console.log(`Player Prop Odds: Equalized EV/Kelly columns to ${Math.ceil(maxEvKellyWidth)}px`);
         }
     }
 
