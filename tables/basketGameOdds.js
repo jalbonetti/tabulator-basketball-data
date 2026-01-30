@@ -512,7 +512,7 @@ export class BasketGameOddsTable extends BaseTable {
             // NEW: Quarter Kelly % column with bankroll input
             // Note: Uses "Game Quarter Kelly %" as the key to separate from Player Prop Odds
             {
-                title: "Kelly", 
+                title: "Bet Size", 
                 field: "Quarter Kelly %", 
                 widthGrow: 0,
                 minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
