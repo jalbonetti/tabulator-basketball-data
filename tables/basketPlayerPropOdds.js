@@ -309,7 +309,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Best Odds": "Best Odds",
             "Player Best Odds Books": "Best Books",
             "EV %": "EV %",
-            "Quarter Kelly %": "1/4 Kelly"
+            "Quarter Kelly %": "Kelly"
         };
         
         Object.keys(maxWidths).forEach(field => {
