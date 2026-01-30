@@ -81,10 +81,19 @@ export function createBankrollInput(cell, onRendered, success, cancel, editorPar
             
             console.log(`Bankroll updated for ${bankrollKey}: $${bankrollValue}`);
             
-            // Trigger table redraw to update cell values
-            // Use redraw(false) to avoid full layout recalculation which causes width issues
+            // Trigger cell refresh for the Kelly column
+            // We need to reformat cells to apply the new bankroll value
             if (table) {
-                table.redraw(false);
+                // Get all rows and reformat the Kelly column cells
+                const rows = table.getRows();
+                rows.forEach(row => {
+                    const cell = row.getCell(field);
+                    if (cell) {
+                        // Force cell to re-render by getting and re-setting value
+                        const currentVal = cell.getValue();
+                        row.update({ [field]: currentVal });
+                    }
+                });
             }
             
             // Call success with null since this isn't actually filtering
