@@ -67,23 +67,26 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         
         // Prop type abbreviation mapping
         // Used in table display - abbreviates combo props to single letters with +
+        // Maps from Supabase values to display abbreviations
         this.propAbbrevMap = {
             '3-Pointers': '3-Pt',
+            // Full name formats (in case Supabase sends these)
             'Points + Assists': 'P+A',
             'Points + Rebounds': 'P+R',
             'Points + Rebounds + Assists': 'P+R+A',
             'Rebounds + Assists': 'R+A',
-            'Blocks + Steals': 'B+S'
-        };
-        
-        // Reverse mapping for dropdown display (abbreviated in dropdown too, except 3-Pointers)
-        this.propDropdownMap = {
-            'Points + Assists': 'P+A',
-            'Points + Rebounds': 'P+R',
-            'Points + Rebounds + Assists': 'P+R+A',
-            'Rebounds + Assists': 'R+A',
-            'Blocks + Steals': 'B+S'
-            // Note: 3-Pointers stays as "3-Pointers" in dropdown but "3-Pt" in table
+            'Blocks + Steals': 'B+S',
+            // Abbreviated formats from Supabase (e.g., "Rebs + Asts")
+            'Pts + Asts': 'P+A',
+            'Pts + Rebs': 'P+R',
+            'Pts + Rebs + Asts': 'P+R+A',
+            'Rebs + Asts': 'R+A',
+            'Blks + Stls': 'B+S',
+            // Other possible variations
+            'Points + Reb': 'P+R',
+            'Points + Ast': 'P+A',
+            'Pts + Assists': 'P+A',
+            'Pts + Rebounds': 'P+R'
         };
     }
 
@@ -343,6 +346,10 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                     // For Prop Type, use abbreviated version for measurement
                     if (field === 'Player Prop Type') {
                         displayValue = this.abbreviateProp(value);
+                    }
+                    // For Matchup, always use abbreviated version for measurement
+                    if (field === 'Player Matchup') {
+                        displayValue = this.abbreviateMatchup(value);
                     }
                     const textWidth = ctx.measureText(displayValue).width;
                     if (textWidth > maxWidths[field]) {
