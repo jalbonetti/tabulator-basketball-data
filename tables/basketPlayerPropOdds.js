@@ -309,7 +309,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Best Odds": "Best Odds",
             "Player Best Odds Books": "Best Books",
             "EV %": "EV %",
-            "Quarter Kelly %": "Kelly"
+            "Quarter Kelly %": "Bet Size"
         };
         
         Object.keys(maxWidths).forEach(field => {
@@ -654,7 +654,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             },
             // NEW: Quarter Kelly % column with bankroll input
             {
-                title: "Kelly", 
+                title: "Bet Size", 
                 field: "Quarter Kelly %", 
                 widthGrow: 0,
                 minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
