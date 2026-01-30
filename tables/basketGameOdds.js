@@ -504,9 +504,6 @@ export class BasketGameOddsTable extends BaseTable {
                 sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
                     return self.percentSorter(a, b, aRow, bRow, column, dir, sorterParams);
                 },
-                headerFilter: createMinMaxFilter,
-                headerFilterFunc: minMaxFilterFunction,
-                headerFilterLiveFilter: false,
                 resizable: false,
                 formatter: evFormatter,
                 hozAlign: "center",
