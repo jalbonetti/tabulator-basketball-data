@@ -82,8 +82,9 @@ export function createBankrollInput(cell, onRendered, success, cancel, editorPar
             console.log(`Bankroll updated for ${bankrollKey}: $${bankrollValue}`);
             
             // Trigger table redraw to update cell values
+            // Use redraw(false) to avoid full layout recalculation which causes width issues
             if (table) {
-                table.redraw(true);
+                table.redraw(false);
             }
             
             // Call success with null since this isn't actually filtering
