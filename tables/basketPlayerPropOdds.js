@@ -66,7 +66,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
         };
         
         // Prop type abbreviation mapping
-        // Used in dropdown filter AND table display
+        // Used in table display - abbreviates combo props to single letters with +
         this.propAbbrevMap = {
             '3-Pointers': '3-Pt',
             'Points + Assists': 'P+A',
@@ -88,6 +88,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
     }
 
     // Convert full team names in matchup string to abbreviations
+    // UPDATED: Always abbreviate matchups in Player Prop Odds table to save space
     abbreviateMatchup(matchup) {
         if (!matchup) return '-';
         let abbreviated = matchup;
@@ -351,15 +352,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             });
         });
         
-        // UPDATED: Ensure minimum width for Player Matchup accounts for longest possible matchup
-        // Only applies on desktop (mobile uses abbreviated names)
-        if (!isSmallScreen) {
-            const longestMatchup = "Minnesota Timberwolves @ Oklahoma City Thunder";
-            const longestMatchupWidth = ctx.measureText(longestMatchup).width;
-            if (longestMatchupWidth > maxWidths["Player Matchup"]) {
-                maxWidths["Player Matchup"] = longestMatchupWidth;
-                console.log(`Player Prop Odds: Using minimum matchup width for "${longestMatchup}": ${Math.ceil(longestMatchupWidth)}px`);
-            }
+        // For Player Matchup, use abbreviated format for measurement since we always abbreviate
+        // Longest abbreviated matchup is like "MIN @ OKC" which is short
+        const longestAbbrevMatchup = "MIN @ OKC";
+        const longestMatchupWidth = ctx.measureText(longestAbbrevMatchup).width;
+        if (maxWidths["Player Matchup"] !== undefined && longestMatchupWidth > maxWidths["Player Matchup"]) {
+            maxWidths["Player Matchup"] = longestMatchupWidth;
         }
         
         const CELL_PADDING = 16;
@@ -443,18 +441,13 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             return num.toFixed(1);
         };
 
-        // Matchup formatter - abbreviates team names on mobile/tablet only
+        // Matchup formatter - ALWAYS abbreviates team names in Player Prop Odds to save space
         const matchupFormatter = (cell) => {
             const value = cell.getValue();
             if (value === null || value === undefined || value === '') return '-';
             
-            // On mobile/tablet, abbreviate team names
-            if (isSmallScreen) {
-                return self.abbreviateMatchup(value);
-            }
-            
-            // On desktop, show full names
-            return value;
+            // Always abbreviate team names in Player Prop Odds table
+            return self.abbreviateMatchup(value);
         };
 
         // Prop formatter - abbreviates prop types for table display
@@ -514,7 +507,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 title: "Matchup", 
                 field: "Player Matchup", 
                 widthGrow: 0,
-                minWidth: isSmallScreen ? 70 : 80, // Smaller minWidth on mobile since abbreviated
+                minWidth: 70, // Always abbreviated (e.g., "LAC @ BOS")
                 sorter: "string",
                 headerFilter: createCustomMultiSelect,
                 resizable: false,
@@ -535,7 +528,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 title: "Prop", 
                 field: "Player Prop Type", 
                 widthGrow: 0,
-                minWidth: 60, // Sized to fit "Rebounds" (longest non-abbreviated prop)
+                minWidth: 55, // Sized to fit "P+R+A" or "Rebounds" (longest values after abbreviation)
                 sorter: "string", 
                 headerFilter: createCustomMultiSelect,
                 headerFilterParams: {
