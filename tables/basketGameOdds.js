@@ -7,11 +7,17 @@
 // FIXED: All 3 odds columns (Book, Median, Best) now equalize to same width
 // FIXED: Best Books column now properly expands for long multi-book values
 // FIXED: Corrected field name from 'Game Prop Odds' to 'Game Odds'
+// ADDED: EV % and Quarter Kelly % columns with bankroll input
+// UPDATED: Default sort by EV % descending
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
 import { createMinMaxFilter, minMaxFilterFunction } from '../components/minMaxFilter.js';
+import { createBankrollInput, bankrollFilterFunction, getBankrollValue } from '../components/bankrollInput.js';
 import { isMobile, isTablet } from '../shared/config.js';
+
+// Minimum width for EV% and Kelly% columns - should fit percentage values and bankroll amounts
+const EV_KELLY_COLUMN_MIN_WIDTH = 65;
 
 export class BasketGameOddsTable extends BaseTable {
     constructor(elementId) {
@@ -95,8 +101,9 @@ export class BasketGameOddsTable extends BaseTable {
             layout: "fitData",
             
             columns: this.getColumns(isSmallScreen),
+            // UPDATED: Default sort by EV % descending (highest first)
             initialSort: [
-                {column: "Game Matchup", dir: "asc"}
+                {column: "EV %", dir: "desc"}
             ],
             dataLoaded: (data) => {
                 console.log(`Game Odds table loaded ${data.length} records successfully`);
@@ -106,7 +113,9 @@ export class BasketGameOddsTable extends BaseTable {
                     console.log('DEBUG - Game Odds First row sample:', {
                         'Game Matchup': data[0]["Game Matchup"],
                         'Game Prop Type': data[0]["Game Prop Type"],
-                        'Game Label': data[0]["Game Label"]
+                        'Game Label': data[0]["Game Label"],
+                        'EV %': data[0]["EV %"],
+                        'Quarter Kelly %': data[0]["Quarter Kelly %"]
                     });
                 }
                 
@@ -203,7 +212,9 @@ export class BasketGameOddsTable extends BaseTable {
             "Game Odds": 0,
             "Game Median Odds": 0,
             "Game Best Odds": 0,
-            "Game Best Odds Books": 0
+            "Game Best Odds Books": 0,
+            "EV %": 0,
+            "Quarter Kelly %": 0
         };
         
         data.forEach(row => {
@@ -216,6 +227,16 @@ export class BasketGameOddsTable extends BaseTable {
                         const num = parseInt(value, 10);
                         if (!isNaN(num)) {
                             displayValue = num > 0 ? `+${num}` : `${num}`;
+                        }
+                    }
+                    // For EV% and Kelly%, format as percentage for measurement
+                    if (field === 'EV %' || field === 'Quarter Kelly %') {
+                        const num = parseFloat(value);
+                        if (!isNaN(num)) {
+                            // Measure both % format and potential $ format (for Kelly with bankroll)
+                            const pctDisplay = (num * 100).toFixed(1) + '%';
+                            const moneyDisplay = '$99999.99'; // Max expected monetary display
+                            displayValue = pctDisplay.length > moneyDisplay.length ? pctDisplay : moneyDisplay;
                         }
                     }
                     const textWidth = ctx.measureText(displayValue).width;
@@ -280,6 +301,17 @@ export class BasketGameOddsTable extends BaseTable {
         return aNum - bNum;
     }
 
+    // Custom sorter for percentage values (stored as decimals)
+    percentSorter(a, b, aRow, bRow, column, dir, sorterParams) {
+        const getNum = (val) => {
+            if (val === null || val === undefined || val === '' || val === '-') return -99999;
+            const num = parseFloat(val);
+            return isNaN(num) ? -99999 : num;
+        };
+        
+        return getNum(a) - getNum(b);
+    }
+
     getColumns(isSmallScreen = false) {
         const self = this;
         
@@ -313,6 +345,41 @@ export class BasketGameOddsTable extends BaseTable {
             
             // On desktop, show full names
             return value;
+        };
+
+        // EV % formatter - converts decimal to percentage
+        const evFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
+            const pct = num * 100;
+            // Always show 0 before decimal if < 1, max 1 trailing decimal
+            return pct.toFixed(1) + '%';
+        };
+
+        // Quarter Kelly % formatter - converts decimal to percentage OR monetary amount
+        // Note: Uses a different bankroll key than Player Prop Odds to keep them separate
+        const kellyFormatter = (cell) => {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '' || value === '-') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return '-';
+            
+            // Check if bankroll is set (using Game-specific key)
+            const bankroll = getBankrollValue('Game Quarter Kelly %');
+            
+            if (bankroll > 0) {
+                // Convert to monetary amount: Kelly % * bankroll
+                const amount = num * bankroll;
+                // Format as currency with 2 decimal places
+                return '$' + amount.toFixed(2);
+            } else {
+                // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
+                const pct = num * 100;
+                return pct.toFixed(1) + '%';
+            }
         };
 
         return [
@@ -427,23 +494,58 @@ export class BasketGameOddsTable extends BaseTable {
                 sorter: "string",
                 resizable: false,
                 hozAlign: "center"
+            },
+            // NEW: EV % column
+            {
+                title: "EV %", 
+                field: "EV %", 
+                widthGrow: 0,
+                minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    return self.percentSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                },
+                headerFilter: createMinMaxFilter,
+                headerFilterFunc: minMaxFilterFunction,
+                headerFilterLiveFilter: false,
+                resizable: false,
+                formatter: evFormatter,
+                hozAlign: "center",
+                cssClass: "cluster-ev-kelly"
+            },
+            // NEW: Quarter Kelly % column with bankroll input
+            // Note: Uses "Game Quarter Kelly %" as the key to separate from Player Prop Odds
+            {
+                title: "1/4 Kelly", 
+                field: "Quarter Kelly %", 
+                widthGrow: 0,
+                minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
+                sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                    return self.percentSorter(a, b, aRow, bRow, column, dir, sorterParams);
+                },
+                headerFilter: createBankrollInput,
+                headerFilterFunc: bankrollFilterFunction,
+                headerFilterLiveFilter: false,
+                headerFilterParams: {
+                    bankrollKey: 'Game Quarter Kelly %'
+                },
+                resizable: false,
+                formatter: kellyFormatter,
+                hozAlign: "center",
+                cssClass: "cluster-ev-kelly"
             }
         ];
     }
 
-    // Equalize column widths for clustered columns (odds columns)
+    // Equalize column widths for clustered columns (odds columns and EV/Kelly columns)
     // FIXED: All three odds columns (Book Odds, Median Odds, Best Odds) now equalize to the same width
     // FIXED: Corrected field name from 'Game Prop Odds' to 'Game Odds'
+    // ADDED: EV % and Quarter Kelly % columns equalize to same width
     // Width is based on the maximum of: data width OR header text width
     equalizeClusteredColumns() {
         if (!this.table) return;
         
         // Skip on mobile/tablet
         if (isMobile() || isTablet()) return;
-        
-        // Group all 3 odds columns together - they should all be the same width
-        // FIXED: Use correct field name 'Game Odds' (not 'Game Prop Odds')
-        const oddsCluster = ['Game Odds', 'Game Median Odds', 'Game Best Odds'];
         
         // Measure header widths to include in calculation
         const canvas = document.createElement('canvas');
@@ -453,15 +555,18 @@ export class BasketGameOddsTable extends BaseTable {
         const CELL_PADDING = 16;
         const SORT_ICON_WIDTH = 20; // Space for sort icon
         
-        let maxWidth = 0;
+        // Group 1: Odds columns
+        // FIXED: Use correct field name 'Game Odds' (not 'Game Prop Odds')
+        const oddsCluster = ['Game Odds', 'Game Median Odds', 'Game Best Odds'];
+        let maxOddsWidth = 0;
         
         oddsCluster.forEach(field => {
             const column = this.table.getColumn(field);
             if (column) {
                 // Get current column width (based on data)
                 const dataWidth = column.getWidth();
-                if (dataWidth > maxWidth) {
-                    maxWidth = dataWidth;
+                if (dataWidth > maxOddsWidth) {
+                    maxOddsWidth = dataWidth;
                 }
                 
                 // Also measure header text width
@@ -469,21 +574,54 @@ export class BasketGameOddsTable extends BaseTable {
                 if (headerTitle) {
                     const headerTextWidth = ctx.measureText(headerTitle).width;
                     const headerRequiredWidth = headerTextWidth + CELL_PADDING + SORT_ICON_WIDTH;
-                    if (headerRequiredWidth > maxWidth) {
-                        maxWidth = headerRequiredWidth;
+                    if (headerRequiredWidth > maxOddsWidth) {
+                        maxOddsWidth = headerRequiredWidth;
                     }
                 }
             }
         });
         
-        if (maxWidth > 0) {
+        if (maxOddsWidth > 0) {
             oddsCluster.forEach(field => {
                 const column = this.table.getColumn(field);
                 if (column) {
-                    column.setWidth(Math.ceil(maxWidth));
+                    column.setWidth(Math.ceil(maxOddsWidth));
                 }
             });
-            console.log(`Game Odds: Equalized odds columns to ${Math.ceil(maxWidth)}px`);
+            console.log(`Game Odds: Equalized odds columns to ${Math.ceil(maxOddsWidth)}px`);
+        }
+        
+        // Group 2: EV and Kelly columns
+        const evKellyCluster = ['EV %', 'Quarter Kelly %'];
+        let maxEvKellyWidth = EV_KELLY_COLUMN_MIN_WIDTH; // Start with minimum
+        
+        evKellyCluster.forEach(field => {
+            const column = this.table.getColumn(field);
+            if (column) {
+                const dataWidth = column.getWidth();
+                if (dataWidth > maxEvKellyWidth) {
+                    maxEvKellyWidth = dataWidth;
+                }
+                
+                const headerTitle = column.getDefinition().title;
+                if (headerTitle) {
+                    const headerTextWidth = ctx.measureText(headerTitle).width;
+                    const headerRequiredWidth = headerTextWidth + CELL_PADDING + SORT_ICON_WIDTH;
+                    if (headerRequiredWidth > maxEvKellyWidth) {
+                        maxEvKellyWidth = headerRequiredWidth;
+                    }
+                }
+            }
+        });
+        
+        if (maxEvKellyWidth > 0) {
+            evKellyCluster.forEach(field => {
+                const column = this.table.getColumn(field);
+                if (column) {
+                    column.setWidth(Math.ceil(maxEvKellyWidth));
+                }
+            });
+            console.log(`Game Odds: Equalized EV/Kelly columns to ${Math.ceil(maxEvKellyWidth)}px`);
         }
     }
 
