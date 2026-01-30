@@ -654,7 +654,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             },
             // NEW: Quarter Kelly % column with bankroll input
             {
-                title: "1/4 Kelly", 
+                title: "Kelly", 
                 field: "Quarter Kelly %", 
                 widthGrow: 0,
                 minWidth: EV_KELLY_COLUMN_MIN_WIDTH,
