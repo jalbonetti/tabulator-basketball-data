@@ -86,7 +86,9 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             'Points + Reb': 'P+R',
             'Points + Ast': 'P+A',
             'Pts + Assists': 'P+A',
-            'Pts + Rebounds': 'P+R'
+            'Pts + Rebounds': 'P+R',
+            'Double Double': 'DD',
+            'Triple Double': 'TD',
         };
     }
 
@@ -302,7 +304,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Matchup": "Matchup",
             "Player Team": "Team",
             "Player Prop Type": "Prop",
-            "Player Over/Under": "O/U",
+            "Player Over/Under": "Label",
             "Player Book": "Book",
             "Player Prop Odds": "Book Odds",
             "Player Median Odds": "Median Odds",
@@ -551,7 +553,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 formatter: propFormatter
             },
             {
-                title: "O/U", 
+                title: "Label", 
                 field: "Player Over/Under", 
                 widthGrow: 0,
                 minWidth: 50,
