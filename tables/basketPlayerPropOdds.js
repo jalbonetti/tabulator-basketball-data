@@ -11,6 +11,7 @@
 // ADDED: EV % and Quarter Kelly % columns with bankroll input
 // ADDED: Prop abbreviations matching Player Prop Clearances table
 // UPDATED: Default sort by EV % descending
+// ADDED: Link column with compressed "Bet" hyperlink
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -292,6 +293,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             maxWidths["Player Best Odds"] = 0;
             maxWidths["EV %"] = 0;
             maxWidths["Quarter Kelly %"] = 0;
+            maxWidths["Link"] = 0;
         }
         
         // First measure header widths (use header font weight)
@@ -311,7 +313,8 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             "Player Best Odds": "Best Odds",
             "Player Best Odds Books": "Best Books",
             "EV %": "EV %",
-            "Quarter Kelly %": "Bet Size"
+            "Quarter Kelly %": "Bet Size",
+            "Link": "Link"
         };
         
         Object.keys(maxWidths).forEach(field => {
@@ -352,6 +355,10 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                     // For Matchup, always use abbreviated version for measurement
                     if (field === 'Player Matchup') {
                         displayValue = this.abbreviateMatchup(value);
+                    }
+                    // For Link, measure the display text "Bet" not the URL
+                    if (field === 'Link') {
+                        displayValue = 'Bet';
                     }
                     const textWidth = ctx.measureText(displayValue).width;
                     if (textWidth > maxWidths[field]) {
@@ -500,6 +507,19 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             }
         };
 
+        // Link formatter - renders URL as compact "Bet" hyperlink
+        const linkFormatter = (cell) => {
+            const value = cell.getValue();
+            if (!value || value === '-' || value === '') return '-';
+            const link = document.createElement('a');
+            link.href = value;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'Bet';
+            link.style.cssText = 'color: #f97316; text-decoration: underline; font-weight: 500;';
+            return link;
+        };
+
         return [
             {
                 title: "Name", 
@@ -640,7 +660,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 resizable: false,
                 hozAlign: "center"
             },
-            // NEW: EV % column
+            // EV % column
             {
                 title: "EV %", 
                 field: "EV %", 
@@ -654,7 +674,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 hozAlign: "center",
                 cssClass: "cluster-ev-kelly"
             },
-            // NEW: Quarter Kelly % column with bankroll input
+            // Quarter Kelly % column with bankroll input
             {
                 title: "Bet Size", 
                 field: "Quarter Kelly %", 
@@ -670,6 +690,18 @@ export class BasketPlayerPropOddsTable extends BaseTable {
                 formatter: kellyFormatter,
                 hozAlign: "center",
                 cssClass: "cluster-ev-kelly"
+            },
+            // Link column - compressed hyperlink to individual bet
+            {
+                title: "Link", 
+                field: "Link", 
+                widthGrow: 0,
+                minWidth: 40,
+                sorter: "string",
+                resizable: false,
+                hozAlign: "center",
+                formatter: linkFormatter,
+                headerSort: false
             }
         ];
     }
