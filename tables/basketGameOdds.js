@@ -9,6 +9,7 @@
 // FIXED: Corrected field name from 'Game Prop Odds' to 'Game Odds'
 // ADDED: EV % and Quarter Kelly % columns with bankroll input
 // UPDATED: Default sort by EV % descending
+// ADDED: Link column with compressed "Bet" hyperlink
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -214,7 +215,8 @@ export class BasketGameOddsTable extends BaseTable {
             "Game Best Odds": 0,
             "Game Best Odds Books": 0,
             "EV %": 0,
-            "Quarter Kelly %": 0
+            "Quarter Kelly %": 0,
+            "Link": 0
         };
         
         data.forEach(row => {
@@ -238,6 +240,10 @@ export class BasketGameOddsTable extends BaseTable {
                             const moneyDisplay = '$99999.99'; // Max expected monetary display
                             displayValue = pctDisplay.length > moneyDisplay.length ? pctDisplay : moneyDisplay;
                         }
+                    }
+                    // For Link, measure the display text "Bet" not the URL
+                    if (field === 'Link') {
+                        displayValue = 'Bet';
                     }
                     const textWidth = ctx.measureText(displayValue).width;
                     if (textWidth > maxWidths[field]) {
@@ -382,6 +388,19 @@ export class BasketGameOddsTable extends BaseTable {
             }
         };
 
+        // Link formatter - renders URL as compact "Bet" hyperlink
+        const linkFormatter = (cell) => {
+            const value = cell.getValue();
+            if (!value || value === '-' || value === '') return '-';
+            const link = document.createElement('a');
+            link.href = value;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'Bet';
+            link.style.cssText = 'color: #f97316; text-decoration: underline; font-weight: 500;';
+            return link;
+        };
+
         return [
             {
                 title: "Matchup", 
@@ -495,7 +514,7 @@ export class BasketGameOddsTable extends BaseTable {
                 resizable: false,
                 hozAlign: "center"
             },
-            // NEW: EV % column
+            // EV % column
             {
                 title: "EV %", 
                 field: "EV %", 
@@ -509,7 +528,7 @@ export class BasketGameOddsTable extends BaseTable {
                 hozAlign: "center",
                 cssClass: "cluster-ev-kelly"
             },
-            // NEW: Quarter Kelly % column with bankroll input
+            // Quarter Kelly % column with bankroll input
             // Note: Uses "Game Quarter Kelly %" as the key to separate from Player Prop Odds
             {
                 title: "Bet Size", 
@@ -529,6 +548,18 @@ export class BasketGameOddsTable extends BaseTable {
                 formatter: kellyFormatter,
                 hozAlign: "center",
                 cssClass: "cluster-ev-kelly"
+            },
+            // Link column - compressed hyperlink to individual bet
+            {
+                title: "Link", 
+                field: "Link", 
+                widthGrow: 0,
+                minWidth: 40,
+                sorter: "string",
+                resizable: false,
+                hozAlign: "center",
+                formatter: linkFormatter,
+                headerSort: false
             }
         ];
     }
