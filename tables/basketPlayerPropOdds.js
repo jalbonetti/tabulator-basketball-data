@@ -473,7 +473,7 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             const num = parseFloat(value);
             if (isNaN(num)) return '-';
             // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
-            const pct = num * 100;
+            const pct = num;
             // Always show 0 before decimal if < 1, max 1 trailing decimal
             return pct.toFixed(1) + '%';
         };
@@ -490,12 +490,12 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             
             if (bankroll > 0) {
                 // Convert to monetary amount: Kelly % * bankroll
-                const amount = num * bankroll;
+                const amount = (num / 100) * bankroll;
                 // Format as currency with 2 decimal places
                 return '$' + amount.toFixed(2);
             } else {
                 // Convert decimal to percentage (e.g., 0.05 -> 5.0%)
-                const pct = num * 100;
+                const pct = num;
                 return pct.toFixed(1) + '%';
             }
         };
