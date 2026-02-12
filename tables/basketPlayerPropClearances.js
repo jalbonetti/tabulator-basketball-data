@@ -1188,53 +1188,52 @@ export class BasketPlayerPropClearancesTable extends BaseTable {
         // Helper: match books to their deep links and return HTML
         // Fanatics never provides deep links, so it's always plain text
         // Links contain the sportsbook name (e.g., draftkings, fanduel) in the URL
-        const linkifyBooks = (booksStr, linksStr) => {
-            if (!booksStr || booksStr === '-') return '-';
-            
-            const books = booksStr.split(' / ').map(b => b.trim());
-            const links = linksStr ? linksStr.split(' / ').map(l => l.trim()).filter(l => l) : [];
-            
-            // Known sportsbook name fragments to search for in URLs
-            const bookSearchKeys = {
-                'draftkings': 'draftkings',
-                'fanduel': 'fanduel',
-                'caesars': 'caesars',
-                'pinnacle': 'pinnacle',
-                'fliff': 'fliff',
-                'betmgm': 'betmgm',
-                'betrivers': 'betrivers'
-            };
-            
-            const parts = books.map(book => {
-                const bookLower = book.toLowerCase();
-                
-                // Fanatics never has deep links - always render as plain text
-                if (bookLower.includes('fanatics')) {
-                    return book;
+const linkifyBooks = (booksStr, linksStr) => {
+    if (!booksStr || booksStr === '-') return '-';
+    
+    const books = booksStr.split('/').map(b => b.trim());
+    const links = linksStr ? linksStr.split(' / ').map(l => l.trim()).filter(l => l) : [];
+    
+    // Known sportsbook name fragments to search for in URLs
+    const bookSearchKeys = {
+        'draftkings': 'draftkings',
+        'fanduel': 'fanduel',
+        'caesars': 'caesars',
+        'pinnacle': 'pinnacle',
+        'fliff': 'fliff',
+        'betmgm': 'betmgm',
+        'betrivers': 'betrivers'
+    };
+    
+    const parts = books.map(book => {
+        const bookLower = book.toLowerCase();
+        
+        // Fanatics never has deep links - always render as plain text
+        if (bookLower.includes('fanatics')) {
+            return book;
+        }
+        
+        // Find the matching link by searching for the book's name in each URL
+        let matchedLink = null;
+        for (const link of links) {
+            const linkLower = link.toLowerCase();
+            for (const [bookKey, searchTerm] of Object.entries(bookSearchKeys)) {
+                if (bookLower.includes(bookKey) && linkLower.includes(searchTerm)) {
+                    matchedLink = link;
+                    break;
                 }
-                
-                // Find the matching link by searching for the book's name in each URL
-                let matchedLink = null;
-                for (const link of links) {
-                    const linkLower = link.toLowerCase();
-                    for (const [bookKey, searchTerm] of Object.entries(bookSearchKeys)) {
-                        if (bookLower.includes(bookKey) && linkLower.includes(searchTerm)) {
-                            matchedLink = link;
-                            break;
-                        }
-                    }
-                    if (matchedLink) break;
-                }
-                
-                if (matchedLink) {
-                    return `<a href="${matchedLink}" target="_blank" rel="noopener noreferrer" style="color: #f97316; text-decoration: underline; font-weight: 500;">${book}</a>`;
-                }
-                // No matching link found - render as plain text
-                return book;
-            });
-            
-            return parts.join(' / ');
-        };
+            }
+            if (matchedLink) break;
+        }
+        
+        if (matchedLink) {
+            return `<a href="${matchedLink}" target="_blank" rel="noopener noreferrer" style="color: #f97316; text-decoration: underline; font-weight: 500;">${book}</a>`;
+        }
+        return book;
+    });
+    
+    return parts.join('/');
+};
         
         const bestOverBook = linkifyBooks(bestOverBookRaw, bestOverLinkRaw);
         const bestUnderBook = linkifyBooks(bestUnderBookRaw, bestUnderLinkRaw);
