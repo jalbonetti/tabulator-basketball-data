@@ -5,6 +5,7 @@
 // UPDATED: Rank columns now have conditional background colors (green/white/red)
 // FIXED: Desktop container width reset on tab switch - prevents grey/blue space
 // FIXED: Player Name, Lineup, and Split columns now use fixed minimum widths
+// ADDED: Best Books in subtable now hyperlinked to bet deep links
 
 import { BaseTable } from './baseTable.js';
 import { createCustomMultiSelect } from '../components/customMultiSelect.js';
@@ -1073,8 +1074,63 @@ export class BasketPlayerDDTDTable extends BaseTable {
     }
 
     // =====================================================
+    // Helper: match book names to their deep links and return HTML
+    // Books are separated by "/" (no spaces), links by " / " (with spaces)
+    // Fanatics never provides deep links, so it's always plain text
+    // Links contain the sportsbook name in the URL for matching
+    // =====================================================
+    linkifyBooks(booksStr, linksStr) {
+        if (!booksStr || booksStr === '-') return '-';
+        
+        const books = booksStr.split('/').map(b => b.trim());
+        const links = linksStr ? linksStr.split(' / ').map(l => l.trim()).filter(l => l) : [];
+        
+        // Known sportsbook name fragments to search for in URLs
+        const bookSearchKeys = {
+            'draftkings': 'draftkings',
+            'fanduel': 'fanduel',
+            'caesars': 'caesars',
+            'pinnacle': 'pinnacle',
+            'fliff': 'fliff',
+            'betmgm': 'betmgm',
+            'betrivers': 'betrivers'
+        };
+        
+        const parts = books.map(book => {
+            const bookLower = book.toLowerCase();
+            
+            // Fanatics never has deep links - always render as plain text
+            if (bookLower.includes('fanatics')) {
+                return book;
+            }
+            
+            // Find the matching link by searching for the book's name in each URL
+            let matchedLink = null;
+            for (const link of links) {
+                const linkLower = link.toLowerCase();
+                for (const [bookKey, searchTerm] of Object.entries(bookSearchKeys)) {
+                    if (bookLower.includes(bookKey) && linkLower.includes(searchTerm)) {
+                        matchedLink = link;
+                        break;
+                    }
+                }
+                if (matchedLink) break;
+            }
+            
+            if (matchedLink) {
+                return `<a href="${matchedLink}" target="_blank" rel="noopener noreferrer" style="color: #f97316; text-decoration: underline; font-weight: 500;">${book}</a>`;
+            }
+            // No matching link found - render as plain text
+            return book;
+        });
+        
+        return parts.join('/');
+    }
+
+    // =====================================================
     // Subtable content with Player/Opponent Stats table
     // UPDATED: Opponent rank cells now have background colors
+    // UPDATED: Best Books now hyperlinked to bet deep links
     // =====================================================
     createSubtableContent(container, data) {
         // Matchup details
@@ -1086,9 +1142,14 @@ export class BasketPlayerDDTDTable extends BaseTable {
         const medianMinutes = this.formatMinutes(data["Player Median Minutes"]);
         const avgMinutes = this.formatMinutes(data["Player Average Minutes"]);
         
-        // Best books
-        const bestOverBook = data["Player Best Over Odds Books"] || '-';
-        const bestUnderBook = data["Player Best Under Odds Books"] || '-';
+        // Best books - read raw values and links, then linkify
+        const bestOverBookRaw = data["Player Best Over Odds Books"] || '-';
+        const bestUnderBookRaw = data["Player Best Under Odds Books"] || '-';
+        const bestOverLinkRaw = data["Player Best Over Link"] || '';
+        const bestUnderLinkRaw = data["Player Best Under Link"] || '';
+        
+        const bestOverBook = this.linkifyBooks(bestOverBookRaw, bestOverLinkRaw);
+        const bestUnderBook = this.linkifyBooks(bestUnderBookRaw, bestUnderLinkRaw);
         
         // Player stats (medians - use 1 decimal)
         const playerPoints = this.formatStatValue(data["Player Points"]);
