@@ -695,8 +695,10 @@ export class BasketPlayerPropOddsTable extends BaseTable {
             {
                 title: "Link", 
                 field: "Link", 
+                width: 50,
                 widthGrow: 0,
                 minWidth: 40,
+                maxWidth: 50,
                 sorter: "string",
                 resizable: false,
                 hozAlign: "center",
