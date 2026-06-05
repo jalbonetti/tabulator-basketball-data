@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C.A.R.D.S. Pro Dashboard Tabulator Proof</title>
+  <link rel="stylesheet" href="https://unpkg.com/tabulator-tables/dist/css/tabulator_midnight.min.css">
+  <link rel="stylesheet" href="cards-dashboard.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">C.A.R.D.S. Pro Dashboard Proof</p>
+      <h1>Interactive NBA card inventory table</h1>
+      <p class="subtitle">Standalone vanilla JS + Tabulator demo using synthetic card data only. No backend, auth, production data, or secrets.</p>
+    </section>
+
+    <section class="toolbar" aria-label="Table controls">
+      <label for="playerSearch">Search player</label>
+      <input id="playerSearch" type="search" placeholder="Try Jordan, Bryant, Curry...">
+      <span id="resultCount" class="result-count"></span>
+    </section>
+
+    <section class="card">
+      <div id="cardsTable"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+  <script src="cards-dashboard.js"></script>
+</body>
+</html>
