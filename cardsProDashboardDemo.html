@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>C.A.R.D.S. Pro Dashboard Tabulator Demo</title>
+    <link
+      href="https://unpkg.com/tabulator-tables/dist/css/tabulator_midnight.min.css"
+      rel="stylesheet"
+    />
+    <link href="./cardsProDashboardStyles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">C.A.R.D.S. Pro Dashboard</p>
+          <h1>NBA Card Inventory</h1>
+        </div>
+        <label class="search-control" for="playerSearch">
+          <span>Search player</span>
+          <input
+            id="playerSearch"
+            type="search"
+            placeholder="e.g. Jordan, Wembanyama, Clark"
+            autocomplete="off"
+          />
+        </label>
+      </header>
+
+      <section class="summary-grid" aria-label="Inventory summary">
+        <article>
+          <span class="summary-label">Cards</span>
+          <strong id="cardCount">0</strong>
+        </article>
+        <article>
+          <span class="summary-label">Estimated Value</span>
+          <strong id="portfolioValue">$0</strong>
+        </article>
+        <article>
+          <span class="summary-label">PSA 10</span>
+          <strong id="psaTenCount">0</strong>
+        </article>
+      </section>
+
+      <section class="table-panel">
+        <div id="cardsTable"></div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+    <script src="./cardsProDashboard.js"></script>
+  </body>
+</html>
