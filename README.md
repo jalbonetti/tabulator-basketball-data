@@ -42,6 +42,39 @@ basketball-props/
 
 ## Setup
 
+## C.A.R.D.S. Pro Dashboard Demo
+
+This repo now includes a focused proof for the `$1,000 Paid Gig — Tabulator Table for a Sports Card Platform` issue:
+
+- `cardsProDashboardDemo.html` is a standalone browser demo.
+- `cardsProDashboard.js` exports `initCardsProDashboard()` for embedding into an existing dashboard page.
+- The demo uses the requested Tabulator CDN stack and synthetic NBA-card JSON only.
+
+Implemented scope:
+
+- Sortable Value, Grade, and Date columns
+- Global search filtering by Player Name
+- Pagination at 20 rows per page
+- Image column with round avatars
+- Bold card titles with player names
+- Colored grade badges, including green PSA 10 and grey Raw
+- Currency-formatted values
+- Status text tags
+- Dark navy dashboard styling with orange/gold accents
+
+Standalone demo usage:
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/tabulator-tables/dist/css/tabulator_midnight.min.css">
+<script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+<div id="cards-pro-dashboard"></div>
+<script type="module">
+    import { initCardsProDashboard } from './cardsProDashboard.js';
+
+    initCardsProDashboard();
+</script>
+```
+
 ### 1. HTML Structure
 
 Add a table element to your HTML:
