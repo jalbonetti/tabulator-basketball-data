@@ -296,7 +296,7 @@ function buildColumnConfig() {
             title: 'Date',
             field: 'date',
             width: 128,
-            sorter: 'date',
+            sorter: (a, b) => String(a).localeCompare(String(b)),
         },
     ];
 }
@@ -357,4 +357,3 @@ export function initCardsProDashboard({
     window.cardsProDashboard = table;
     return table;
 }
-
