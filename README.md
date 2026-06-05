@@ -2,6 +2,10 @@
 
 Modular Tabulator-based data tables for displaying basketball player prop clearances and betting information.
 
+## C.A.R.D.S. Pro Dashboard Demo
+
+Open `cardsProDashboardDemo.html` in a browser to preview the sports card dashboard sprint proof. The demo uses the requested Tabulator CDN stack, synthetic NBA card data, sortable Value/Grade/Date columns, player-name search, 20-row pagination, round avatars, grade badges, currency formatting, status tags, and a dark navy interface with orange/gold accents.
+
 ## Recent Updates
 
 ### Column Layout Changes

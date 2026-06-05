@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>C.A.R.D.S. Pro Dashboard Tabulator Demo</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/tabulator-tables/dist/css/tabulator_midnight.min.css"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #08111f;
+        --panel: #101c30;
+        --panel-strong: #142640;
+        --navy: #0d2138;
+        --orange: #f97316;
+        --gold: #f5c542;
+        --line: rgba(255, 255, 255, 0.11);
+        --text: #eef4ff;
+        --muted: #9fb0c9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 10% 18%, rgba(249, 115, 22, 0.16), transparent 28rem),
+          linear-gradient(135deg, #060b14 0%, #0b1626 45%, #101a2c 100%);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      .dashboard-shell {
+        margin: 0 auto;
+        max-width: 1220px;
+        padding: 34px 24px 48px;
+      }
+
+      .dashboard-header {
+        align-items: end;
+        display: flex;
+        gap: 22px;
+        justify-content: space-between;
+        margin-bottom: 22px;
+      }
+
+      .eyebrow {
+        color: var(--gold);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        margin: 0 0 8px;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 3.8rem);
+        letter-spacing: 0;
+        line-height: 1;
+        margin: 0;
+      }
+
+      .search-control {
+        display: grid;
+        gap: 8px;
+        min-width: min(360px, 100%);
+        text-align: left;
+      }
+
+      .search-control span {
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .search-control input {
+        background: rgba(8, 17, 31, 0.82);
+        border: 1px solid rgba(245, 197, 66, 0.38);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 1rem;
+        min-height: 46px;
+        outline: none;
+        padding: 12px 14px;
+        width: 100%;
+      }
+
+      .search-control input:focus {
+        border-color: var(--orange);
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
+      }
+
+      .metrics-row {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-bottom: 18px;
+      }
+
+      .metrics-row div {
+        background: rgba(17, 29, 49, 0.86);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .metrics-row span {
+        color: var(--muted);
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .metrics-row strong {
+        color: var(--gold);
+        display: block;
+        font-size: 1.5rem;
+      }
+
+      .table-frame {
+        background: rgba(9, 18, 32, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        min-height: 640px;
+        overflow: hidden;
+      }
+
+      .tabulator {
+        background: var(--panel);
+        border: none;
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+
+      .tabulator .tabulator-header {
+        background: var(--navy);
+        border-bottom: 1px solid rgba(245, 197, 66, 0.35);
+        color: #fff7d6;
+        font-weight: 800;
+      }
+
+      .tabulator .tabulator-header .tabulator-col {
+        background: var(--navy);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .tabulator-row {
+        background: rgba(17, 29, 49, 0.98);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .tabulator-row.tabulator-row-even {
+        background: rgba(14, 25, 43, 0.98);
+      }
+
+      .tabulator-row .tabulator-cell {
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 10px 12px;
+        vertical-align: middle;
+      }
+
+      .card-avatar {
+        border: 2px solid rgba(245, 197, 66, 0.62);
+        border-radius: 999px;
+        display: block;
+        height: 46px;
+        object-fit: cover;
+        width: 46px;
+      }
+
+      .card-title {
+        color: var(--text);
+        display: block;
+        line-height: 1.25;
+      }
+
+      .card-player {
+        color: var(--muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 3px;
+      }
+
+      .grade-badge,
+      .status-tag {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 800;
+        justify-content: center;
+        min-width: 72px;
+        padding: 6px 9px;
+      }
+
+      .grade-gem {
+        background: rgba(52, 211, 153, 0.18);
+        color: #86efac;
+      }
+
+      .grade-graded {
+        background: rgba(96, 165, 250, 0.16);
+        color: #93c5fd;
+      }
+
+      .grade-raw {
+        background: rgba(148, 163, 184, 0.18);
+        color: #cbd5e1;
+      }
+
+      .status-vaulted {
+        background: rgba(245, 197, 66, 0.16);
+        color: #fde68a;
+      }
+
+      .status-listed {
+        background: rgba(52, 211, 153, 0.16);
+        color: #86efac;
+      }
+
+      .status-incoming {
+        background: rgba(96, 165, 250, 0.16);
+        color: #bfdbfe;
+      }
+
+      .status-for-review {
+        background: rgba(249, 115, 22, 0.16);
+        color: #fed7aa;
+      }
+
+      .tabulator .tabulator-footer {
+        background: var(--navy);
+        border-top: 1px solid rgba(245, 197, 66, 0.28);
+      }
+
+      .tabulator .tabulator-page {
+        background: rgba(249, 115, 22, 0.14);
+        border: 1px solid rgba(245, 197, 66, 0.3);
+        border-radius: 6px;
+        color: var(--text);
+        margin: 0 3px;
+        padding: 6px 10px;
+      }
+
+      .tabulator .tabulator-page.active {
+        background: var(--orange);
+        color: #120b03;
+        font-weight: 800;
+      }
+
+      @media (max-width: 760px) {
+        .dashboard-shell {
+          padding: 24px 14px 34px;
+        }
+
+        .dashboard-header {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .metrics-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <section class="dashboard-header" aria-labelledby="dashboard-title">
+        <div>
+          <p class="eyebrow">C.A.R.D.S. Pro Dashboard</p>
+          <h1 id="dashboard-title">Sports Card Inventory</h1>
+        </div>
+        <label class="search-control">
+          <span>Search player</span>
+          <input
+            id="playerSearch"
+            type="search"
+            placeholder="Try Jordan, Curry, Wembanyama"
+            aria-label="Search player"
+          />
+        </label>
+      </section>
+
+      <section class="metrics-row" aria-label="Collection summary">
+        <div>
+          <span>Total cards</span>
+          <strong id="totalCards">0</strong>
+        </div>
+        <div>
+          <span>Collection value</span>
+          <strong id="collectionValue">$0</strong>
+        </div>
+        <div>
+          <span>Vaulted</span>
+          <strong id="vaultedCards">0</strong>
+        </div>
+      </section>
+
+      <div id="cardsTable" class="table-frame"></div>
+    </main>
+
+    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+    <script src="./cardsProDashboard.js"></script>
+  </body>
+</html>
