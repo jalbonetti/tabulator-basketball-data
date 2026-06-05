@@ -227,3 +227,12 @@ Requires ES6 module support.
 | Mobile | ≤768px | Frozen Name column, smaller fonts |
 | Tablet | 769px-1024px | Frozen Name column, medium fonts |
 | Desktop | >1024px | Full-width Name column, auto-scaling fonts |
+# C.A.R.D.S. Pro Dashboard Proof
+
+Standalone proof for the paid Tabulator dashboard sprint:
+
+- `cards-dashboard-demo.html`
+- `cards-dashboard.css`
+- `cards-dashboard.js`
+
+The demo uses synthetic NBA sports-card data only and implements the requested Vanilla JS + Tabulator CDN table: sorting, global player search, 20-row pagination, round avatars, bold titles, grade badges, currency values, status tags, and dark navy/orange styling.
