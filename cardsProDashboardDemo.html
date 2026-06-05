@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>C.A.R.D.S. Pro Dashboard Tabulator Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/tabulator-tables/dist/css/tabulator_midnight.min.css">
+    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="cards-pro-dashboard"></div>
+
+    <script type="module">
+        import { initCardsProDashboard } from './cardsProDashboard.js';
+
+        initCardsProDashboard();
+    </script>
+</body>
+</html>
