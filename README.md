@@ -2,6 +2,28 @@
 
 Modular Tabulator-based data tables for displaying basketball player prop clearances and betting information.
 
+## C.A.R.D.S. Pro Dashboard Demo
+
+This repository now includes a standalone proof for the C.A.R.D.S. dashboard table gig:
+
+- `cardsProDashboardDemo.html`
+- `cardsProDashboard.css`
+- `cardsProDashboard.js`
+
+Open `cardsProDashboardDemo.html` in a browser to review the scoped implementation. It uses only synthetic NBA card data and the requested Vanilla JS + Tabulator CDN stack.
+
+Implemented scope:
+
+- Sortable Value, Grade, and Date columns
+- Global player-name search
+- 20-row pagination
+- Round avatar image cells
+- Bold card titles
+- Green PSA 10 badges and grey Raw badges
+- Currency formatting
+- Status tags
+- Dark navy dashboard styling with orange/gold accents
+
 ## Recent Updates
 
 ### Column Layout Changes
